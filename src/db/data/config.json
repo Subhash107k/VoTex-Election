@@ -1,0 +1,9 @@
+{
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "subhashthakur107k@gmail.com",
+  "smtpPass": "vkggdizgkwkkazwa",
+  "twilioSid": "ACe1ca227fe9633699df81c3da3feebcd1",
+  "twilioToken": "77e837ca7148ccae93c05cd040080b8f",
+  "twilioFrom": "+9779807847253"
+}

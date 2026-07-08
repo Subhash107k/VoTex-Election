@@ -1,0 +1,11 @@
+[
+  {
+    "id": "doc_voter1",
+    "userId": "voter-1",
+    "citizenshipFrontImage": "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
+    "citizenshipBackImage": "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
+    "citizenshipNumber": "9823-1283-12",
+    "signatureImage": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=200",
+    "createdAt": "2026-06-24T02:30:12.969Z"
+  }
+]

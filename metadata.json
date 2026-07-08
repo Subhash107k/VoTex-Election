@@ -1,0 +1,8 @@
+{
+  "name": "VoTex",
+  "description": "Secure online voting platform featuring biometric face verification, voter registration, role-based controls, custom elections, and real-time auditable election analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

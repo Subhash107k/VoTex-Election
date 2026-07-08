@@ -1,0 +1,52 @@
+[
+  {
+    "id": "party-1",
+    "name": "Nepali Congress",
+    "code": "NC",
+    "logoUrl": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=100",
+    "description": "One of the major democratic political parties of Nepal, founded in 1950, advocating social democracy and democratic socialism.",
+    "leader": "Sher Bahadur Deuba",
+    "foundedYear": "1950",
+    "headquarters": "Sanepa, Lalitpur"
+  },
+  {
+    "id": "party-2",
+    "name": "CPN (Unified Marxist–Leninist)",
+    "code": "CPN-UML",
+    "logoUrl": "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=100",
+    "description": "A prominent left-wing communist party in Nepal, advocating People's Multiparty Democracy (PMPD) and civic-socialist integration.",
+    "leader": "KP Sharma Oli",
+    "foundedYear": "1991",
+    "headquarters": "Chyasal, Lalitpur"
+  },
+  {
+    "id": "party-3",
+    "name": "CPN (Maoist Centre)",
+    "code": "CPN-MC",
+    "logoUrl": "https://images.unsplash.com/photo-1603504824368-2b821dfbb25e?auto=format&fit=crop&q=80&w=100",
+    "description": "Major communist political group formed after peace accords, advocating socialist paths and decentralized rural upliftment.",
+    "leader": "Pushpa Kamal Dahal (Prachanda)",
+    "foundedYear": "1994",
+    "headquarters": "Perisdanda, Kathmandu"
+  },
+  {
+    "id": "party-4",
+    "name": "Rastriya Swatantra Party",
+    "code": "RSP",
+    "logoUrl": "https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&q=80&w=100",
+    "description": "A modern reformist, secular entity focused on transparency, digital public systems, and youth integration, founded in 2022.",
+    "leader": "Rabi Lamichhane",
+    "foundedYear": "2022",
+    "headquarters": "Basundhara, Kathmandu"
+  },
+  {
+    "id": "party-5",
+    "name": "Rastriya Prajatantra Party",
+    "code": "RPP",
+    "logoUrl": "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=100",
+    "description": "A right-wing conservative and nationalist party focusing on heritage restoration and constitutional balances.",
+    "leader": "Rajendra Lingden",
+    "foundedYear": "1990",
+    "headquarters": "Chabahil, Kathmandu"
+  }
+]

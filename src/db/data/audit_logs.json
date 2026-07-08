@@ -1,0 +1,192 @@
+[
+  {
+    "id": "log_6fpcsstra",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "Admin Review on Voter [ID: VOTER-101-081] - Status: Approved, Suspended: false",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T12:09:52.174Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_y0wsgsga1",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T03:17:12.617Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_cq9tw7rv7",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T01:40:41.815Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_pjdegsk1q",
+    "userId": "usr_pfe5btf2w",
+    "userEmail": "aarav.sharma@vote.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T01:38:15.161Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_vjxneijfb",
+    "userId": "usr_pfe5btf2w",
+    "userEmail": "aarav.sharma@vote.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T01:37:39.446Z",
+    "device": "Web Device",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_kt7l9k1k5",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-03T01:37:21.538Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_8g3ip3sn1",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T16:52:18.638Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_x0wt14iy9",
+    "userId": "usr_pfe5btf2w",
+    "userEmail": "bikesh56780@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "192.168.1.9",
+    "timestamp": "2026-07-01T15:57:15.884Z",
+    "device": "Android",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_1gsgg25c9",
+    "userId": "usr_pfe5btf2w",
+    "userEmail": "bikesh56780@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T08:18:12.575Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_f3i9fmadq",
+    "userId": "usr_pfe5btf2w",
+    "userEmail": "bikesh56780@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T08:17:05.256Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_0dt4pp3c6",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T08:09:47.617Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_jr06gr2qx",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T08:01:48.789Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_10h77v4ge",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-01T07:58:10.154Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_gmspcw5jj",
+    "userId": "voter-1",
+    "userEmail": "voter@vote.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-28T15:46:16.515Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_46nlnv71i",
+    "userId": "admin-1",
+    "userEmail": "admin@vote.com",
+    "action": "Admin Review on Voter [ID: VOTER-101-081] - Status: Pending, Suspended: false",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-27T13:06:37.652Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_x0xmkovqd",
+    "userId": "admin-1",
+    "userEmail": "admin@vote.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-27T12:56:11.698Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_5rcu9ljlf",
+    "userId": "admin-1",
+    "userEmail": "admin@vote.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-26T02:04:30.322Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_yhzor8j2l",
+    "userId": "admin-1",
+    "userEmail": "admin@vote.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-24T02:42:50.073Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log-1",
+    "userId": "admin-1",
+    "userEmail": "admin@vote.com",
+    "action": "Super Administrator initialization logged",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-06-24T02:30:13.071Z",
+    "device": "Control Server",
+    "browser": "Node.js Environment"
+  }
+]

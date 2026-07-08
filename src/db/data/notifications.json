@@ -1,0 +1,32 @@
+[
+  {
+    "id": "n_v1ohvk9no",
+    "userId": "voter-1",
+    "title": "Action Required - Corrections Requested",
+    "message": "Changes Requested: undefined",
+    "type": "warning",
+    "timestamp": "2026-07-03T12:09:52.196Z"
+  },
+  {
+    "id": "n_pjapu4p68",
+    "userId": "voter-1",
+    "title": "Action Required - Corrections Requested",
+    "message": "Changes Requested: undefined",
+    "type": "warning",
+    "timestamp": "2026-06-27T13:06:37.661Z"
+  },
+  {
+    "id": "n-1",
+    "title": "National Digital Innovation Board Election is Active",
+    "message": "Eligible voters can now login and register their camera facial template to participate.",
+    "type": "success",
+    "timestamp": "2026-06-24T02:30:13.110Z"
+  },
+  {
+    "id": "n-2",
+    "title": "Welcome to VoTex platform",
+    "message": "Verify your email and setup biometric credentials to vote safely.",
+    "type": "info",
+    "timestamp": "2026-06-24T02:30:13.110Z"
+  }
+]

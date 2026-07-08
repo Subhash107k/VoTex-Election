@@ -1,0 +1,17 @@
+[
+  {
+    "id": "6a1be83486eef4a9d909c0b6",
+    "key": "default",
+    "__v": 0,
+    "createdAt": "2026-05-31T07:50:12.455Z",
+    "endedAt": null,
+    "publishedAt": null,
+    "publishedBy": null,
+    "publishedResults": [],
+    "resultsPublished": false,
+    "startedAt": null,
+    "status": "DRAFT",
+    "updatedAt": "2026-06-02T02:10:23.989Z",
+    "updatedBy": "system"
+  }
+]

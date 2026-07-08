@@ -1,0 +1,35 @@
+[
+  {
+    "id": "6a1be83457b9c255c1167a4b",
+    "name": "Aarav Bennett",
+    "party": "Civic Reform Front",
+    "symbol": "Torch",
+    "imageUrl": "",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-05-31T07:50:12.606Z",
+    "updatedAt": "2026-05-31T07:50:12.606Z"
+  },
+  {
+    "id": "6a1be83457b9c255c1167a4c",
+    "name": "Maya Solis",
+    "party": "People First Alliance",
+    "symbol": "Leaf",
+    "imageUrl": "",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-05-31T07:50:12.606Z",
+    "updatedAt": "2026-05-31T07:50:12.606Z"
+  },
+  {
+    "id": "6a1be83457b9c255c1167a4d",
+    "name": "Noah Mercer",
+    "party": "National Unity Movement",
+    "symbol": "Bridge",
+    "imageUrl": "",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-05-31T07:50:12.606Z",
+    "updatedAt": "2026-05-31T07:50:12.606Z"
+  }
+]
