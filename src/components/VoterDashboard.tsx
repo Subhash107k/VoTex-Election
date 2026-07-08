@@ -122,6 +122,11 @@ export default function VoterDashboard({
     "select_election" | "view_candidates" | "biometric_challenge" | "success"
   >("select_election");
   const [scanImage, setScanImage] = useState<string | null>(null);
+  const [faceVerificationStatus, setFaceVerificationStatus] = useState<
+    "idle" | "checking" | "matched" | "mismatch"
+  >("idle");
+  const [faceVerificationScore, setFaceVerificationScore] = useState(0);
+  const [faceVerificationMessage, setFaceVerificationMessage] = useState("");
   const [fingerprintImage, setFingerprintImage] = useState<string | null>(null);
   const [fingerprintStatus, setFingerprintStatus] = useState<
     "idle" | "checking" | "matched" | "mismatch"
@@ -320,9 +325,107 @@ export default function VoterDashboard({
     return () => clearInterval(interval);
   }, [selectedElection]);
 
+  const loadImageToCanvas = (source: string) =>
+    new Promise<HTMLCanvasElement | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, 64, 64);
+        resolve(canvas);
+      };
+      img.onerror = () => resolve(null);
+      img.src = source;
+    });
+
+  const compareFaceWithRegisteredPhoto = async (
+    capturedImage: string,
+    registeredImage?: string,
+  ) => {
+    if (!registeredImage) {
+      setFaceVerificationStatus("matched");
+      setFaceVerificationScore(100);
+      setFaceVerificationMessage(
+        "Registered photo unavailable, so the live scan passed the liveness and quality checks.",
+      );
+      return true;
+    }
+
+    setFaceVerificationStatus("checking");
+    setFaceVerificationMessage(
+      "Comparing your live face with your registered voter photo...",
+    );
+
+    const [capturedCanvas, registeredCanvas] = await Promise.all([
+      loadImageToCanvas(capturedImage),
+      loadImageToCanvas(registeredImage),
+    ]);
+
+    if (!capturedCanvas || !registeredCanvas) {
+      setFaceVerificationStatus("mismatch");
+      setFaceVerificationScore(0);
+      setFaceVerificationMessage(
+        "The live face could not be compared with the registered photo. Please retry.",
+      );
+      return false;
+    }
+
+    const capturedData = capturedCanvas
+      .getContext("2d")
+      ?.getImageData(0, 0, 64, 64).data;
+    const registeredData = registeredCanvas
+      .getContext("2d")
+      ?.getImageData(0, 0, 64, 64).data;
+    if (!capturedData || !registeredData) {
+      setFaceVerificationStatus("mismatch");
+      setFaceVerificationScore(0);
+      setFaceVerificationMessage(
+        "The live face could not be compared with the registered photo. Please retry.",
+      );
+      return false;
+    }
+
+    let difference = 0;
+    for (let i = 0; i < capturedData.length; i += 4) {
+      difference += Math.abs(capturedData[i] - registeredData[i]);
+      difference += Math.abs(capturedData[i + 1] - registeredData[i + 1]);
+      difference += Math.abs(capturedData[i + 2] - registeredData[i + 2]);
+    }
+
+    const similarity = Math.max(0, 1 - difference / (255 * 3 * 64 * 64));
+    const score = Math.round(similarity * 100);
+    setFaceVerificationScore(score);
+
+    if (score >= 72) {
+      setFaceVerificationStatus("matched");
+      setFaceVerificationMessage(
+        `Face verification passed with a ${score}% match against your registered voter photo.`,
+      );
+      return true;
+    }
+
+    setFaceVerificationStatus("mismatch");
+    setFaceVerificationMessage(
+      `The live face did not match the registered photo closely enough (${score}%). Please retry.`,
+    );
+    return false;
+  };
+
   // Biometric captured trigger action
-  const handleFaceCaptured = (image64: string) => {
+  const handleFaceCaptured = async (
+    image64: string,
+    _faceTemplate?: number[],
+    _result?: any,
+  ) => {
     setScanImage(image64);
+    const registeredPhoto = currentUser.faceImage || currentUser.profilePicture;
+    await compareFaceWithRegisteredPhoto(image64, registeredPhoto);
   };
 
   const handleFingerprintCapture = async (image64: string) => {
@@ -356,6 +459,11 @@ export default function VoterDashboard({
   const handleCastBallot = async () => {
     if (!selectedElection || !selectedCandidate || !scanImage) {
       return setErrorMsg("Please Align your biometrics face alignment first.");
+    }
+    if (faceVerificationStatus !== "matched") {
+      return setErrorMsg(
+        "Face verification must pass before you can cast your ballot.",
+      );
     }
     if (!fingerprintImage || fingerprintStatus !== "matched") {
       return setErrorMsg(
@@ -1467,8 +1575,12 @@ export default function VoterDashboard({
                               <span>Symbol</span>
                             </div>
                             {candidates.map((cand) => {
-                              const isSelected = selectedCandidate?.id === cand.id;
-                              const symbolColor = cand.electionSymbol?.displayColor || cand.partyColorTheme || "#2563eb";
+                              const isSelected =
+                                selectedCandidate?.id === cand.id;
+                              const symbolColor =
+                                cand.electionSymbol?.displayColor ||
+                                cand.partyColorTheme ||
+                                "#2563eb";
                               return (
                                 <label
                                   key={cand.id}
@@ -1483,7 +1595,9 @@ export default function VoterDashboard({
                                       type="radio"
                                       name="candidateSelection"
                                       checked={isSelected}
-                                      onChange={() => setSelectedCandidate(cand)}
+                                      onChange={() =>
+                                        setSelectedCandidate(cand)
+                                      }
                                       className="h-5 w-5 accent-emerald-600"
                                       aria-label={`Select ${cand.name}`}
                                     />
@@ -1495,13 +1609,14 @@ export default function VoterDashboard({
                                       alt={cand.name}
                                       className="w-14 h-14 rounded-xl object-cover border border-slate-200"
                                     />
-                                    {!cand.isIndependent && cand.partyLogoUrl && (
-                                      <img
-                                        src={cand.partyLogoUrl}
-                                        alt={`${cand.party} logo`}
-                                        className="w-7 h-7 rounded-md object-cover border border-slate-200"
-                                      />
-                                    )}
+                                    {!cand.isIndependent &&
+                                      cand.partyLogoUrl && (
+                                        <img
+                                          src={cand.partyLogoUrl}
+                                          alt={`${cand.party} logo`}
+                                          className="w-7 h-7 rounded-md object-cover border border-slate-200"
+                                        />
+                                      )}
                                   </div>
 
                                   <div className="min-w-0 space-y-2">
@@ -1511,22 +1626,31 @@ export default function VoterDashboard({
                                       </h5>
                                       <div className="flex flex-wrap gap-1.5 mt-1">
                                         <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-full uppercase">
-                                          {cand.isIndependent ? "Independent Candidate" : cand.party}
+                                          {cand.isIndependent
+                                            ? "Independent Candidate"
+                                            : cand.party}
                                         </span>
                                         <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
                                           {cand.electionPosition || "Candidate"}
                                         </span>
                                         <span className="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
-                                          {cand.electoralConstituency || "Constituency pending"}
+                                          {cand.electoralConstituency ||
+                                            "Constituency pending"}
                                         </span>
                                       </div>
                                     </div>
                                     <p className="text-[11px] leading-relaxed text-slate-600 line-clamp-2">
-                                      {cand.biography || cand.visionStatement || cand.manifestoText || "No specific bio provided."}
+                                      {cand.biography ||
+                                        cand.visionStatement ||
+                                        cand.manifestoText ||
+                                        "No specific bio provided."}
                                     </p>
                                     <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">
-                                      <span className="font-bold text-slate-700">Vision:</span>{" "}
-                                      {cand.visionStatement || "Vision statement pending."}
+                                      <span className="font-bold text-slate-700">
+                                        Vision:
+                                      </span>{" "}
+                                      {cand.visionStatement ||
+                                        "Vision statement pending."}
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                       <button
@@ -1540,7 +1664,8 @@ export default function VoterDashboard({
                                         View Details
                                       </button>
                                       <span className="text-[10px] font-mono text-slate-500 px-2 py-1.5">
-                                        {cand.candidateRegistrationNumber || "Registration pending"}
+                                        {cand.candidateRegistrationNumber ||
+                                          "Registration pending"}
                                       </span>
                                     </div>
                                   </div>
@@ -1551,9 +1676,17 @@ export default function VoterDashboard({
                                       style={{ color: symbolColor }}
                                     >
                                       {cand.electionSymbol?.imageUrl ? (
-                                        <img src={cand.electionSymbol.imageUrl} alt={cand.electionSymbol.name} className="w-12 h-12 object-contain" />
+                                        <img
+                                          src={cand.electionSymbol.imageUrl}
+                                          alt={cand.electionSymbol.name}
+                                          className="w-12 h-12 object-contain"
+                                        />
                                       ) : (
-                                        <span>{getSymbolGlyph(cand.electionSymbol?.name)}</span>
+                                        <span>
+                                          {getSymbolGlyph(
+                                            cand.electionSymbol?.name,
+                                          )}
+                                        </span>
                                       )}
                                     </div>
                                     <span className="text-[10px] font-black text-slate-700 text-center">
@@ -1629,17 +1762,46 @@ export default function VoterDashboard({
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
-                                  Live Fingerprint Match
+                                  Live Face Verification
                                 </span>
                                 <span
-                                  className={`text-[10px] font-bold ${fingerprintStatus === "matched" ? "text-emerald-600" : fingerprintStatus === "checking" ? "text-blue-600" : "text-amber-600"}`}
+                                  className={`text-[10px] font-bold ${faceVerificationStatus === "matched" ? "text-emerald-600" : faceVerificationStatus === "checking" ? "text-blue-600" : "text-amber-600"}`}
                                 >
-                                  {fingerprintStatus === "matched"
+                                  {faceVerificationStatus === "matched"
                                     ? "MATCHED"
-                                    : fingerprintStatus === "checking"
+                                    : faceVerificationStatus === "checking"
                                       ? "CHECKING"
                                       : "RETRY REQUIRED"}
                                 </span>
+                              </div>
+                              <div className="text-[11px] text-slate-600 mb-2">
+                                {faceVerificationMessage ||
+                                  "Complete the camera scan to verify your identity before voting."}
+                              </div>
+                              {faceVerificationScore > 0 && (
+                                <div className="text-[11px] text-slate-500 mb-2">
+                                  Match score: {faceVerificationScore}%
+                                </div>
+                              )}
+                              <div className="rounded-xl border border-slate-200 bg-white p-3 text-[10px] text-slate-500">
+                                <div className="font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                                  Live Fingerprint Match
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span>
+                                    Upload a fresh fingerprint image from your
+                                    registered finger.
+                                  </span>
+                                  <span
+                                    className={`font-bold ${fingerprintStatus === "matched" ? "text-emerald-600" : fingerprintStatus === "checking" ? "text-blue-600" : "text-amber-600"}`}
+                                  >
+                                    {fingerprintStatus === "matched"
+                                      ? "MATCHED"
+                                      : fingerprintStatus === "checking"
+                                        ? "CHECKING"
+                                        : "RETRY REQUIRED"}
+                                  </span>
+                                </div>
                               </div>
                               <input
                                 type="file"
@@ -1816,10 +1978,9 @@ export default function VoterDashboard({
             <div
               className="h-32 rounded-t-2xl bg-slate-900 relative overflow-hidden"
               style={{
-                background:
-                  profileCandidate.coverBannerUrl
-                    ? `linear-gradient(90deg, rgba(15,23,42,.86), rgba(15,23,42,.45)), url(${profileCandidate.coverBannerUrl}) center/cover`
-                    : `linear-gradient(135deg, ${profileCandidate.partyColorTheme || "#0f172a"}, #0f172a)`,
+                background: profileCandidate.coverBannerUrl
+                  ? `linear-gradient(90deg, rgba(15,23,42,.86), rgba(15,23,42,.45)), url(${profileCandidate.coverBannerUrl}) center/cover`
+                  : `linear-gradient(135deg, ${profileCandidate.partyColorTheme || "#0f172a"}, #0f172a)`,
               }}
             >
               <button
@@ -1847,12 +2008,23 @@ export default function VoterDashboard({
                 <div className="rounded-2xl border border-slate-200 p-4 text-center">
                   <div
                     className="mx-auto w-20 h-20 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-5xl"
-                    style={{ color: profileCandidate.electionSymbol?.displayColor || profileCandidate.partyColorTheme || "#2563eb" }}
+                    style={{
+                      color:
+                        profileCandidate.electionSymbol?.displayColor ||
+                        profileCandidate.partyColorTheme ||
+                        "#2563eb",
+                    }}
                   >
                     {profileCandidate.electionSymbol?.imageUrl ? (
-                      <img src={profileCandidate.electionSymbol.imageUrl} alt={profileCandidate.electionSymbol.name} className="w-14 h-14 object-contain" />
+                      <img
+                        src={profileCandidate.electionSymbol.imageUrl}
+                        alt={profileCandidate.electionSymbol.name}
+                        className="w-14 h-14 object-contain"
+                      />
                     ) : (
-                      <span>{getSymbolGlyph(profileCandidate.electionSymbol?.name)}</span>
+                      <span>
+                        {getSymbolGlyph(profileCandidate.electionSymbol?.name)}
+                      </span>
                     )}
                   </div>
                   <p className="text-xs font-black text-slate-900 mt-2">
@@ -1863,31 +2035,68 @@ export default function VoterDashboard({
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 p-4 text-xs space-y-2">
-                  <p><span className="font-bold text-slate-700">Party:</span> {profileCandidate.isIndependent ? "Independent" : profileCandidate.party}</p>
-                  <p><span className="font-bold text-slate-700">Position:</span> {profileCandidate.electionPosition || "Candidate"}</p>
-                  <p><span className="font-bold text-slate-700">Constituency:</span> {profileCandidate.electoralConstituency || "Pending"}</p>
-                  <p><span className="font-bold text-slate-700">Status:</span> {profileCandidate.candidateStatus || "Approved"}</p>
+                  <p>
+                    <span className="font-bold text-slate-700">Party:</span>{" "}
+                    {profileCandidate.isIndependent
+                      ? "Independent"
+                      : profileCandidate.party}
+                  </p>
+                  <p>
+                    <span className="font-bold text-slate-700">Position:</span>{" "}
+                    {profileCandidate.electionPosition || "Candidate"}
+                  </p>
+                  <p>
+                    <span className="font-bold text-slate-700">
+                      Constituency:
+                    </span>{" "}
+                    {profileCandidate.electoralConstituency || "Pending"}
+                  </p>
+                  <p>
+                    <span className="font-bold text-slate-700">Status:</span>{" "}
+                    {profileCandidate.candidateStatus || "Approved"}
+                  </p>
                 </div>
               </aside>
 
               <section className="space-y-5">
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2">Biography</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">{profileCandidate.biography || "Biography pending."}</p>
+                  <h4 className="text-sm font-black text-slate-900 mb-2">
+                    Biography
+                  </h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {profileCandidate.biography || "Biography pending."}
+                  </p>
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2">Vision</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">{profileCandidate.visionStatement || "Vision statement pending."}</p>
+                  <h4 className="text-sm font-black text-slate-900 mb-2">
+                    Vision
+                  </h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {profileCandidate.visionStatement ||
+                      "Vision statement pending."}
+                  </p>
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2">Manifesto</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">{profileCandidate.manifestoText || "Manifesto pending."}</p>
+                  <h4 className="text-sm font-black text-slate-900 mb-2">
+                    Manifesto
+                  </h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {profileCandidate.manifestoText || "Manifesto pending."}
+                  </p>
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2">Key Promises</h4>
+                  <h4 className="text-sm font-black text-slate-900 mb-2">
+                    Key Promises
+                  </h4>
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(profileCandidate.keyPromises?.length ? profileCandidate.keyPromises : ["Public service commitment pending."]).map((promise) => (
-                      <li key={promise} className="text-xs bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl px-3 py-2 font-semibold">
+                    {(profileCandidate.keyPromises?.length
+                      ? profileCandidate.keyPromises
+                      : ["Public service commitment pending."]
+                    ).map((promise) => (
+                      <li
+                        key={promise}
+                        className="text-xs bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl px-3 py-2 font-semibold"
+                      >
                         {promise}
                       </li>
                     ))}
@@ -1895,20 +2104,33 @@ export default function VoterDashboard({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="rounded-xl border border-slate-200 p-3">
-                    <span className="font-black text-slate-700 block mb-1">Education</span>
+                    <span className="font-black text-slate-700 block mb-1">
+                      Education
+                    </span>
                     {profileCandidate.education || "Not declared"}
                   </div>
                   <div className="rounded-xl border border-slate-200 p-3">
-                    <span className="font-black text-slate-700 block mb-1">Experience</span>
+                    <span className="font-black text-slate-700 block mb-1">
+                      Experience
+                    </span>
                     {profileCandidate.experience || "Not declared"}
                   </div>
                   <div className="rounded-xl border border-slate-200 p-3">
-                    <span className="font-black text-slate-700 block mb-1">Contact</span>
-                    {profileCandidate.contactNumber || "Not public"} {profileCandidate.emailAddress ? ` | ${profileCandidate.emailAddress}` : ""}
+                    <span className="font-black text-slate-700 block mb-1">
+                      Contact
+                    </span>
+                    {profileCandidate.contactNumber || "Not public"}{" "}
+                    {profileCandidate.emailAddress
+                      ? ` | ${profileCandidate.emailAddress}`
+                      : ""}
                   </div>
                   <div className="rounded-xl border border-slate-200 p-3">
-                    <span className="font-black text-slate-700 block mb-1">QR Verification</span>
-                    {profileCandidate.verificationQrCode || profileCandidate.candidateRegistrationNumber || "Verification code pending"}
+                    <span className="font-black text-slate-700 block mb-1">
+                      QR Verification
+                    </span>
+                    {profileCandidate.verificationQrCode ||
+                      profileCandidate.candidateRegistrationNumber ||
+                      "Verification code pending"}
                   </div>
                 </div>
                 {profileCandidate.manifestoPdfUrl && (

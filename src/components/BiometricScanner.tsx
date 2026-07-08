@@ -29,6 +29,13 @@ interface FaceCaptureResult {
   livenessScore: number;
   confidenceScore: number;
   validation: Record<string, boolean | string>;
+  qualityMeter?: number;
+  antiSpoofScore?: number;
+  backgroundClarity?: string;
+  poseStatus?: string;
+  occlusionStatus?: string;
+  backgroundPlane?: string;
+  encryptedFaceData?: string;
   timestamp: string;
 }
 
@@ -85,8 +92,26 @@ export default function BiometricScanner({
   const [guidanceMessage, setGuidanceMessage] = useState<string>(
     "Mount camera and align your face in the window.",
   );
+  const [instructionList, setInstructionList] = useState<string[]>([
+    "✓ Face detected",
+  ]);
+  const [livenessPrompt, setLivenessPrompt] = useState<string>(
+    "Blink once to prove liveness.",
+  );
   const [motionStability, setMotionStability] = useState<number>(0);
   const [blinkCount, setBlinkCount] = useState<number>(0);
+  const [headMovementFrames, setHeadMovementFrames] = useState<number>(0);
+  const [qualityMeter, setQualityMeter] = useState<number>(0);
+  const [backgroundClarity, setBackgroundClarity] = useState<"Clear" | "Busy">(
+    "Clear",
+  );
+  const [poseStatus, setPoseStatus] = useState<"Aligned" | "Needs adjustment">(
+    "Aligned",
+  );
+  const [occlusionStatus, setOcclusionStatus] = useState<
+    "Clear" | "Obstructed"
+  >("Clear");
+  const [antiSpoofScore, setAntiSpoofScore] = useState<number>(0);
   const [lastFaceCenter, setLastFaceCenter] = useState<{
     x: number;
     y: number;
@@ -204,6 +229,42 @@ export default function BiometricScanner({
     return calcDistance(top, bottom);
   };
 
+  const estimateFrameQuality = (
+    video: HTMLVideoElement,
+    box: { xMin: number; yMin: number; width: number; height: number },
+  ) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return 0;
+
+    const sx = Math.max(0, box.xMin);
+    const sy = Math.max(0, box.yMin);
+    const sw = Math.min(video.videoWidth - sx, box.width);
+    const sh = Math.min(video.videoHeight - sy, box.height);
+
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, 48, 48);
+    const imageData = ctx.getImageData(0, 0, 48, 48).data;
+
+    let brightness = 0;
+    let variance = 0;
+    for (let i = 0; i < imageData.length; i += 4) {
+      const gray = (imageData[i] + imageData[i + 1] + imageData[i + 2]) / 3;
+      brightness += gray;
+      variance += gray * gray;
+    }
+
+    const avgBrightness = brightness / (imageData.length / 4);
+    const avgVariance =
+      variance / (imageData.length / 4) - avgBrightness * avgBrightness;
+    const normalized = Math.min(
+      100,
+      Math.max(0, (avgBrightness / 255) * 45 + (avgVariance / 6500) * 55),
+    );
+    return Math.round(normalized);
+  };
+
   const buildValidation = (
     predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
   ) => {
@@ -314,31 +375,67 @@ export default function BiometricScanner({
     predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
   ) => {
     const validation = buildValidation(predictions);
-    if (validation.tooClose)
+    const instructions: string[] = [];
+
+    if (predictions.length === 1) {
+      instructions.push("✓ Face detected");
+    } else if (predictions.length > 1) {
+      instructions.push("⚠ Multiple faces are visible");
+    } else {
+      instructions.push("⚠ No face detected");
+    }
+
+    if (validation.tooClose) {
       setGuidanceMessage("Move farther away from the camera.");
-    else if (validation.tooFar)
+      instructions.push("↘ Move farther away");
+    } else if (validation.tooFar) {
       setGuidanceMessage("Move closer to the camera.");
-    else if (!validation.centered)
+      instructions.push("↗ Move closer");
+    } else if (!validation.centered) {
       setGuidanceMessage("Center your face within the capture frame.");
-    else if (!validation.eyesOpen)
-      setGuidanceMessage("Open your eyes and look at the camera.");
-    else if (!validation.bothEars)
+      instructions.push("↔ Center your face");
+    }
+
+    if (!validation.eyesOpen) {
+      setGuidanceMessage("Remove glasses or keep your eyes open.");
+      instructions.push("👓 Remove glasses");
+    }
+
+    if (!validation.bothEars) {
       setGuidanceMessage(
-        "Ensure both ears are visible and hair is pulled back.",
+        "Remove cap or pull hair back so the face stays clear.",
       );
-    else if (!validation.noseDetected || !validation.mouthDetected)
-      setGuidanceMessage(
-        "Remove any face coverings and keep your face fully visible.",
-      );
-    else if (validation.rotation !== "straight")
+      instructions.push("🧢 Remove cap");
+    }
+
+    if (!validation.noseDetected || !validation.mouthDetected) {
+      setGuidanceMessage("Keep the full face visible and free from coverings.");
+      instructions.push("🧼 Keep the full face visible");
+    }
+
+    if (validation.rotation !== "straight") {
       setGuidanceMessage(
         "Keep your head straight and look directly at the camera.",
       );
-    else
+      instructions.push("🧭 Keep your head straight");
+    }
+
+    if (backgroundPlane !== "Stable") {
+      instructions.push("🖼️ Background is not clear");
+    }
+
+    if (lighting !== "Optimal") {
+      instructions.push("💡 Improve lighting");
+    }
+
+    if (predictions.length === 1 && instructions.length === 1) {
       setGuidanceMessage(
         "Hold still while we capture your passport-style face image.",
       );
+      instructions.push("✓ Ready for capture");
+    }
 
+    setInstructionList(instructions);
     setValidationResults(validation);
     setQualityScore(scoreQuality(predictions));
   };
@@ -396,6 +493,45 @@ export default function BiometricScanner({
     return cropCanvas.toDataURL("image/jpeg", 0.92);
   };
 
+  const encryptFaceTemplate = async (template: number[]) => {
+    try {
+      const encoder = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode("votex-face-guard-2026"),
+        "PBKDF2",
+        false,
+        ["deriveKey"],
+      );
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: encoder.encode("votex-salt"),
+          iterations: 200000,
+          hash: "SHA-256",
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt"],
+      );
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const cipher = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        encoder.encode(JSON.stringify(template)),
+      );
+      const encodedIv = btoa(String.fromCharCode(...Array.from(iv)));
+      const encodedCipher = btoa(
+        String.fromCharCode(...new Uint8Array(cipher)),
+      );
+      return `v1:${encodedIv}:${encodedCipher}`;
+    } catch (error) {
+      console.warn("Unable to encrypt face template", error);
+      return undefined;
+    }
+  };
+
   const captureFaceData = async (
     predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
   ) => {
@@ -447,6 +583,21 @@ export default function BiometricScanner({
       landmarksMap,
     );
 
+    const faceTemplate = [
+      qualityScore / 100,
+      livenessScore / 100,
+      confidenceScore,
+      validationResults.centered ? 1 : 0,
+      validationResults.eyesOpen ? 1 : 0,
+      validationResults.bothEars ? 1 : 0,
+      validationResults.noseDetected ? 1 : 0,
+      validationResults.mouthDetected ? 1 : 0,
+      validationResults.headRotationAcceptable ? 1 : 0,
+      box.width / Math.max(video.videoWidth, 1),
+      box.height / Math.max(video.videoHeight, 1),
+    ];
+    const encryptedFaceData = await encryptFaceTemplate(faceTemplate);
+
     const result: FaceCaptureResult = {
       originalImage,
       croppedImage,
@@ -461,11 +612,18 @@ export default function BiometricScanner({
       livenessScore,
       confidenceScore,
       validation: validationResults,
+      qualityMeter,
+      antiSpoofScore,
+      backgroundClarity,
+      poseStatus,
+      occlusionStatus,
+      backgroundPlane,
+      encryptedFaceData,
       timestamp: new Date().toISOString(),
     };
 
     setCaptureResult(result);
-    onCapture(originalImage, undefined, result);
+    onCapture(originalImage, faceTemplate, result);
     if (onCaptureResult) onCaptureResult(result);
     return result;
   };
@@ -484,6 +642,7 @@ export default function BiometricScanner({
     let previousCenter: FaceLandmarkPosition | null = null;
     let stableFrames = 0;
     let blinkFrames = 0;
+    let headMovementFramesCounter = 0;
     let lastBlinkTime = Date.now();
 
     const runDetection = async () => {
@@ -503,6 +662,7 @@ export default function BiometricScanner({
         if (predictions.length === 1) {
           const face = predictions[0];
           const box = face.box;
+          const validation = buildValidation(predictions);
           setBoundingBox({
             x: box.xMin,
             y: box.yMin,
@@ -569,11 +729,16 @@ export default function BiometricScanner({
             x: (box.xMin + box.xMax) / 2,
             y: (box.yMin + box.yMax) / 2,
           };
-          if (previousCenter) {
-            const motionDelta = calcDistance(previousCenter, faceCenter);
+          const previousFaceCenter = previousCenter;
+          if (previousFaceCenter) {
+            const motionDelta = calcDistance(previousFaceCenter, faceCenter);
             const stability = Math.max(0, 1 - motionDelta / 20);
             setMotionStability(stability);
             stableFrames = stability > 0.9 ? stableFrames + 1 : 0;
+            if (motionDelta > 8) {
+              headMovementFramesCounter += 1;
+              setHeadMovementFrames((value) => value + 1);
+            }
           }
           previousCenter = faceCenter;
 
@@ -590,7 +755,45 @@ export default function BiometricScanner({
             }
           }
 
+          if (blinkFrames === 0) {
+            setLivenessPrompt("Blink once to prove liveness.");
+          } else if (headMovementFramesCounter > 0) {
+            setLivenessPrompt("Natural head movement detected. Hold still.");
+          } else {
+            setLivenessPrompt("Move your head slightly left or right.");
+          }
+
           const predictionsQuality = scoreQuality(predictions);
+          const frameQuality = estimateFrameQuality(video, box);
+          const spoofScore = Math.min(
+            100,
+            Math.round(
+              (frameQuality / 100) * 35 +
+                (blinkFrames > 0 ? 25 : 0) +
+                (headMovementFrames > 0 ? 25 : 0) +
+                (stableFrames >= 3 ? 15 : 0),
+            ),
+          );
+          setQualityMeter(frameQuality);
+          setBackgroundClarity(
+            frameQuality >= 72 && validation.centered ? "Clear" : "Busy",
+          );
+          setPoseStatus(
+            validation.headRotationAcceptable && validation.centered
+              ? "Aligned"
+              : "Needs adjustment",
+          );
+          setOcclusionStatus(
+            validation.bothEars &&
+              validation.noseDetected &&
+              validation.mouthDetected
+              ? "Clear"
+              : "Obstructed",
+          );
+          setBackgroundPlane(
+            frameQuality >= 72 && validation.centered ? "Stable" : "Cluttered",
+          );
+          setAntiSpoofScore(spoofScore);
           setQualityScore(predictionsQuality);
           const liveness = Math.min(
             100,
@@ -603,16 +806,18 @@ export default function BiometricScanner({
           computeValidationState(predictions);
 
           if (
-            validationResults.singleFace === true &&
-            validationResults.centered === true &&
-            validationResults.eyesOpen === true &&
-            validationResults.bothEars === true &&
-            validationResults.noseDetected === true &&
-            validationResults.mouthDetected === true &&
-            validationResults.headRotationAcceptable === true &&
-            validationResults.distanceGood === true &&
+            validation.singleFace === true &&
+            validation.centered === true &&
+            validation.eyesOpen === true &&
+            validation.bothEars === true &&
+            validation.noseDetected === true &&
+            validation.mouthDetected === true &&
+            validation.headRotationAcceptable === true &&
+            validation.distanceGood === true &&
             stableFrames >= 3 &&
             blinkFrames > 0 &&
+            headMovementFramesCounter > 0 &&
+            spoofScore >= 70 &&
             predictionsQuality >= 90
           ) {
             setScanStep("locked");
@@ -1282,6 +1487,28 @@ export default function BiometricScanner({
             {subtitle}
           </p>
 
+          <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <div className="text-[9px] font-mono font-extrabold uppercase tracking-widest text-blue-400 mb-2">
+              Live verification guidance
+            </div>
+            <div className="text-sm font-semibold text-white mb-2">
+              {guidanceMessage}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {instructionList.map((item, index) => (
+                <span
+                  key={`${item}-${index}`}
+                  className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] text-slate-300"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 text-[10px] text-emerald-300">
+              Liveness prompt: {livenessPrompt}
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
               <span className="px-2 py-1 rounded-full bg-slate-800 border border-slate-700">
@@ -1373,12 +1600,29 @@ export default function BiometricScanner({
                       {backgroundPlane}
                     </div>
                   </div>
+                  <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                    <div className="text-slate-400 uppercase tracking-widest text-[8px] mb-2">
+                      Quality Meter
+                    </div>
+                    <div className="text-emerald-400 font-bold text-sm">
+                      {qualityMeter}%
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+                    <div className="text-slate-400 uppercase tracking-widest text-[8px] mb-2">
+                      Anti-Spoof
+                    </div>
+                    <div className="text-emerald-400 font-bold text-sm">
+                      {antiSpoofScore}%
+                    </div>
+                  </div>
                   <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800 col-span-2">
                     <div className="text-slate-400 uppercase tracking-widest text-[8px] mb-2">
-                      Home Scene Prediction
+                      Pose / Occlusion / Background
                     </div>
                     <div className="text-white font-bold text-sm">
-                      {homeDetail}
+                      Pose: {poseStatus} • Occlusion: {occlusionStatus} •
+                      Background: {backgroundClarity}
                     </div>
                   </div>
                   <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">

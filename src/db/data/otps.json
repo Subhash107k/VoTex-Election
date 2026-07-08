@@ -418,5 +418,45 @@
     "isUsed": true,
     "purpose": "Registration",
     "createdAt": "2026-07-01T08:16:27.750Z"
+  },
+  {
+    "id": "otp_email_veahltvvp",
+    "email": "mrityunjayshah981427@gmail.com",
+    "mobile": "",
+    "code": "110874",
+    "expiresAt": "2026-07-08T05:06:12.718Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-08T04:56:12.718Z"
+  },
+  {
+    "id": "otp_email_gpb1ceved",
+    "email": "mrityunjayshah981427@gmail.com",
+    "mobile": "",
+    "code": "624352",
+    "expiresAt": "2026-07-08T05:07:17.801Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-08T04:57:17.801Z"
+  },
+  {
+    "id": "otp_email_m86mdxrwb",
+    "email": "mrityunjayshah981427@gmail.com",
+    "mobile": "",
+    "code": "245227",
+    "expiresAt": "2026-07-08T05:08:21.096Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-08T04:58:21.097Z"
+  },
+  {
+    "id": "otp_sms_8batryv57",
+    "email": "",
+    "mobile": "+9779814248189",
+    "code": "141414",
+    "expiresAt": "2026-07-08T05:08:56.944Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-08T04:58:56.944Z"
   }
 ]
