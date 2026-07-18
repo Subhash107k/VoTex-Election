@@ -11,6 +11,7 @@ import {
   Users,
   Vote,
   CheckCircle,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   BarChart2,

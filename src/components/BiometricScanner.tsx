@@ -18,6 +18,9 @@ import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs-core";
 import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
 
+// Local lightweight prediction type alias (TF types vary between package versions)
+type FaceLandmarksPrediction = any;
+
 type FaceLandmarkPosition = { x: number; y: number };
 
 interface FaceCaptureResult {
@@ -210,7 +213,7 @@ export default function BiometricScanner({
   };
 
   const getKeypoint = (
-    predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
+    predictions: FaceLandmarksPrediction[],
     index: number,
   ): FaceLandmarkPosition | null => {
     if (!predictions || !predictions[0] || !predictions[0].keypoints)
@@ -265,9 +268,7 @@ export default function BiometricScanner({
     return Math.round(normalized);
   };
 
-  const buildValidation = (
-    predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
-  ) => {
+  const buildValidation = (predictions: FaceLandmarksPrediction[]) => {
     const result: Record<string, boolean | string> = {};
     const faceDetected = predictions.length === 1;
     const tooManyFaces = predictions.length > 1;
@@ -304,8 +305,12 @@ export default function BiometricScanner({
     const mouthVisible = !!mouthTop && !!mouthBottom;
 
     result.eyesOpen = leftOpen && rightOpen;
-    result.bothEyes =
-      leftEyeTop && leftEyeBottom && rightEyeTop && rightEyeBottom;
+    result.bothEyes = !!(
+      leftEyeTop &&
+      leftEyeBottom &&
+      rightEyeTop &&
+      rightEyeBottom
+    );
     result.bothEars = leftEarVisible && rightEarVisible;
     result.noseDetected = noseVisible;
     result.mouthDetected = mouthVisible;
@@ -355,9 +360,7 @@ export default function BiometricScanner({
     return result;
   };
 
-  const scoreQuality = (
-    predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
-  ) => {
+  const scoreQuality = (predictions: FaceLandmarksPrediction[]) => {
     let score = 0;
     const validation = buildValidation(predictions);
     if (validation.singleFace) score += 20;
@@ -371,9 +374,7 @@ export default function BiometricScanner({
     return Math.min(100, score);
   };
 
-  const computeValidationState = (
-    predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
-  ) => {
+  const computeValidationState = (predictions: FaceLandmarksPrediction[]) => {
     const validation = buildValidation(predictions);
     const instructions: string[] = [];
 
@@ -532,9 +533,7 @@ export default function BiometricScanner({
     }
   };
 
-  const captureFaceData = async (
-    predictions: faceLandmarksDetection.FaceLandmarksPrediction[],
-  ) => {
+  const captureFaceData = async (predictions: FaceLandmarksPrediction[]) => {
     if (!videoRef.current || !canvasRef.current || predictions.length === 0) {
       return null;
     }
