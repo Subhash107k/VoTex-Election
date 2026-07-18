@@ -1,0 +1,56 @@
+VoTex-Election Technology and Dependency Inventory
+Generated: 2026-07-18
+
+Project type
+- Frontend: React 19, TypeScript, Vite, Tailwind CSS 4, lucide-react, motion, Recharts.
+- Backend: Node.js, Express 4, TypeScript runtime via tsx, JSON body APIs, JWT, bcryptjs, Nodemailer, Twilio, MongoDB driver.
+- Database: MongoDB driver with optional MongoDB Atlas URI, plus local JSON-file fallback in src/db/data.
+- Biometric stack: Browser camera APIs, Canvas, TensorFlow.js backend-webgl, @tensorflow-models/face-landmarks-detection, bundled face-api.js model files. No verified cloud AI calls are used in the biometric implementation.
+- External services: SMTP, Twilio SMS, MongoDB Atlas-compatible URI. Cloudinary, Vercel, Render, GitHub Actions, Mongoose, Multer, Helmet, CORS middleware, express-rate-limit, express-validator, cookie-parser, React Router, Axios, React Query, React Hook Form, Zod, Material UI, Chart.js, React Icons, and date-fns are not direct project dependencies.
+
+Dependency inventory
+Package | Installed | Latest | Purpose | Required | Used | Deprecated | Security Risk | Recommendation
+--- | --- | --- | --- | --- | --- | --- | --- | ---
+@google/genai | 2.8.0 | 2.12.0 | Google GenAI SDK | No | No direct import found | No | Medium, unnecessary AI SDK in election app | Remove unless a documented AI feature is required. Also remove GEMINI_API_KEY references from .env.example if unused.
+@tailwindcss/vite | 4.3.1 | 4.3.3 | Tailwind Vite plugin | Yes | Yes | No | Low | Patch update.
+@tensorflow-models/face-landmarks-detection | 1.0.6 | 1.0.6 | Local face landmark detector | Yes | Yes | No | Medium, biometric model accuracy and spoofing risk | Keep, but add model integrity checks and documented thresholds.
+@tensorflow/tfjs-backend-webgl | 4.22.0 | 4.22.0 | TFJS WebGL acceleration | Yes | Yes | No | Low | Keep.
+@vitejs/plugin-react | 5.2.0 | 6.0.3 | React transform for Vite | Yes | Yes | No | Low | Upgrade with Vite after compatibility testing.
+bcryptjs | 3.0.3 | 3.0.3 | Password hashing | Yes | Yes | No | Medium, pure JS slower than native bcrypt/argon2 | Prefer argon2id or bcrypt native in production, configurable cost.
+dotenv | 17.4.2 | 17.4.2 | Environment loading | Yes | Yes | No | Low | Keep, validate env at boot.
+express | 4.22.2 | 5.2.1 | HTTP API server | Yes | Yes | No | Medium | Stay on 4.x if stable, or plan Express 5 migration tests.
+jsonwebtoken | 9.0.3 | 9.0.3 | JWT access tokens | Yes | Yes | No | Medium | Keep, but add refresh token rotation, issuer/audience, short TTL.
+lucide-react | 0.546.0 | 1.25.0 | Icons | Yes | Yes | No | Low | Upgrade after visual QA.
+mongodb | 7.3.0 | 7.5.0 | MongoDB official driver | Yes | Yes | No | Medium | Patch update. Add indexes and transactions.
+motion | 12.40.0 | 12.42.2 | UI animation | Yes | Yes | No | Low | Patch update and code split motion-heavy screens.
+nodemailer | 9.0.1 | 9.0.3 | SMTP email | Yes | Yes | No | Medium | Patch update, add queue/retry/provider failover.
+react | 19.2.7 | 19.2.7 | UI library | Yes | Yes | No | Low | Keep.
+react-dom | 19.2.7 | 19.2.7 | Browser render runtime | Yes | Yes | No | Low | Keep.
+recharts | 3.8.1 | 3.9.2 | Results charts | Yes | Yes | No | Low | Patch update and lazy-load result pages.
+twilio | 6.0.2 | 6.0.2 | SMS gateway | Yes | Yes | No | Medium | Keep, add queue, retry, delivery status handling.
+vite | 6.4.3 | 8.1.5 | Frontend build tool | Yes | Yes | No | Medium | Duplicate dependency/devDependency. Keep only devDependency and plan major upgrade.
+zxcvbn | 4.4.2 | 4.4.2 | Password strength meter | Yes | Yes | No | Low | Keep or lazy-load on registration form.
+@types/bcryptjs | 2.4.6 | 3.0.0 | Type definitions | No | Indirect compile support | Possibly unnecessary | Low | bcryptjs 3 ships types; remove if compiler passes.
+@types/express | 4.17.25 | 5.0.6 | Express types | Yes | Yes | No | Low | Keep for Express 4.
+@types/jsonwebtoken | 9.0.10 | 9.0.10 | JWT types | Yes | Yes | No | Low | Keep.
+@types/node | 22.19.21 | 26.1.1 | Node types | Yes | Yes | No | Low | Keep Node LTS aligned.
+@types/nodemailer | 8.0.1 | 8.0.1 | Nodemailer types | Yes | Yes | No | Low | Keep unless Nodemailer types cover usage.
+@types/zxcvbn | 4.4.5 | 4.4.5 | zxcvbn types | Yes | Yes | No | Low | Keep.
+autoprefixer | 10.5.0 | 10.5.4 | CSS compatibility | Maybe | Not directly configured | No | Low | Remove if Tailwind 4 pipeline does not need it.
+esbuild | 0.25.12 | 0.28.1 | Server bundling | Yes | Yes | No | Low | Upgrade after build verification.
+tailwindcss | 4.3.1 | 4.3.3 | Utility CSS | Yes | Yes | No | Low | Patch update.
+tsx | 4.22.4 | 4.23.1 | TypeScript server runtime | Yes | Yes | No | Low | Patch update.
+typescript | 5.8.3 | 7.0.2 | Type checking | Yes | Yes | No | Low | Do not jump to major without compiler migration testing.
+
+Detected missing or misclassified packages
+- @tensorflow/tfjs-core is directly imported in src/components/BiometricScanner.tsx but is not a direct dependency. Add it explicitly or remove the import if only transitive use is intended.
+- vite is listed in both dependencies and devDependencies. Keep it in devDependencies only.
+- @google/genai is installed but unused in source code. Remove it for security and clarity.
+- axios and framer-motion appear transitively in package-lock.json, but Axios is not used directly and motion wraps framer-motion.
+
+Security dependency status
+- npm audit result: 0 known vulnerabilities across 426 total packages.
+- Dependency risk is therefore mostly architectural: unnecessary AI SDK, missing middleware packages, duplicate tooling, and large client bundle.
+
+Recommended additions for production
+- helmet, cors with strict allowlist, express-rate-limit, express-validator or zod, pino or winston, multer or signed object storage uploads, argon2, cookie-parser only if moving to httpOnly cookies, vitest, supertest, Playwright, eslint, prettier, lint-staged, dependency-cruiser, openapi tooling, and Docker/GitHub Actions.
