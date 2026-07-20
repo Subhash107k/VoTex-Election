@@ -5,13 +5,112 @@ import fs from "fs";
 import http from "http";
 import crypto from "crypto";
 import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
+import { z } from "zod";
 import { createServer as createViteServer } from "vite";
 import { Database, User, Candidate, Election, Vote, AuditLog, OTPRecord, Notification } from "./src/db/dbService.js";
 import bcrypt from "bcryptjs";
 
+const EnvSchema = z.object({
+  NODE_ENV: z.string().optional(),
+  PORT: z.coerce.number().int().positive().default(3000),
+  CORS_ORIGIN: z.string().optional(),
+  FRONTEND_URL: z.string().optional(),
+  APP_URL: z.string().optional(),
+  BALLOT_ENCRYPTION_SECRET: z.string().optional(),
+  VOTE_HMAC_SECRET: z.string().optional(),
+  VOTE_HASH_SECRET: z.string().optional()
+});
+
+const env = EnvSchema.parse(process.env);
+const isProduction = env.NODE_ENV === "production";
+const parseOrigins = (...values: Array<string | undefined>) =>
+  values.flatMap(value => String(value || "").split(",").map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = parseOrigins(env.CORS_ORIGIN, env.FRONTEND_URL, env.APP_URL);
+const getRuntimeSecret = (name: "BALLOT_ENCRYPTION_SECRET" | "VOTE_HMAC_SECRET", devFallback: string) => {
+  const value = process.env[name]?.trim();
+  if (value) return value;
+  if (isProduction) {
+    throw new Error(`${name} must be configured in production.`);
+  }
+  return devFallback;
+};
+const ballotEncryptionSecret = getRuntimeSecret(
+  "BALLOT_ENCRYPTION_SECRET",
+  env.VOTE_HASH_SECRET || "dev-only-ballot-secret-change-before-production"
+);
+const voteHmacSecret = getRuntimeSecret("VOTE_HMAC_SECRET", "dev-only-vote-hmac-secret-change-before-production");
+
 const app = express();
-const PORT = 3000;
+const PORT = env.PORT;
+
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
+app.use(helmet({
+  contentSecurityPolicy: isProduction ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", ...allowedOrigins],
+      mediaSrc: ["'self'", "blob:"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"]
+    }
+  } : false,
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(cors({
+  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin || !isProduction || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS origin is not allowed by VoTex policy."));
+  }
+}));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many API requests. Please wait before retrying." }
+});
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts. Please wait before retrying." }
+});
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 8,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many OTP requests. Please wait before requesting another code." }
+});
+
+app.use("/api", apiLimiter);
+app.use(["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password"], authLimiter);
+app.use([
+  "/api/auth/send-email-code",
+  "/api/auth/verify-email-code",
+  "/api/auth/send-sms-otp",
+  "/api/auth/verify-sms-otp",
+  "/api/auth/otp/send",
+  "/api/auth/otp/verify"
+], otpLimiter);
 
 // Body parser with size limits for biometric captures
 app.use(express.json({ limit: "20mb" }));
@@ -64,6 +163,13 @@ interface DispatchLog {
   timestamp: string;
 }
 let dispatchLogs: DispatchLog[] = [];
+
+const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+const createOtpCode = () => crypto.randomInt(100000, 1000000).toString();
+const deriveReviewScore = (seed: string, minimum: number, spread: number) => {
+  const digest = crypto.createHash("sha256").update(seed).digest();
+  return minimum + (digest.readUInt16BE(0) % spread);
+};
 
 import nodemailer from "nodemailer";
 import twilio from "twilio";
@@ -210,7 +316,7 @@ const sendRealSMS = async (to: string, body: string): Promise<boolean> => {
 
 const logDispatch = async (type: "Email" | "SMS", to: string, title: string, body: string): Promise<boolean> => {
   dispatchLogs.unshift({
-    id: "disp_" + Math.random().toString(36).substr(2, 9),
+    id: createId("disp"),
     type,
     to,
     title,
@@ -333,11 +439,11 @@ const checkOtpCooldown = (emailOrMobile: string, purpose: "Registration" | "Voti
   return { isCoolingDown: false, remainingSec: 0 };
 };
 
-app.get("/api/system/dispatches", (req, res) => {
+app.get("/api/system/dispatches", authenticateToken, requireRoles("Super Administrator", "Administrator"), (req, res) => {
   res.json({ logs: dispatchLogs });
 });
 
-app.post("/api/system/dispatches/clear", (req, res) => {
+app.post("/api/system/dispatches/clear", authenticateToken, requireRoles("Super Administrator", "Administrator"), (req, res) => {
   dispatchLogs = [];
   res.json({ success: true });
 });
@@ -407,16 +513,20 @@ app.post("/api/auth/send-email-code", (req, res) => {
 
     const users = Database.getUsers();
     if (users.some(u => u.email.toLowerCase() === emailStandardUrl)) {
-      return res.status(400).json({ error: "Email is already registered in the National Registry" });
+      return res.json({
+        success: true,
+        alreadyRegistered: true,
+        message: "This email is already registered. Please sign in or use password reset."
+      });
     }
 
     // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = createOtpCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
 
     const otps = Database.getOTPs();
     otps.push({
-      id: "otp_email_" + Math.random().toString(36).substr(2, 9),
+      id: createId("otp_email"),
       email: emailStandardUrl,
       mobile: "",
       code,
@@ -493,16 +603,20 @@ app.post("/api/auth/send-sms-otp", async (req, res) => {
 
     const users = Database.getUsers();
     if (users.some(u => areSameMobile(u.mobile, mobileStandard))) {
-      return res.status(400).json({ error: "Mobile phone number is already registered in the National Registry" });
+      return res.json({
+        success: true,
+        alreadyRegistered: true,
+        message: "This mobile number is already registered. Please sign in or use account recovery."
+      });
     }
 
     // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = createOtpCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
 
     const otps = Database.getOTPs();
     otps.push({
-      id: "otp_sms_" + Math.random().toString(36).substr(2, 9),
+      id: createId("otp_sms"),
       email: "",
       mobile: mobileStandard,
       code,
@@ -615,7 +729,7 @@ app.post("/api/auth/register", (req, res) => {
 
     // Compile record complying fully with MongoDB storage specifications
     const newUser: User = {
-      id: "usr_" + Math.random().toString(36).substr(2, 9),
+      id: createId("usr"),
       fullName,
       username: usernameStandard,
       nationalID: "", // To be completed during profile step
@@ -856,7 +970,7 @@ app.post("/api/profile/draft", authenticateToken, (req: any, res) => {
       drafts[draftIdx] = draft;
     } else {
       draft = {
-        id: "draft_" + Math.random().toString(36).substr(2, 9),
+        id: createId("draft"),
         userId,
         current_step: current_step || 1,
         draft_status: draft_status || "Draft",
@@ -999,7 +1113,7 @@ app.post("/api/profile/complete", authenticateToken, (req: any, res) => {
     // 1. Create and save User Profile
     const profiles = Database.getUserProfiles();
     const newProfile = {
-      id: "prof_" + Math.random().toString(36).substr(2, 9),
+      id: createId("prof"),
       userId,
       dob,
       gender,
@@ -1070,7 +1184,7 @@ app.post("/api/profile/complete", authenticateToken, (req: any, res) => {
     // 2. Create and save Identity Documents
     const docs = Database.getIdentityDocuments();
     const newDoc = {
-      id: "doc_" + Math.random().toString(36).substr(2, 9),
+      id: createId("doc"),
       userId,
       citizenshipFrontImage,
       citizenshipBackImage,
@@ -1084,7 +1198,7 @@ app.post("/api/profile/complete", authenticateToken, (req: any, res) => {
     // 3. Create and save Face Verification record
     const faceVers = Database.getFaceVerifications();
     const newFaceVer = {
-      id: "face_" + Math.random().toString(36).substr(2, 9),
+      id: createId("face"),
       userId,
       faceImage,
       faceTemplate: faceTemplateArray,
@@ -1110,15 +1224,16 @@ app.post("/api/profile/complete", authenticateToken, (req: any, res) => {
     matchedUser.isApproved = false;
     matchedUser.accountStatus = "Pending Verification";
     
-    // Dynamic generation of elite high-fidelity verification scores and fraud checks
+    // Deterministic placeholder scoring until a certified document/biometric verifier is integrated.
     const hasScannedFingerprint = true; // By default we have biometric fingerprint checks
-    const documentScore = Math.floor(Math.random() * 5) + 95; // 95 - 99%
-    const faceMatchCitz = Math.floor(Math.random() * 5) + 95; // 95 - 99%
-    const faceMatchNid = Math.floor(Math.random() * 4) + 96; // 96 - 99%
-    const faceMatchPort = Math.floor(Math.random() * 3) + 97; // 97 - 99.9%
+    const scoreSeed = `${userId}|${citizenshipNumber}|${faceTemplateArray.join(",")}|${fingerprintImage.length}`;
+    const documentScore = deriveReviewScore(`${scoreSeed}|document`, 95, 5); // 95 - 99
+    const faceMatchCitz = deriveReviewScore(`${scoreSeed}|citizenship-face`, 95, 5); // 95 - 99
+    const faceMatchNid = deriveReviewScore(`${scoreSeed}|nid-face`, 96, 4); // 96 - 99
+    const faceMatchPort = deriveReviewScore(`${scoreSeed}|photo-face`, 97, 3); // 97 - 99
     const avgFaceMatch = parseFloat(((faceMatchCitz + faceMatchNid + faceMatchPort) / 3).toFixed(1));
-    const ocrAccuracy = Math.floor(Math.random() * 5) + 95; // 95 - 99%
-    const fingerprintQuality = Math.floor(Math.random() * 6) + 94; // 94 - 99%
+    const ocrAccuracy = deriveReviewScore(`${scoreSeed}|ocr`, 95, 5); // 95 - 99
+    const fingerprintQuality = deriveReviewScore(`${scoreSeed}|fingerprint`, 94, 6); // 94 - 99
     const trustScore = parseFloat(((0.3 * documentScore + 0.4 * avgFaceMatch + 0.2 * ocrAccuracy + 0.1 * fingerprintQuality)).toFixed(1));
 
     matchedUser.verificationReport = {
@@ -1181,7 +1296,7 @@ app.post("/api/profile/complete", authenticateToken, (req: any, res) => {
     // Filter and add a specific notification
     const notifications = Database.getNotifications();
     notifications.unshift({
-      id: "n_" + Math.random().toString(36).substr(2, 9),
+      id: createId("n"),
       userId,
       title: "Enrollment Under Review",
       message: "Congratulations on completing your voter registration. Your profile is currently under review by our administrative team.",
@@ -1233,14 +1348,14 @@ app.post("/api/auth/otp/send", async (req, res) => {
     });
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = createOtpCode();
   const otps = Database.getOTPs();
   
   const expiry = new Date();
   expiry.setMinutes(expiry.getMinutes() + 5);
 
   const otpRecord: OTPRecord = {
-    id: "otp_" + Math.random().toString(36).substr(2, 9),
+    id: createId("otp"),
     mobile: channel.includes("@") ? "" : channel,
     email: channel.includes("@") ? channel : "",
     code,
@@ -1326,13 +1441,13 @@ app.post("/api/auth/forgot-password", (req, res) => {
     return res.status(404).json({ error: "Email target not registered" });
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = createOtpCode();
   const otps = Database.getOTPs();
   const expiry = new Date();
   expiry.setMinutes(expiry.getMinutes() + 10);
 
   otps.push({
-    id: "otp_" + Math.random().toString(36).substr(2, 9),
+    id: createId("otp"),
     mobile: "",
     email: user.email,
     code,
@@ -1407,7 +1522,7 @@ app.post("/api/elections", authenticateToken, requireRoles("Super Administrator"
 
   const elections = Database.getElections();
   const newElection: Election = {
-    id: "elect_" + Math.random().toString(36).substr(2, 9),
+    id: createId("elect"),
     title,
     description,
     status: "Draft",
@@ -1429,7 +1544,7 @@ app.post("/api/elections", authenticateToken, requireRoles("Super Administrator"
   // Notification
   const notifications = Database.getNotifications();
   notifications.unshift({
-    id: "n_" + Math.random().toString(36).substr(2, 9),
+    id: createId("n"),
     title: `New Election Drafted: ${title}`,
     message: `A new ${type} is pending review or activation dates. Check detail schedules.`,
     type: "info",
@@ -1537,7 +1652,7 @@ const normalizeCandidatePayload = (body: any, existing?: Candidate): Candidate =
 
   return {
     ...(existing || {}),
-    id: existing?.id || ("cand_" + Math.random().toString(36).substr(2, 9)),
+    id: existing?.id || createId("cand"),
     name: body.name || body.fullName || existing?.name || "",
     fullName: body.fullName || body.name || existing?.fullName || "",
     gender: body.gender || existing?.gender || "",
@@ -1845,7 +1960,7 @@ app.post("/api/parties", authenticateToken, requireRoles("Super Administrator", 
     }
 
     const newParty: any = {
-      id: "party_" + Math.random().toString(36).substr(2, 9),
+      id: createId("party"),
       name: name.trim(),
       code: code.trim().toUpperCase(),
       logoUrl: logoUrl.trim(),
@@ -2027,12 +2142,12 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const userAgent = req.headers["user-agent"] || "Mozilla/5.0";
     const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
 
-    const voteId = "vote_" + Math.random().toString(36).substr(2, 9);
+    const voteId = createId("vote");
     const voteTime = new Date().toISOString();
     
     // AES-256 encrypt the candidate selection inside ballot
     const iv = crypto.randomBytes(16);
-    const voteKey = crypto.scryptSync("BALLOT-SECRET-2026", "VOTEX-SALT", 32);
+    const voteKey = crypto.scryptSync(ballotEncryptionSecret, "VOTEX-SALT", 32);
     const cipher = crypto.createCipheriv("aes-256-cbc", voteKey, iv);
     let encryptedBallotText = cipher.update(candidateId, "utf8", "hex");
     encryptedBallotText += cipher.final("hex");
@@ -2043,7 +2158,7 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const sha256Hash = crypto.createHash("sha256").update(integrityRaw).digest("hex");
 
     // Digital signature on the SHA-256 integrity token representing validation from voting node
-    const hmac = crypto.createHmac("sha256", "VOTEX-SYSTEM-HMAC-KEY-2026");
+    const hmac = crypto.createHmac("sha256", voteHmacSecret);
     hmac.update(sha256Hash);
     const digitalSignature = hmac.digest("hex");
 
@@ -2119,7 +2234,7 @@ app.get("/api/users/voting-status", authenticateToken, (req: any, res) => {
 // 6. DASHBOARDS & REPORTS APIs
 // ----------------------------------------------------
 
-app.get("/api/dashboard/stats", (req, res) => {
+app.get("/api/dashboard/stats", authenticateToken, requireRoles("Super Administrator", "Administrator", "Election Officer"), (req, res) => {
   const users = Database.getUsers();
   const candidates = Database.getCandidates();
   const elections = Database.getElections();
@@ -2195,8 +2310,14 @@ app.get("/api/dashboard/stats", (req, res) => {
   });
 });
 
-app.get("/api/notifications", (req, res) => {
-  res.json({ notifications: Database.getNotifications() });
+app.get("/api/notifications", authenticateToken, (req: any, res) => {
+  const notifications = Database.getNotifications().filter((notification: any) => {
+    if (notification.targetUser) return notification.targetUser === req.user.id;
+    if (notification.userId) return notification.userId === req.user.id;
+    if (notification.targetRole) return notification.targetRole === req.user.role;
+    return true;
+  });
+  res.json({ notifications });
 });
 
 app.post("/api/notifications", authenticateToken, requireRoles("Super Administrator", "Administrator"), (req: any, res) => {
@@ -2207,7 +2328,7 @@ app.post("/api/notifications", authenticateToken, requireRoles("Super Administra
 
   const notifications = Database.getNotifications();
   const alert: Notification = {
-    id: "n_" + Math.random().toString(36).substr(2, 9),
+    id: createId("n"),
     title,
     message,
     type: type || "info",
@@ -2265,7 +2386,7 @@ app.post("/api/faqs", authenticateToken, requireRoles("Super Administrator", "Ad
 
   const faqs = Database.getFaqs();
   const newFaq = {
-    id: "faq_" + Math.random().toString(36).substr(2, 9),
+    id: createId("faq"),
     question,
     answer,
     category,
@@ -2408,7 +2529,7 @@ app.post("/api/admin/team", authenticateToken, requireRoles("Super Administrator
   }
 
   const newAdmin = {
-    id: "adm_" + Math.random().toString(36).substr(2, 9),
+    id: createId("adm"),
     fullName,
     username,
     email: email.toLowerCase(),
@@ -2418,7 +2539,7 @@ app.post("/api/admin/team", authenticateToken, requireRoles("Super Administrator
     isVerified: true,
     isApproved: true,
     isSuspended: false,
-    nationalID: "ADM_PROV_" + Math.random().toString(36).substr(2, 4).toUpperCase(),
+    nationalID: `ADM_PROV_${crypto.randomBytes(3).toString("hex").toUpperCase()}`,
     createdAt: new Date().toISOString(),
     isProfileComplete: true,
     accountStatus: "Active" as const,
@@ -2623,7 +2744,7 @@ app.put("/api/voters/:id", authenticateToken, requireRoles("Super Administrator"
   // Unshift specific notification to history
   const notifications = Database.getNotifications();
   notifications.unshift({
-    id: "n_" + Math.random().toString(36).substr(2, 9),
+    id: createId("n"),
     userId: user.id,
     title: user.accountStatus === "Approved" ? "Enrollment Approved!" : (user.accountStatus === "Rejected" ? "Security Review Failure" : "Action Required - Corrections Requested"),
     message: user.accountStatus === "Approved" ? "Your voter registration has been fully approved." : (user.accountStatus === "Rejected" ? `Rejected: ${rejectionReason}` : `Changes Requested: ${rejectionReason}`),
@@ -2733,7 +2854,7 @@ app.post("/api/voters/resubmit", authenticateToken, (req: any, res) => {
     // Notifications
     const notifications = Database.getNotifications();
     notifications.unshift({
-      id: "n_" + Math.random().toString(36).substr(2, 9),
+      id: createId("n"),
       userId,
       title: "Profile Correction Received",
       message: "Your profile corrections have been received. Administrators have been notified.",
@@ -3026,18 +3147,26 @@ app.get("/api/elections/:id/results", (req, res) => {
 
 // GET /api/system/config: Retrieve current setup
 app.get("/api/system/config", authenticateToken, requireRoles("Super Administrator", "Administrator"), (req, res) => {
+  const config = Database.getConfig();
   res.json({
-    config: Database.getConfig(),
+    config: {
+      ...config,
+      smtpPass: config.smtpPass ? "••••••••••••••••" : "",
+      twilioToken: config.twilioToken ? "••••••••••••••••••••••••••••••••" : ""
+    },
     envStatus: {
       mongodbUriSet: !!process.env.MONGODB_URI,
       mongodbUriMatched: !!process.env.MONGODB_URI && (process.env.MONGODB_URI.startsWith("mongodb://") || process.env.MONGODB_URI.startsWith("mongodb+srv://")),
-      jwtSecretSet: !!process.env.JWT_SECRET && process.env.JWT_SECRET !== "votex-enterprise-super-secret-key-2026",
+      jwtSecretSet: !!process.env.JWT_SECRET,
       jwtRefreshSecretSet: !!process.env.JWT_REFRESH_SECRET,
       smtpHostSet: !!process.env.SMTP_HOST && process.env.SMTP_HOST !== "smtp.example.com",
       smtpUserSet: !!process.env.SMTP_USER && process.env.SMTP_USER !== "notifications@votex-system.example.com",
       smtpPortMatched: !!process.env.SMTP_PORT,
       twilioSidSet: !!process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      twilioPhoneSet: !!process.env.TWILIO_PHONE_NUMBER && process.env.TWILIO_PHONE_NUMBER !== "+15550001234"
+      twilioPhoneSet: !!process.env.TWILIO_PHONE_NUMBER && process.env.TWILIO_PHONE_NUMBER !== "+15550001234",
+      ballotEncryptionSecretSet: !!process.env.BALLOT_ENCRYPTION_SECRET || !!process.env.VOTE_HASH_SECRET,
+      voteHmacSecretSet: !!process.env.VOTE_HMAC_SECRET,
+      backupEncryptionSecretSet: !!process.env.BACKUP_ENCRYPTION_SECRET
     }
   });
 });
@@ -3128,7 +3257,7 @@ app.post("/api/system/restore", authenticateToken, requireRoles("Super Administr
 // ----------------------------------------------------------------------
 
 // GET /api/secops/db-status: Fetch database operational states in real time
-app.get("/api/secops/db-status", authenticateToken, (req: any, res) => {
+app.get("/api/secops/db-status", authenticateToken, requireRoles("Super Administrator", "Administrator", "Election Officer"), (req: any, res) => {
   try {
     const memoryUsage = process.memoryUsage();
     res.json({

@@ -118,6 +118,7 @@ export default function PublicLanding({
   });
   const [contactSuccess, setContactSuccess] = useState(false);
   const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [supportCode, setSupportCode] = useState("10000");
 
   // Newsletter subscription
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -250,7 +251,7 @@ export default function PublicLanding({
     }
     setEmailError("");
     setEmailOtpLoading(true);
-    setIsEmailOtpSent(true);
+    setIsEmailOtpSent(false);
     try {
       const res = await fetch("/api/auth/send-email-code", {
         method: "POST",
@@ -265,6 +266,16 @@ export default function PublicLanding({
         }
         throw new Error(data.error || "Failed sending SMTP verification code");
       }
+      if (data?.alreadyRegistered) {
+        setEmailError(
+          data.message ||
+            "This email is already registered. Please sign in or reset your password.",
+        );
+        setIsEmailOtpSent(false);
+        setEmailCountdown(0);
+        return;
+      }
+      setIsEmailOtpSent(true);
       setEmailCountdown(60); // 60s cooldown
     } catch (err: any) {
       setEmailError(err.message);
@@ -311,7 +322,7 @@ export default function PublicLanding({
     }
     setSmsError("");
     setSmsOtpLoading(true);
-    setIsSmsOtpSent(true);
+    setIsSmsOtpSent(false);
     try {
       const res = await fetch("/api/auth/send-sms-otp", {
         method: "POST",
@@ -326,6 +337,16 @@ export default function PublicLanding({
         }
         throw new Error(data.error || "Failed sending Twilio OTP");
       }
+      if (data?.alreadyRegistered) {
+        setSmsError(
+          data.message ||
+            "This mobile number is already registered. Please sign in or recover your account.",
+        );
+        setIsSmsOtpSent(false);
+        setSmsCountdown(0);
+        return;
+      }
+      setIsSmsOtpSent(true);
       setSmsCountdown(60);
     } catch (err: any) {
       setSmsError(err.message);
@@ -376,6 +397,7 @@ export default function PublicLanding({
     setContactSubmitting(true);
     setTimeout(() => {
       setContactSubmitting(false);
+      setSupportCode(String(10000 + (Date.now() % 90000)));
       setContactSuccess(true);
       setContactData({ name: "", email: "", subject: "", message: "" });
       setTimeout(() => setContactSuccess(false), 5000);
@@ -438,30 +460,132 @@ export default function PublicLanding({
       <header
         className={`sticky top-0 z-40 w-full backdrop-blur-md border-b ${isLight ? "bg-white/80 border-slate-200" : "bg-slate-950/80 border-slate-850"} transition-colors py-3 px-4 md:px-8`}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Brand Logo & Name */}
-          <button
-            type="button"
-            onClick={() => handleNav("/")}
-            className="flex items-center gap-3 cursor-pointer group hover:opacity-90 transition-opacity"
-          >
-            <div className="bg-gradient-to-tr from-emerald-500 to-blue-600 p-2 md:p-2.5 rounded-2xl text-slate-950 font-black tracking-wider text-xs md:text-sm shadow shadow-emerald-500/20">
-              VoTex
-            </div>
-            <div className="text-left">
-              <h1
-                className={`font-black text-sm md:text-base ${textTitle} leading-none tracking-tight`}
-              >
-                VoTex Public
-              </h1>
-              <span className="text-[9px] text-slate-500 font-mono tracking-wider block mt-0.5 uppercase font-bold">
-                STATE REVOLUTIONARY AUDITS
-              </span>
-            </div>
-          </button>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between gap-3">
+            {/* Brand Logo & Name */}
+            <button
+              type="button"
+              onClick={() => handleNav("/")}
+              className="flex items-center gap-3 cursor-pointer group hover:opacity-90 transition-opacity"
+            >
+              <div className="bg-gradient-to-tr from-emerald-500 to-blue-600 p-2 md:p-2.5 rounded-2xl text-slate-950 font-black tracking-wider text-xs md:text-sm shadow shadow-emerald-500/20">
+                VoTex
+              </div>
+              <div className="text-left">
+                <h1
+                  className={`font-black text-sm md:text-base ${textTitle} leading-none tracking-tight`}
+                >
+                  VoTex Public
+                </h1>
+                <span className="text-[9px] text-slate-500 font-mono tracking-wider block mt-0.5 uppercase font-bold">
+                  STATE REVOLUTIONARY AUDITS
+                </span>
+              </div>
+            </button>
 
-          {/* Desktop Center Navigation links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold">
+            {/* Desktop Center Navigation links */}
+            <nav className="hidden xl:flex items-center gap-6 text-xs font-semibold">
+              <button
+                onClick={() => handleNav("/")}
+                className={`transition-colors cursor-pointer ${currentPath === "/" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
+              >
+                Home
+              </button>
+              <a
+                href="#about-section"
+                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              >
+                About
+              </a>
+              <a
+                href="#how-it-works-section"
+                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              >
+                How It Works
+              </a>
+              <a
+                href="#features-section"
+                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              >
+                Features
+              </a>
+              <button
+                onClick={() => handleNav("/elections")}
+                className={`transition-colors cursor-pointer ${currentPath === "/elections" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
+              >
+                Elections
+              </button>
+              <button
+                onClick={() => handleNav("/results")}
+                className={`transition-colors cursor-pointer ${currentPath === "/results" ? "text-indigo-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
+              >
+                Results
+              </button>
+              <a
+                href="#faq-section"
+                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              >
+                FAQ
+              </a>
+              <a
+                href="#contact-section"
+                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              >
+                Contact
+              </a>
+            </nav>
+
+            {/* Right Action buttons & Theme switch */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle Button */}
+              <button
+                onClick={() => setTheme(isLight ? "dark" : "light")}
+                className={`p-2 rounded-xl transition-colors cursor-pointer ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-800" : "bg-slate-900 hover:bg-slate-800 text-yellow-400"}`}
+                title={isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}
+              >
+                {isLight ? (
+                  <Moon className="w-4 h-4" />
+                ) : (
+                  <Sun className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Login / Register CTAs */}
+              <button
+                onClick={() => handleNav("/login")}
+                className={`hidden md:inline-block px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isLight
+                    ? "bg-slate-200/60 text-slate-800 hover:bg-slate-200 border border-slate-300/40"
+                    : "bg-slate-900 text-slate-200 hover:bg-slate-850 hover:text-white border border-slate-800"
+                }`}
+              >
+                Login (Voter)
+              </button>
+
+              <button
+                onClick={() => handleNav("/register")}
+                className="px-3 md:px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 text-[10px] md:text-xs font-extrabold rounded-xl cursor-pointer shadow-sm"
+              >
+                <span className="hidden sm:inline">Register Now</span>
+                <span className="sm:hidden">Register</span>
+              </button>
+
+              {/* Mobile hamburger menu */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className={`md:hidden p-2 rounded-xl cursor-pointer ${isLight ? "bg-slate-100 text-slate-700" : "bg-slate-900 text-slate-400"}`}
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Tablet Navigation strip */}
+          <nav className="hidden md:flex xl:hidden mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 items-center gap-5 text-[11px] font-semibold overflow-x-auto whitespace-nowrap">
             <button
               onClick={() => handleNav("/")}
               className={`transition-colors cursor-pointer ${currentPath === "/" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
@@ -511,53 +635,6 @@ export default function PublicLanding({
               Contact
             </a>
           </nav>
-
-          {/* Right Action buttons & Theme switch */}
-          <div className="flex items-center gap-2 md:gap-3">
-            {/* Theme Toggle Button */}
-            <button
-              onClick={() => setTheme(isLight ? "dark" : "light")}
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-800" : "bg-slate-900 hover:bg-slate-800 text-yellow-400"}`}
-              title={isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}
-            >
-              {isLight ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
-            </button>
-
-            {/* Login / Register CTAs */}
-            <button
-              onClick={() => handleNav("/login")}
-              className={`hidden sm:inline-block px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                isLight
-                  ? "bg-slate-200/60 text-slate-800 hover:bg-slate-200 border border-slate-300/40"
-                  : "bg-slate-900 text-slate-200 hover:bg-slate-850 hover:text-white border border-slate-800"
-              }`}
-            >
-              Login (Voter)
-            </button>
-
-            <button
-              onClick={() => handleNav("/register")}
-              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 text-xs font-extrabold rounded-xl cursor-pointer shadow-sm"
-            >
-              Register Now
-            </button>
-
-            {/* Mobile hamburger menu */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`lg:hidden p-2 rounded-xl cursor-pointer ${isLight ? "bg-slate-100 text-slate-700" : "bg-slate-900 text-slate-400"}`}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
-            </button>
-          </div>
         </div>
       </header>
 
@@ -568,10 +645,13 @@ export default function PublicLanding({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed inset-x-0 top-16 z-30 p-5 shadow-2xl border-b flex flex-col gap-4 lg:hidden ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-slate-950 border-slate-850 text-white"}`}
+            className={`fixed inset-x-0 top-[72px] z-30 p-5 shadow-2xl border-b flex flex-col gap-4 md:hidden ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-slate-950 border-slate-850 text-white"}`}
           >
             <button
-              onClick={() => handleNav("/")}
+              onClick={() => {
+                handleNav("/");
+                setMobileMenuOpen(false);
+              }}
               className="text-left text-sm font-semibold py-2"
             >
               Home
@@ -598,7 +678,10 @@ export default function PublicLanding({
               Features
             </a>
             <button
-              onClick={() => handleNav("/elections")}
+              onClick={() => {
+                handleNav("/elections");
+                setMobileMenuOpen(false);
+              }}
               className="text-left text-sm font-semibold py-2"
             >
               Elections
@@ -1029,75 +1112,6 @@ export default function PublicLanding({
                   and integrity at each phase of the civic decision-making
                   process.
                 </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Cards */}
-                  {[
-                    {
-                      title: "Secure Onboard Entry",
-                      desc: "Unified citizen information registries with strict national identity verification policies.",
-                      icon: <User className="w-5 h-5" />,
-                      color: "text-emerald-500",
-                    },
-                    {
-                      title: "Liveness Verification",
-                      desc: "Local browser face coordinate matching mapping to assert physical presence.",
-                      icon: <ShieldCheck className="w-5 h-5" />,
-                      color: "text-blue-500",
-                    },
-                    {
-                      title: "SMTP Authentication",
-                      desc: "Email token dispatches that verify active electronic communication channels.",
-                      icon: <Mail className="w-5 h-5" />,
-                      color: "text-teal-500",
-                    },
-                    {
-                      title: "Twilio SMS Gateway",
-                      desc: "One-Time Password keys routed via standard cellular SMS to authenticate logins.",
-                      icon: <Phone className="w-5 h-5" />,
-                      color: "text-indigo-500",
-                    },
-                    {
-                      title: "Prevent Double-Voting",
-                      desc: "Cryptographic allocation matching ensuring exactly one ballot is registered per verified profile.",
-                      icon: <Award className="w-5 h-5" />,
-                      color: "text-amber-500",
-                    },
-                    {
-                      title: "Live Election Preview",
-                      desc: "Access ongoing, upcoming, and finalized election metrics straight from the portal board.",
-                      icon: <Calendar className="w-5 h-5" />,
-                      color: "text-rose-500",
-                    },
-                  ].map((feat, index) => (
-                    <div
-                      key={index}
-                      className={`p-6 rounded-2xl border ${bgCard} text-left flex flex-col justify-between hover:border-emerald-500/20 hover:scale-[1.02] transition-all duration-300`}
-                    >
-                      <div>
-                        <div
-                          className={`p-3 bg-slate-100 dark:bg-slate-900 w-fit rounded-xl ${feat.color} mb-4`}
-                        >
-                          {feat.icon}
-                        </div>
-                        <h4
-                          className={`text-sm font-extrabold uppercase ${textTitle} mb-2`}
-                        >
-                          {feat.title}
-                        </h4>
-                        <p
-                          className={`text-[11px] leading-relaxed ${textMuted}`}
-                        >
-                          {feat.desc}
-                        </p>
-                      </div>
-                      <div className="mt-5 text-[10px] font-mono text-slate-400 font-semibold flex items-center gap-1 group-hover:text-emerald-500 cursor-pointer">
-                        <span>LEARN MORE PROTOCOLS</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </section>
 
@@ -2071,8 +2085,7 @@ export default function PublicLanding({
                             <Check className="w-4 h-4" />
                             <span>
                               Successfully dispatched! Support code VTEX-TKT-
-                              {Math.floor(Math.random() * 90000) + 10000}{" "}
-                              compiled.
+                              {supportCode} compiled.
                             </span>
                           </div>
                         )}
@@ -2533,6 +2546,25 @@ export default function PublicLanding({
                           {emailError}
                         </p>
                       )}
+                      <p className={`text-[9px] ${textMuted}`}>
+                        Already registered?{" "}
+                        <button
+                          type="button"
+                          onClick={() => handleNav("/login")}
+                          className="text-emerald-500 font-bold hover:underline cursor-pointer"
+                        >
+                          Sign in
+                        </button>{" "}
+                        or{" "}
+                        <button
+                          type="button"
+                          onClick={() => handleNav("/forgot_password")}
+                          className="text-blue-500 font-bold hover:underline cursor-pointer"
+                        >
+                          reset password
+                        </button>
+                        .
+                      </p>
                       {(emailOtpLoading ||
                         isEmailOtpSent ||
                         emailCountdown > 0) &&
@@ -2621,6 +2653,25 @@ export default function PublicLanding({
                           {smsError}
                         </p>
                       )}
+                      <p className={`text-[9px] ${textMuted}`}>
+                        Already registered?{" "}
+                        <button
+                          type="button"
+                          onClick={() => handleNav("/login")}
+                          className="text-emerald-500 font-bold hover:underline cursor-pointer"
+                        >
+                          Sign in
+                        </button>{" "}
+                        or{" "}
+                        <button
+                          type="button"
+                          onClick={() => handleNav("/forgot_password")}
+                          className="text-blue-500 font-bold hover:underline cursor-pointer"
+                        >
+                          recover account
+                        </button>
+                        .
+                      </p>
                       {isSmsOtpSent && !isSmsVerifiedLocal && (
                         <>
                           <p className="text-[9px] text-slate-600 dark:text-slate-300 font-mono">

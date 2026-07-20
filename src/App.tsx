@@ -300,6 +300,11 @@ export default function App() {
   const loginAsPresetUser = async (
     rolePreset: "super" | "officer" | "voter",
   ) => {
+    if (Boolean((import.meta as any).env?.PROD)) {
+      triggerToast("Demo preset login is disabled in production builds.", true);
+      return;
+    }
+
     setErrorMsg("");
     const credentials = {
       super: { email: "admin@vote.com", password: "admin123" },

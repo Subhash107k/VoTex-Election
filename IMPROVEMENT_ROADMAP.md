@@ -1,10 +1,11 @@
 # Improvement Roadmap
 
 ## Critical
-- Remove hardcoded JWT, backup, ballot, and HMAC keys.
-- Remove seeded production credentials and preset login helpers from production.
-- Protect `/api/system/dispatches`, `/api/dashboard/stats`, `/api/notifications`, and SecOps endpoints appropriately.
-- Add Helmet, strict CORS, route-specific rate limiting, and centralized request validation.
+- Done: Remove hardcoded JWT, backup, ballot, and HMAC keys from production runtime.
+- Done: Remove seeded production credentials and preset login helpers from production runtime.
+- Done: Protect `/api/system/dispatches`, `/api/dashboard/stats`, `/api/notifications`, and SecOps status endpoints.
+- Done: Add Helmet, strict CORS support, and route-specific API/auth/OTP rate limiting.
+- Remaining: Add centralized request validation across all routes.
 - Redesign vote storage to separate voter participation from anonymous ballot choice.
 - Encrypt/externalize biometric and identity document storage.
 - Hash OTPs at rest and remove OTP content from logs.

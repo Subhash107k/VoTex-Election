@@ -8,10 +8,21 @@ export default function NotificationConsole() {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("votex_token");
+    return token ? { Authorization: `Bearer ${token}` } : null;
+  };
+
   const fetchLogs = async () => {
+    const headers = getAuthHeaders();
+    if (!headers) {
+      setLogs([]);
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await fetch("/api/system/dispatches");
+      const res = await fetch("/api/system/dispatches", { headers });
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -24,8 +35,11 @@ export default function NotificationConsole() {
   };
 
   const clearLogs = async () => {
+    const headers = getAuthHeaders();
+    if (!headers) return;
+
     try {
-      const res = await fetch("/api/system/dispatches/clear", { method: "POST" });
+      const res = await fetch("/api/system/dispatches/clear", { method: "POST", headers });
       if (res.ok) {
         setLogs([]);
       }

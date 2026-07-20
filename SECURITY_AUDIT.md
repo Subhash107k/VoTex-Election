@@ -3,13 +3,12 @@
 ## Security Score
 Overall security score: 42/100.
 
-The application demonstrates important security ideas, including JWT login, bcrypt password hashes, account lockout, OTP verification, admin roles, audit logs, duplicate vote checks, and local biometric capture. Production readiness is blocked by hardcoded secrets, missing web security middleware, sensitive data persistence, simulated verification scores, weak ballot crypto design, and absent automated security tests.
+The application demonstrates important security ideas, including JWT login, bcrypt password hashes, account lockout, OTP verification, admin roles, audit logs, duplicate vote checks, local biometric capture, Helmet, CORS, and route-level rate limits. Production readiness is still blocked by sensitive data persistence, simulated/placeholder verification scoring, weak ballot anonymity design, incomplete request validation, and absent automated security tests.
 
 ## Critical Findings
-1. Hardcoded cryptographic secrets exist in source.
-   - `src/db/dbService.ts` defines fallback JWT and AES backup keys.
-   - `server.ts` uses hardcoded ballot encryption and HMAC keys.
-   - Recommendation: source all secrets from environment or KMS, fail closed when missing, rotate immediately before any real deployment.
+1. Production cryptographic secrets now fail closed when missing.
+   - `JWT_SECRET`, `BACKUP_ENCRYPTION_SECRET`, `BALLOT_ENCRYPTION_SECRET`, and `VOTE_HMAC_SECRET` are environment-managed for production.
+   - Remaining recommendation: move these secrets to KMS/secret manager and rotate before real deployment.
 
 2. Default credentials are seeded and exposed in UI helper login.
    - Default admin/officer/voter passwords exist in `dbService.ts`.
@@ -21,9 +20,9 @@ The application demonstrates important security ideas, including JWT login, bcry
    - Users, profiles, identity documents, and face verification records can duplicate sensitive material.
    - Recommendation: store files in encrypted object storage, store hashes/templates separately, enforce retention and deletion policy.
 
-4. Missing core HTTP security middleware.
-   - No Helmet, explicit CORS policy middleware, CSRF strategy, request ID middleware, or express-rate-limit.
-   - Recommendation: add Helmet, strict CORS, route-specific rate limits, CSRF if cookies are adopted, and centralized security logging.
+4. Core HTTP hardening has started.
+   - Helmet, CORS allowlist support, API/auth/OTP rate limits, and env validation were added.
+   - Remaining recommendation: add request IDs, CSRF if cookies are adopted, and schema validation for every route.
 
 5. Ballot secrecy is incomplete.
    - Vote records keep both `candidateId` and `anonymousVoterHash`, so encrypted ballot is not the actual only source of choice.
@@ -35,7 +34,7 @@ The application demonstrates important security ideas, including JWT login, bcry
 - Cryptographic Failures: High risk. Hardcoded keys, fallback secrets, local biometric storage, and weak key lifecycle.
 - Injection: Medium risk. MongoDB driver is not used with raw user filters broadly, but request validation is inconsistent.
 - Insecure Design: High risk. Election systems require stronger separation of identity, eligibility, ballot, and audit trails.
-- Security Misconfiguration: High risk. Missing Helmet/CORS/rate-limit, default accounts, demo data, config endpoints.
+- Security Misconfiguration: Medium-high risk. Helmet/CORS/rate-limit are present, but demo data and high-risk config/ops endpoints still require deeper policy controls.
 - Vulnerable and Outdated Components: Low known vulnerability risk. `npm audit` reported zero known vulnerabilities, but several packages are outdated.
 - Identification and Authentication Failures: Medium-high risk. JWT has 1 day TTL, no refresh rotation, no issuer/audience, localStorage token storage.
 - Software and Data Integrity Failures: Medium risk. No CI signing, no model integrity verification, whole JSON files can be modified.
@@ -69,7 +68,7 @@ Observed:
 - `BiometricScanner.tsx` uses local browser camera, canvas, TensorFlow.js WebGL, and `@tensorflow-models/face-landmarks-detection`.
 - Local face-api.js model files are bundled under `src/model/face-api.js`.
 - No source import or runtime call to Gemini, OpenAI, or another cloud AI service was found in biometric code.
-- `@google/genai` is installed and `.env.example` references `GEMINI_API_KEY`, but the package is unused in source.
+- `@google/genai` and `GEMINI_API_KEY` references were removed during hardening because the biometric flow does not use cloud AI.
 
 Weaknesses:
 - Liveness appears heuristic and client-side, with fallback simulation paths.

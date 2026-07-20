@@ -458,5 +458,35 @@
     "isUsed": true,
     "purpose": "Registration",
     "createdAt": "2026-07-08T04:58:56.944Z"
+  },
+  {
+    "id": "otp_email_e50b45ba-720b-4c02-9c58-6aef1e18fc60",
+    "email": "akrajjitesh71@gmail.com'",
+    "mobile": "",
+    "code": "264455",
+    "expiresAt": "2026-07-19T12:35:38.342Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-19T12:25:38.343Z"
+  },
+  {
+    "id": "otp_email_cc44a111-9b90-442b-9a37-c2d42b96b7b0",
+    "email": "akrajjitesh71@gmail.com",
+    "mobile": "",
+    "code": "364832",
+    "expiresAt": "2026-07-19T12:36:43.531Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-19T12:26:43.532Z"
+  },
+  {
+    "id": "otp_email_619c9e33-7f1f-4d42-93d6-2171d79092c0",
+    "email": "akrajjitesh72@gmail.com",
+    "mobile": "",
+    "code": "764973",
+    "expiresAt": "2026-07-19T12:38:27.347Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-19T12:28:27.348Z"
   }
 ]

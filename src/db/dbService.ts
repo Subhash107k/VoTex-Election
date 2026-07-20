@@ -20,11 +20,26 @@ if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
-// AES-256 standard encryption key derived safe from a salt
-const ENCRYPTION_KEY = crypto.scryptSync("VOTEX-ENTERPRISE-SECRET-2026", "VOTEX-SECURE-SALT", 32);
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const getRequiredSecret = (name: string, devFallback: string) => {
+  const value = process.env[name]?.trim();
+  if (value) return value;
+  if (IS_PRODUCTION) {
+    throw new Error(`${name} must be configured in production.`);
+  }
+  return devFallback;
+};
 
-// Secret for JWT (with fallback)
-const JWT_SECRET = process.env.JWT_SECRET || "votex-enterprise-super-secret-key-2026";
+// AES-256 standard encryption key derived from environment-managed key material.
+const ENCRYPTION_KEY = crypto.scryptSync(
+  getRequiredSecret("BACKUP_ENCRYPTION_SECRET", "dev-only-backup-secret-change-before-production"),
+  "VOTEX-SECURE-SALT",
+  32
+);
+
+// Secret for JWT. Development gets a local fallback; production fails closed.
+const JWT_SECRET = getRequiredSecret("JWT_SECRET", "dev-only-jwt-secret-change-before-production");
+const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
 export interface User {
   id: string;
@@ -813,7 +828,7 @@ export class Database {
     if (!data || data.length === 0) return;
 
     data.forEach(item => {
-      const qId = item.id || `op-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const qId = item.id || `op-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
       
       // Filter out duplicate or stale operations for the same ID in this collection to prevent bloated queues
       this.pendingQueue = this.pendingQueue.filter(op => !(op.id === qId && op.collection === collection));
@@ -834,7 +849,7 @@ export class Database {
   // --- Collection Accessors ---
 
   static getUsers(): User[] {
-    const defaultData: User[] = [
+    const defaultData: User[] = IS_PRODUCTION ? [] : [
       {
         id: "admin-1",
         fullName: "System Super Administrator",
@@ -1528,7 +1543,7 @@ export class Database {
 
     const details = parser(userAgent);
     const newLog: AuditLog = {
-      id: "log_" + Math.random().toString(36).substr(2, 9),
+      id: createId("log"),
       userId,
       userEmail: email,
       action,

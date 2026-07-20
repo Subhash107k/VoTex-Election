@@ -1,14 +1,14 @@
 # Production Readiness Assessment
 
 ## Overall Readiness
-Production readiness percentage: 38%.
+Production readiness percentage: 45%.
 
-VoTex-Election is suitable as a functional prototype, thesis demonstration, or controlled internal demo. It is not ready for real election production use without significant security, data, architecture, testing, and operational hardening.
+VoTex-Election is suitable as a functional prototype, thesis demonstration, or controlled internal demo. A first hardening pass added Helmet, CORS, rate limiting, environment-gated secrets, protected dispatch/system endpoints, and removal of the unused cloud AI SDK. It is still not ready for real election production use without significant data, architecture, testing, and operational hardening.
 
 ## Production Blockers
-- Hardcoded cryptographic secrets and default credentials.
+- Default credentials and demo data must remain disabled outside local development.
 - Raw sensitive data and biometric material stored in local JSON files.
-- Missing Helmet, CORS allowlist, rate limits, centralized validation, and hardened error handling.
+- Request validation is incomplete, and hardened error handling is still needed.
 - No automated tests.
 - No Dockerfile, CI/CD, deployment manifest, observability stack, or backup runbook.
 - Vote record design stores candidate choice next to deterministic voter hash.
@@ -44,7 +44,7 @@ Issues:
 
 Recommendations:
 - Use `zod` or `envalid` for env validation.
-- Remove unused `GEMINI_API_KEY`.
+- Keep unused AI credentials out of environment templates.
 - Make server port configurable.
 - Separate public frontend env from secret backend env.
 
@@ -76,7 +76,7 @@ Backend | 5
 Database | 4
 API Design | 5
 Authentication | 5
-Security | 4
+Security | 5
 Performance | 4
 UI/UX | 7
 Accessibility | 4
@@ -84,12 +84,12 @@ Scalability | 4
 Maintainability | 4
 Documentation | 6
 Testing | 1
-DevOps | 2
-Production Readiness | 3
+DevOps | 3
+Production Readiness | 4
 
-Overall score: 46/100.
-Letter grade: C.
-Production readiness: 38%.
+Overall score: 52/100.
+Letter grade: C+.
+Production readiness: 45%.
 
 ## Top 10 Strengths
 1. Broad election domain coverage.
@@ -105,8 +105,8 @@ Production readiness: 38%.
 
 ## Top 20 Recommended Improvements
 1. Remove hardcoded secrets and default credentials.
-2. Remove unused `@google/genai` and Gemini references.
-3. Add Helmet, CORS, rate limiting, and validation middleware.
+2. Expand Zod validation to every request body/query.
+3. Add centralized error handling and request IDs.
 4. Redesign ballot anonymity and participation ledger separation.
 5. Move biometric/document storage out of JSON files.
 6. Add MongoDB indexes and transactions.
