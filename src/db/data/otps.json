@@ -538,5 +538,225 @@
     "isUsed": false,
     "purpose": "Registration",
     "createdAt": "2026-07-20T15:16:10.467Z"
+  },
+  {
+    "id": "otp_sms_faaeb96f-0994-4661-969d-2c719068364e",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "662329",
+    "expiresAt": "2026-07-21T02:36:35.695Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T02:26:35.696Z"
+  },
+  {
+    "id": "otp_email_a653711d-2e58-47ad-93b9-d91ed9d36b17",
+    "email": "rbibek696@gmail.com",
+    "mobile": "",
+    "code": "742942",
+    "expiresAt": "2026-07-21T02:36:43.018Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T02:26:43.019Z"
+  },
+  {
+    "id": "otp_sms_d74c2006-4d8e-412d-8806-842215fbf2e0",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "138718",
+    "expiresAt": "2026-07-21T02:37:51.481Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T02:27:51.482Z"
+  },
+  {
+    "id": "otp_sms_7e9a03c3-7096-4025-8a9e-9c70b508be6f",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "766148",
+    "expiresAt": "2026-07-21T02:42:15.351Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T02:32:15.351Z"
+  },
+  {
+    "id": "otp_sms_f390b117-595e-4492-af15-04d1eeb27339",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "822206",
+    "expiresAt": "2026-07-21T02:43:51.614Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T02:33:51.615Z"
+  },
+  {
+    "id": "otp_sms_b3d3d031-588d-4a3a-8f0c-903f517a2e97",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "144191",
+    "expiresAt": "2026-07-21T03:19:02.214Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:09:02.214Z"
+  },
+  {
+    "id": "otp_sms_ac3bab2a-cd50-4dec-bf07-1be63f268bcb",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "616284",
+    "expiresAt": "2026-07-21T03:20:31.283Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:10:31.284Z"
+  },
+  {
+    "id": "otp_sms_f838a7da-6422-4e40-b72b-38043ea6b587",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "239904",
+    "expiresAt": "2026-07-21T03:21:14.583Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:11:14.584Z"
+  },
+  {
+    "id": "otp_sms_021385ad-a53b-42e9-8fbf-5458c17de3b8",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "840584",
+    "expiresAt": "2026-07-21T03:21:41.623Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:11:41.624Z"
+  },
+  {
+    "id": "otp_sms_5e830572-df13-4163-a5d0-fc05c1bfbafb",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "870040",
+    "expiresAt": "2026-07-21T03:26:00.575Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:16:00.576Z"
+  },
+  {
+    "id": "otp_sms_10dabbd7-a997-48ea-8099-ad3b6d866054",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "278600",
+    "expiresAt": "2026-07-21T03:34:55.475Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:24:55.476Z"
+  },
+  {
+    "id": "otp_sms_a8123492-baa4-4732-afa1-3766bc4b16c1",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "144337",
+    "expiresAt": "2026-07-21T03:35:56.084Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:25:56.085Z"
+  },
+  {
+    "id": "otp_sms_d600c1c4-4b54-4a3f-bf95-d296cf897306",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "979895",
+    "expiresAt": "2026-07-21T03:36:14.649Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:26:14.650Z"
+  },
+  {
+    "id": "otp_email_2996bc1d-dff3-40fa-be1a-bea275284ce5",
+    "email": "rbibek696@gmail.com",
+    "mobile": "",
+    "code": "943163",
+    "expiresAt": "2026-07-21T03:38:31.035Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:28:31.036Z"
+  },
+  {
+    "id": "otp_email_0f441c96-e2cc-43c6-9299-48e4ae3250f2",
+    "email": "rbibek696@gmail.com",
+    "mobile": "",
+    "code": "691613",
+    "expiresAt": "2026-07-21T03:39:43.817Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:29:43.818Z"
+  },
+  {
+    "id": "otp_email_de9eb6a5-bcbd-40a9-95eb-b54de35a6104",
+    "email": "mrityunjayshah981427@gmail.com",
+    "mobile": "",
+    "code": "990212",
+    "expiresAt": "2026-07-21T03:44:55.579Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:34:55.580Z"
+  },
+  {
+    "id": "otp_sms_17e76542-f9a1-4393-9a49-07a645f54f1f",
+    "email": "",
+    "mobile": "+9779825741340",
+    "code": "578548",
+    "expiresAt": "2026-07-21T03:45:50.164Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:35:50.164Z"
+  },
+  {
+    "id": "otp_d3aee04f-9e0c-41c1-9332-dad6b965aff0",
+    "mobile": "",
+    "email": "mrityunjayshah981427@gmail.com",
+    "code": "930204",
+    "expiresAt": "2026-07-21T03:49:29.319Z",
+    "isUsed": true,
+    "purpose": "PasswordReset",
+    "createdAt": "2026-07-21T03:39:29.319Z"
+  },
+  {
+    "id": "otp_email_71a87cf4-8b73-454e-9235-3356e92ffcfa",
+    "email": "rajakbibek69@gmail.com",
+    "mobile": "",
+    "code": "933592",
+    "expiresAt": "2026-07-21T03:55:26.669Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:45:26.669Z"
+  },
+  {
+    "id": "otp_sms_aaaa3b9d-e3f1-4e70-8c70-911d2385498f",
+    "email": "",
+    "mobile": "+9779743976718",
+    "code": "849275",
+    "expiresAt": "2026-07-21T03:55:29.360Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:45:29.361Z"
+  },
+  {
+    "id": "otp_email_77f330b2-63b2-4bf2-8ec6-c92a8ae4a1fc",
+    "email": "rbibek696@gmail.com",
+    "mobile": "",
+    "code": "535357",
+    "expiresAt": "2026-07-21T03:56:39.668Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:46:39.669Z"
+  },
+  {
+    "id": "otp_sms_dbcb27d9-6268-4b0b-b5b7-b71c211fe4e2",
+    "email": "",
+    "mobile": "+9779743976718",
+    "code": "110107",
+    "expiresAt": "2026-07-21T03:57:24.478Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T03:47:24.478Z"
   }
 ]

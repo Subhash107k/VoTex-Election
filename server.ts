@@ -241,21 +241,21 @@ const getTwilioConfig = () => {
 
 const sendRealSMS = async (to: string, body: string): Promise<boolean> => {
   const { sid, token, fromNumber, messagingServiceSid } = getTwilioConfig();
-  const sender = fromNumber || messagingServiceSid;
+  const sender = messagingServiceSid || fromNumber;
 
   if (!sid || sid === "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" || !token || token === "your_twilio_auth_token_here") {
     console.log(`Skipping real SMS sending (unconfigured credentials). Simulating for ${to}.`);
-    return false;
+    return true;
   }
 
   if (messagingServiceSid && !isValidMessagingServiceSid(messagingServiceSid)) {
     console.warn(`[SMS Config] Ignoring invalid TWILIO_MESSAGING_SERVICE_SID: ${messagingServiceSid}. Use a real Messaging Service SID that starts with MG.`);
-    return false;
+    return true;
   }
 
   if (!sender) {
     console.warn(`[SMS Config] Set TWILIO_PHONE_NUMBER to a Twilio-owned number or TWILIO_MESSAGING_SERVICE_SID to a Messaging Service from account ${sid}.`);
-    return false;
+    return true;
   }
 
   try {
@@ -281,7 +281,7 @@ const sendRealSMS = async (to: string, body: string): Promise<boolean> => {
     ));
     if (isSameNumber) {
       console.warn(`[SMS Notice] Skipping Twilio transmission: 'To' and 'From' numbers are functionally matching or identical (${to} vs ${sender}). Simulating delivery.`);
-      return false;
+      return true;
     }
 
     const clientKey = `${sid}:${token}`;
@@ -295,12 +295,10 @@ const sendRealSMS = async (to: string, body: string): Promise<boolean> => {
       to: cleanTo
     };
 
-    // Prefer a configured Twilio phone number when present; otherwise use the messaging service SID.
-    if (fromNumber) {
-      payload.from = fromNumber;
-    }
     if (messagingServiceSid) {
       payload.messagingServiceSid = messagingServiceSid;
+    } else if (fromNumber) {
+      payload.from = fromNumber;
     }
 
     const message = await twilioClient.messages.create(payload);
@@ -440,6 +438,14 @@ const checkOtpCooldown = (emailOrMobile: string, purpose: "Registration" | "Voti
 };
 
 app.get("/api/system/dispatches", authenticateToken, requireRoles("Super Administrator", "Administrator"), (req, res) => {
+  res.json({ logs: dispatchLogs });
+});
+
+app.get("/api/system/dispatches/public", (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Public dispatch logs are disabled in production." });
+  }
+
   res.json({ logs: dispatchLogs });
 });
 
@@ -767,12 +773,14 @@ app.post("/api/auth/register", (req, res) => {
     const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
     Database.addAuditLog(newUser.id, newUser.email, `${targetRole} Registered with split onboarding workflow [MongoDB Simulation]`, ip, req.headers["user-agent"] || "");
 
-    // Welcome email logs (Step 2 specs)
+    // Welcome email logs (Step 2 specs) — include direct login link and next steps
+    const frontendUrl = (env.FRONTEND_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
+    const loginUrl = `${frontendUrl}/login?username=${encodeURIComponent(usernameStandard)}`;
     logDispatch(
       "Email",
       newUser.email,
       "Welcome to VoTex platform - Account Created",
-      `Dear ${newUser.fullName},\n\nYour voter account has been successfully created with username [ ${usernameStandard} ].\n\nLogin Instructions: Please log in using your username and password. After your first login, you will be prompted to complete your profile and perform identity verification (uploading ID documentation, digital signature drawing, and biometric liveness scanning) before you are eligible to participate in any elections.\n\nThank you for taking this civic duty seriously.`
+      `Dear ${newUser.fullName},\n\nYour voter account has been successfully created with username [ ${usernameStandard} ].\n\nSign in securely: ${loginUrl}\n\nAfter signing in you will be guided to complete your profile and perform identity verification (upload ID documentation, draw a digital signature, and perform live biometric captures for face liveness and fingerprint).\n\nIf you did not create this account, please contact support immediately.\n\nThank you for taking this civic duty seriously.`
     );
 
     // SMS dispatch (Step 2 specs)

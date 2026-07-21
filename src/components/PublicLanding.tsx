@@ -250,6 +250,7 @@ export default function PublicLanding({
 
   useEffect(() => {
     if (currentPath === "/register") {
+      console.log("[VoTex] Register page active");
       setIsEmailOtpSent(false);
       setEmailVerificationCode("");
       setEmailError("");
@@ -2345,13 +2346,13 @@ export default function PublicLanding({
               >
                 <div>
                   <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                    Email address
+                    Email or username
                   </label>
                   <div className="relative">
                     <input
-                      type="email"
+                      type="text"
                       required
-                      placeholder="voter@example.com"
+                      placeholder="Email or username (e.g. voter@example.com or bibek95292)"
                       value={loginForm.email}
                       onChange={(e) =>
                         setLoginForm({ ...loginForm, email: e.target.value })

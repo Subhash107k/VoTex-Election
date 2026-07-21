@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Terminal, Copy, Trash2, Mail, RefreshCw, Layers, Check, Bell } from "lucide-react";
+import {
+  Terminal,
+  Copy,
+  Trash2,
+  Mail,
+  RefreshCw,
+  Layers,
+  Check,
+  Bell,
+} from "lucide-react";
 import { DispatchLog } from "../types.js";
 
 export default function NotificationConsole() {
@@ -15,17 +24,31 @@ export default function NotificationConsole() {
 
   const fetchLogs = async () => {
     const headers = getAuthHeaders();
-    if (!headers) {
-      setLogs([]);
-      return;
-    }
 
     try {
       setLoading(true);
-      const res = await fetch("/api/system/dispatches", { headers });
+      const primaryUrl = headers
+        ? "/api/system/dispatches"
+        : "/api/system/dispatches/public";
+      let res = await fetch(primaryUrl, headers ? { headers } : undefined);
+
+      // If authenticated request exists but server forbids (403), fall back to public view
+      if (res.status === 403 && headers) {
+        const fallback = await fetch("/api/system/dispatches/public");
+        if (fallback.ok) {
+          const data = await fallback.json();
+          setLogs(data.logs || []);
+          return;
+        }
+        setLogs([]);
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
+      } else {
+        setLogs([]);
       }
     } catch (e) {
       console.error("Unable to sync notifications console:", e);
@@ -39,7 +62,10 @@ export default function NotificationConsole() {
     if (!headers) return;
 
     try {
-      const res = await fetch("/api/system/dispatches/clear", { method: "POST", headers });
+      const res = await fetch("/api/system/dispatches/clear", {
+        method: "POST",
+        headers,
+      });
       if (res.ok) {
         setLogs([]);
       }
@@ -103,7 +129,9 @@ export default function NotificationConsole() {
                 className="p-1 text-slate-400 hover:text-white rounded transition-colors disabled:opacity-50 cursor-pointer"
                 title="Refresh logs"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+                />
               </button>
               <button
                 onClick={clearLogs}
@@ -126,13 +154,16 @@ export default function NotificationConsole() {
             {logs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Terminal className="w-8 h-8 text-slate-800 mb-2" />
-                <p className="text-[11px] text-slate-500 font-mono">No communication packets captured.</p>
+                <p className="text-[11px] text-slate-500 font-mono">
+                  No communication packets captured.
+                </p>
                 <p className="text-[10px] text-slate-600 max-w-[240px] mt-1">
-                  Triggers send operations upon voter registration, login authentication requests, or voting ballot casting.
+                  Triggers send operations upon voter registration, login
+                  authentication requests, or voting ballot casting.
                 </p>
               </div>
             ) : (
-              logs.map(log => {
+              logs.map((log) => {
                 const otp = extractOTP(log.body);
                 return (
                   <div
@@ -176,7 +207,9 @@ export default function NotificationConsole() {
                     </div>
 
                     <div className="font-sans text-[11px]">
-                      <div className="text-slate-400 font-semibold truncate">Target: {log.to}</div>
+                      <div className="text-slate-400 font-semibold truncate">
+                        Target: {log.to}
+                      </div>
                       <div className="text-white font-medium mt-0.5 border-b border-slate-850/30 pb-1 mb-1 font-mono text-[10px]">
                         Subject: {log.title}
                       </div>

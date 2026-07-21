@@ -18,7 +18,7 @@
     "createdAt": "2026-06-24T02:30:12.630Z",
     "isProfileComplete": true,
     "failedLoginAttempts": 0,
-    "lastLoginAt": "2026-07-20T15:11:11.988Z",
+    "lastLoginAt": "2026-07-21T02:29:18.222Z",
     "lockoutUntil": null
   },
   {
@@ -112,5 +112,81 @@
       "ipAddress": "127.0.0.1",
       "submissionTimestamp": "2026-07-02T10:10:00.000Z"
     }
+  },
+  {
+    "id": "usr_95a67cc5-cc46-4f6c-8d05-b21cecaa28a0",
+    "fullName": "vjkd vfjv",
+    "username": "mritujay",
+    "nationalID": "",
+    "email": "mrityunjayshah981427@gmail.com",
+    "mobile": "+9779825741340",
+    "address": "",
+    "dob": "",
+    "gender": "Male",
+    "passwordHash": "$2b$10$zJ6xZg1GIYT1uqjvu2fY4OIhRWSxAy0gn.Uz3AtC7L0DtI7c0zBZ6",
+    "faceImage": "",
+    "role": "Voter",
+    "isVerified": false,
+    "isApproved": false,
+    "isSuspended": false,
+    "isEmailVerified": true,
+    "isMobileVerified": true,
+    "emailVerifiedAt": "2026-07-21T03:36:33.525Z",
+    "mobileVerifiedAt": "2026-07-21T03:36:33.525Z",
+    "otpTimestamps": {
+      "emailSent": "2026-07-21T03:35:33.525Z",
+      "mobileSent": "2026-07-21T03:36:03.525Z",
+      "emailVerified": "2026-07-21T03:36:33.525Z",
+      "mobileVerified": "2026-07-21T03:36:33.525Z"
+    },
+    "registrationTimestamp": "2026-07-21T03:36:33.525Z",
+    "accountStatus": "Pending",
+    "createdAt": "2026-07-21T03:36:33.525Z",
+    "isProfileComplete": false,
+    "auditLogs": [
+      "MongoDB secure document generated",
+      "Email OTP confirmed",
+      "Twilio SMS confirmed"
+    ],
+    "failedLoginAttempts": 0,
+    "lastLoginAt": "2026-07-21T03:48:26.590Z"
+  },
+  {
+    "id": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "fullName": "Bibek Rajak",
+    "username": "bibek95292",
+    "nationalID": "",
+    "email": "rbibek696@gmail.com",
+    "mobile": "+9779743976718",
+    "address": "",
+    "dob": "",
+    "gender": "Male",
+    "passwordHash": "$2b$10$YGT4TkQP6zQhJOmyHQSkAeHDDsQVOUeMQxmIIjs6JDDbrcJZYmTlK",
+    "faceImage": "",
+    "role": "Voter",
+    "isVerified": false,
+    "isApproved": false,
+    "isSuspended": false,
+    "isEmailVerified": true,
+    "isMobileVerified": true,
+    "emailVerifiedAt": "2026-07-21T03:48:26.852Z",
+    "mobileVerifiedAt": "2026-07-21T03:48:26.852Z",
+    "otpTimestamps": {
+      "emailSent": "2026-07-21T03:47:26.852Z",
+      "mobileSent": "2026-07-21T03:47:56.852Z",
+      "emailVerified": "2026-07-21T03:48:26.852Z",
+      "mobileVerified": "2026-07-21T03:48:26.852Z"
+    },
+    "registrationTimestamp": "2026-07-21T03:48:26.852Z",
+    "accountStatus": "Pending",
+    "createdAt": "2026-07-21T03:48:26.852Z",
+    "isProfileComplete": false,
+    "auditLogs": [
+      "MongoDB secure document generated",
+      "Email OTP confirmed",
+      "Twilio SMS confirmed"
+    ],
+    "failedLoginAttempts": 0,
+    "lastLoginAt": "2026-07-21T04:03:20.223Z"
   }
 ]

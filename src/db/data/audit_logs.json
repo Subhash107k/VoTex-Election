@@ -1,5 +1,75 @@
 [
   {
+    "id": "log_555be1bc-8301-46f7-bb92-36c3ae1e0d52",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T04:03:20.225Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_d2477de9-b4ce-4b35-a7f1-f52854bdf503",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "10.61.206.176",
+    "timestamp": "2026-07-21T03:49:26.517Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_1daa3e57-3d84-4418-9970-67104400e6a2",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "10.61.206.176",
+    "timestamp": "2026-07-21T03:48:26.853Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_ce1ddb80-f260-4330-be9a-6c9fd85f688d",
+    "userId": "usr_95a67cc5-cc46-4f6c-8d05-b21cecaa28a0",
+    "userEmail": "mrityunjayshah981427@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T03:48:26.592Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_ef2695f2-bf78-4940-b78c-8205f484b170",
+    "userId": "usr_95a67cc5-cc46-4f6c-8d05-b21cecaa28a0",
+    "userEmail": "mrityunjayshah981427@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "10.61.206.203",
+    "timestamp": "2026-07-21T03:40:10.547Z",
+    "device": "Mac OS",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_5e0caac4-e8a2-4de3-8b93-364cc47a3fa7",
+    "userId": "usr_95a67cc5-cc46-4f6c-8d05-b21cecaa28a0",
+    "userEmail": "mrityunjayshah981427@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T03:36:33.527Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_f90cbff7-e80d-49b2-abb5-7a209f837b57",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T02:29:18.229Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
     "id": "log_cef281f7-f7c3-4ac9-8b36-efcae23ed948",
     "userId": "admin-1",
     "userEmail": "subhash107k@gmail.com",
