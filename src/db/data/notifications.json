@@ -28,5 +28,13 @@
     "message": "Verify your email and setup biometric credentials to vote safely.",
     "type": "info",
     "timestamp": "2026-06-24T02:30:13.110Z"
+  },
+  {
+    "id": "n_4f42af0a-17df-4ff5-b3e0-62d7e6b75d07",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "title": "Enrollment Under Review",
+    "message": "Congratulations on completing your voter registration. Your profile is currently under review by our administrative team.",
+    "type": "info",
+    "timestamp": "2026-07-21T07:27:28.803Z"
   }
 ]

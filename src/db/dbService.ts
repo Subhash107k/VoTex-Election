@@ -769,6 +769,10 @@ export class Database {
   }
 
   private static load<T>(collection: string, defaultData: T[] = []): T[] {
+    if (this.cache[collection]) {
+      return this.cache[collection] as T[];
+    }
+
     const file = this.getFilePath(collection);
     try {
       if (fs.existsSync(file)) {
@@ -780,46 +784,65 @@ export class Database {
     } catch (e) {
       console.error(`Error loading collection ${collection}:`, e);
     }
-    
+
     this.save(collection, defaultData);
     this.cache[collection] = defaultData;
     return defaultData;
   }
 
-  private static save<T>(collection: string, data: T[]): void {
-    this.cache[collection] = data;
+  private static persistToJsonFile<T>(collection: string, data: T[]): void {
     const file = this.getFilePath(collection);
     try {
       fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
     } catch (e) {
+      console.error(`Error writing JSON file for ${collection}:`, e);
+    }
+  }
+
+  private static save<T>(collection: string, data: T[]): void {
+    const normalized = Array.isArray(data) ? data : [];
+    this.cache[collection] = normalized;
+    const file = this.getFilePath(collection);
+    try {
+      fs.writeFileSync(file, JSON.stringify(normalized, null, 2), "utf8");
+    } catch (e) {
       console.error(`Error saving collection ${collection}:`, e);
     }
 
-    // If live MongoDB and manual failover is NOT forced, write directly
+    // Prefer MongoDB as the source of truth when available.
     if (this.isConnected && this.mongoDb && !this.isForceFailoverActive) {
       const dbInstance = this.mongoDb;
       (async () => {
         try {
           const mongoCollection = dbInstance.collection(collection);
-          await mongoCollection.deleteMany({});
-          if (data && data.length > 0) {
-            const docsToInsert = data.map((d: any) => ({
-              _id: d.id,
-              ...d
+          const docsToUpsert = (normalized || []).map((d: any) => ({
+            _id: d.id,
+            ...d,
+          }));
+
+          if (docsToUpsert.length > 0) {
+            const operations = docsToUpsert.map((doc: any) => ({
+              replaceOne: {
+                filter: { _id: doc._id },
+                replacement: doc,
+                upsert: true,
+              },
             }));
-            await mongoCollection.insertMany(docsToInsert);
+            await mongoCollection.bulkWrite(operations);
+          } else {
+            await mongoCollection.deleteMany({});
           }
         } catch (dbErr: any) {
           console.error(`[WRITE ERROR] Failed to save write-through changes to MongoDB ${collection}:`, dbErr);
           this.addTimelineEvent(`Primary database write failed for "${collection}". Transaction queued.`, "warning", "Sync Engine");
-          
+
           // Network failed, queue transaction packet for manual or background synchronization
-          this.enqueueOfflineWrite(collection, data);
+          this.enqueueOfflineWrite(collection, normalized);
         }
       })();
     } else {
       // Offline fallback activated, queue local edits for future sync actions
-      this.enqueueOfflineWrite(collection, data);
+      this.enqueueOfflineWrite(collection, normalized);
     }
   }
 
@@ -913,6 +936,7 @@ export class Database {
 
   static saveUsers(data: User[]): void {
     this.save("users", data);
+    this.persistToJsonFile("users", data);
   }
 
   static getUserProfiles(): UserProfile[] {
@@ -984,6 +1008,7 @@ export class Database {
 
   static saveUserProfiles(data: UserProfile[]): void {
     this.save("user_profiles", data);
+    this.persistToJsonFile("user_profiles", data);
   }
 
   static getPoliticalParties(): PoliticalParty[] {
@@ -1153,6 +1178,7 @@ export class Database {
 
   static saveIdentityDocuments(data: IdentityDocument[]): void {
     this.save("identity_documents", data);
+    this.persistToJsonFile("identity_documents", data);
   }
 
   static getFaceVerifications(): FaceVerification[] {
@@ -1161,6 +1187,7 @@ export class Database {
 
   static saveFaceVerifications(data: FaceVerification[]): void {
     this.save("face_verifications", data);
+    this.persistToJsonFile("face_verifications", data);
   }
 
   static getCandidates(): Candidate[] {

@@ -27,8 +27,8 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import BiometricScanner from "./BiometricScanner.tsx";
 import ComprehensiveProfile from "./ComprehensiveProfile.tsx";
+import FaceVerification from "../pages/FaceVerification.tsx";
 import {
   Election,
   Candidate,
@@ -127,11 +127,24 @@ export default function VoterDashboard({
   >("idle");
   const [faceVerificationScore, setFaceVerificationScore] = useState(0);
   const [faceVerificationMessage, setFaceVerificationMessage] = useState("");
+  const [faceVerificationId, setFaceVerificationId] = useState<string | null>(
+    null,
+  );
   const [fingerprintImage, setFingerprintImage] = useState<string | null>(null);
   const [fingerprintStatus, setFingerprintStatus] = useState<
     "idle" | "checking" | "matched" | "mismatch"
   >("idle");
   const [voteSubmitting, setVoteSubmitting] = useState(false);
+
+  const facePreviewSrc = currentUser.faceImage
+    ? currentUser.faceImage.startsWith("data:") ||
+      currentUser.faceImage.startsWith("http") ||
+      currentUser.faceImage.startsWith("https")
+      ? currentUser.faceImage
+      : `https://avatars.dicebear.com/api/identicon/${encodeURIComponent(
+          currentUser.faceImage,
+        )}.svg`
+    : "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150";
 
   // Time Countdown Remaining states
   const [countdownString, setCountdownString] = useState("");
@@ -294,8 +307,21 @@ export default function VoterDashboard({
     if (selectedElection) {
       fetchCandidatesForElection(selectedElection.id);
       setSelectedCandidate(null);
+      setFaceVerificationId(null);
+      setFaceVerificationStatus("idle");
+      setFaceVerificationScore(0);
+      setFaceVerificationMessage("");
+      setScanImage(null);
     }
   }, [selectedElection]);
+
+  useEffect(() => {
+    setFaceVerificationId(null);
+    setFaceVerificationStatus("idle");
+    setFaceVerificationScore(0);
+    setFaceVerificationMessage("");
+    setScanImage(null);
+  }, [selectedCandidate?.id]);
 
   // Handle countdown calculation
   useEffect(() => {
@@ -324,109 +350,6 @@ export default function VoterDashboard({
 
     return () => clearInterval(interval);
   }, [selectedElection]);
-
-  const loadImageToCanvas = (source: string) =>
-    new Promise<HTMLCanvasElement | null>((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(null);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, 64, 64);
-        resolve(canvas);
-      };
-      img.onerror = () => resolve(null);
-      img.src = source;
-    });
-
-  const compareFaceWithRegisteredPhoto = async (
-    capturedImage: string,
-    registeredImage?: string,
-  ) => {
-    if (!registeredImage) {
-      setFaceVerificationStatus("matched");
-      setFaceVerificationScore(100);
-      setFaceVerificationMessage(
-        "Registered photo unavailable, so the live scan passed the liveness and quality checks.",
-      );
-      return true;
-    }
-
-    setFaceVerificationStatus("checking");
-    setFaceVerificationMessage(
-      "Comparing your live face with your registered voter photo...",
-    );
-
-    const [capturedCanvas, registeredCanvas] = await Promise.all([
-      loadImageToCanvas(capturedImage),
-      loadImageToCanvas(registeredImage),
-    ]);
-
-    if (!capturedCanvas || !registeredCanvas) {
-      setFaceVerificationStatus("mismatch");
-      setFaceVerificationScore(0);
-      setFaceVerificationMessage(
-        "The live face could not be compared with the registered photo. Please retry.",
-      );
-      return false;
-    }
-
-    const capturedData = capturedCanvas
-      .getContext("2d")
-      ?.getImageData(0, 0, 64, 64).data;
-    const registeredData = registeredCanvas
-      .getContext("2d")
-      ?.getImageData(0, 0, 64, 64).data;
-    if (!capturedData || !registeredData) {
-      setFaceVerificationStatus("mismatch");
-      setFaceVerificationScore(0);
-      setFaceVerificationMessage(
-        "The live face could not be compared with the registered photo. Please retry.",
-      );
-      return false;
-    }
-
-    let difference = 0;
-    for (let i = 0; i < capturedData.length; i += 4) {
-      difference += Math.abs(capturedData[i] - registeredData[i]);
-      difference += Math.abs(capturedData[i + 1] - registeredData[i + 1]);
-      difference += Math.abs(capturedData[i + 2] - registeredData[i + 2]);
-    }
-
-    const similarity = Math.max(0, 1 - difference / (255 * 3 * 64 * 64));
-    const score = Math.round(similarity * 100);
-    setFaceVerificationScore(score);
-
-    if (score >= 72) {
-      setFaceVerificationStatus("matched");
-      setFaceVerificationMessage(
-        `Face verification passed with a ${score}% match against your registered voter photo.`,
-      );
-      return true;
-    }
-
-    setFaceVerificationStatus("mismatch");
-    setFaceVerificationMessage(
-      `The live face did not match the registered photo closely enough (${score}%). Please retry.`,
-    );
-    return false;
-  };
-
-  // Biometric captured trigger action
-  const handleFaceCaptured = async (
-    image64: string,
-    _faceTemplate?: number[],
-    _result?: any,
-  ) => {
-    setScanImage(image64);
-    const registeredPhoto = currentUser.faceImage || currentUser.profilePicture;
-    await compareFaceWithRegisteredPhoto(image64, registeredPhoto);
-  };
 
   const handleFingerprintCapture = async (image64: string) => {
     setFingerprintImage(image64);
@@ -457,12 +380,12 @@ export default function VoterDashboard({
 
   // cast ballot API dispatcher
   const handleCastBallot = async () => {
-    if (!selectedElection || !selectedCandidate || !scanImage) {
-      return setErrorMsg("Please Align your biometrics face alignment first.");
+    if (!selectedElection || !selectedCandidate) {
+      return setErrorMsg("Please select an election and candidate first.");
     }
-    if (faceVerificationStatus !== "matched") {
+    if (faceVerificationStatus !== "matched" || !faceVerificationId) {
       return setErrorMsg(
-        "Face verification must pass before you can cast your ballot.",
+        "Live face verification must pass before you can cast your ballot.",
       );
     }
     if (!fingerprintImage || fingerprintStatus !== "matched") {
@@ -489,7 +412,7 @@ export default function VoterDashboard({
         body: JSON.stringify({
           electionId: selectedElection.id,
           candidateId: selectedCandidate.id,
-          faceCaptureImage: scanImage,
+          faceVerificationId,
           fingerprintImage,
         }),
       });
@@ -895,80 +818,201 @@ export default function VoterDashboard({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Anti-Fraud Threat Logs */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-              <span className="text-[10px] font-mono font-extrabold text-slate-400 uppercase tracking-wider block mb-4 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                Enrollment Anti-Fraud & Deepfake AI Report
-              </span>
-
-              <div className="space-y-3">
-                {(
-                  currentUser.verificationReport?.fraudReport || [
-                    "Citizenship / NID authority signature match check: Secure & Genuine",
-                    "Deepfake liveness, parallax, and facial skin heat signature check: Genuine human",
-                    "Cross-boundary duplicate registration scan: Clean (0 matching metrics)",
-                    "Tampering & screenshot metadata layer check: Passed",
-                    "Synthetic identity threat check: Low Risk (Score: 1/100)",
-                    "Proxy check (VPN tunnel overlay, region mask): Location matches coordinates",
-                  ]
-                ).map((reportLine: string, index: number) => {
-                  const [title, status] = reportLine.split(":");
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-start justify-between gap-3 text-xs border-b border-dashed border-slate-100 pb-2.5 last:border-0 last:pb-0"
-                    >
-                      <div className="text-slate-600 select-none font-semibold">
-                        {title}
-                      </div>
-                      <div className="text-emerald-600 font-bold font-mono text-[10px] shrink-0 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase">
-                        {status || "PASSED"}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <span className="text-[10px] font-mono font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                    Identity Document Dossier
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    A secure summary of your registered identity document,
+                    verification status, and trusted biometric record.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMainTab("profile")}
+                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  Edit record
+                </button>
               </div>
-            </div>
 
-            {/* Verification Security Logs */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-              <span className="text-[10px] font-mono font-extrabold text-slate-400 uppercase tracking-wider block mb-4 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                Interactive Registration Audit Log
-              </span>
-
-              <div className="col-span-1 space-y-3 font-mono text-[11px] max-h-64 overflow-y-auto pr-1">
-                {(
-                  currentUser.auditLogs || [
-                    "Profile information registered",
-                    "Identity documents front & back uploaded",
-                    "Digital signature verified",
-                    "Biometric face liveness checked",
-                    "Fingerprint signature registered",
-                    "Voter profile queued for administrative verification",
-                  ]
-                ).map((log: string, k: number) => (
-                  <div
-                    key={k}
-                    className="flex gap-2.5 items-start pl-2 border-l border-indigo-500"
-                  >
-                    <span className="text-indigo-400 font-bold">▶</span>
-                    <div>
-                      <p className="text-slate-700 font-semibold">{log}</p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">
-                        IP:{" "}
-                        {currentUser.verificationReport?.ipAddress ||
-                          "127.0.0.1"}{" "}
-                        •{" "}
-                        {new Date(
-                          currentUser.verificationReport?.submissionTimestamp ||
-                            new Date(),
-                        ).toLocaleString()}
+              <div className="grid grid-cols-1 lg:grid-cols-[120px_minmax(0,1fr)] gap-5 mb-6">
+                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-950">
+                  <img
+                    src={facePreviewSrc}
+                    alt="Document portrait"
+                    className="w-full h-full object-cover min-h-[180px]"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="rounded-3xl border border-slate-100 bg-slate-50 p-5 shadow-sm">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">
+                    Issued Identity Record
+                  </p>
+                  <h4 className="text-slate-900 font-bold text-xl tracking-tight mb-1">
+                    National Identity Card
+                  </h4>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-3">
+                    Government of Nepal · Citizen Registry
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                    <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                      <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">
+                        Holder
+                      </p>
+                      <p className="font-semibold text-slate-900">
+                        {currentUser.fullName || "Not provided"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                      <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">
+                        Document ID
+                      </p>
+                      <p className="font-semibold text-slate-900 text-right">
+                        {currentUser.nationalID || "Not provided"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                      <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">
+                        Date of Birth
+                      </p>
+                      <p className="font-semibold text-slate-900">
+                        {currentUser.dob || "Not provided"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                      <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">
+                        Gender
+                      </p>
+                      <p className="font-semibold text-slate-900 text-right">
+                        {currentUser.gender || "Not provided"}
                       </p>
                     </div>
                   </div>
-                ))}
+                </div>
+              </div>
+
+              <div className="space-y-4 text-sm text-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Registered Address
+                    </p>
+                    <p className="font-semibold text-slate-900">
+                      {currentUser.address || "Not provided"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Current Status
+                    </p>
+                    <p className="font-semibold text-slate-900 text-right">
+                      {currentUser.accountStatus || "Pending verification"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Document Trust
+                    </p>
+                    <p className="font-semibold text-slate-900">
+                      {currentUser.verificationReport?.documentScore
+                        ? `${currentUser.verificationReport.documentScore}%`
+                        : "Not scored"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Submission Time
+                    </p>
+                    <p className="font-semibold text-slate-900 text-right">
+                      {currentUser.verificationReport?.submissionTimestamp
+                        ? new Date(
+                            currentUser.verificationReport.submissionTimestamp,
+                          ).toLocaleString()
+                        : "Not available"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-mono font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  Document Verification Summary
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveMainTab("profile")}
+                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  Review
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm text-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Face Match
+                    </p>
+                    <p className="font-semibold text-slate-900">
+                      {currentUser.verificationReport?.faceMatchScore
+                        ? `${currentUser.verificationReport.faceMatchScore}%`
+                        : "Pending"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      OCR Accuracy
+                    </p>
+                    <p className="font-semibold text-slate-900 text-right">
+                      {currentUser.verificationReport?.ocrAccuracy
+                        ? `${currentUser.verificationReport.ocrAccuracy}%`
+                        : "Pending"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Fingerprint Quality
+                    </p>
+                    <p className="font-semibold text-slate-900">
+                      {currentUser.verificationReport?.fingerprintQuality
+                        ? `${currentUser.verificationReport.fingerprintQuality}%`
+                        : "Pending"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                      Audit Client
+                    </p>
+                    <p className="font-semibold text-slate-900 text-right">
+                      {currentUser.verificationReport?.deviceInformation ||
+                        "Nepal Secure Web Voter Client"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-slate-950/5 p-4 border border-slate-100">
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">
+                    Document Notes
+                  </p>
+                  <p className="text-slate-700 text-sm leading-relaxed">
+                    {currentUser.rejectionReason
+                      ? currentUser.rejectionReason
+                      : "This document record is stored for review and can be updated through the profile section if you need to correct missing or mismatched details."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1751,12 +1795,20 @@ export default function VoterDashboard({
                           </div>
 
                           <div className="space-y-4">
-                            <BiometricScanner
-                              onCapture={handleFaceCaptured}
-                              title="Live Casting confirmation scan"
-                              subtitle="Capture the video frame to confirm your local key signature and unlock casting rights."
-                              buttonLabel="Cast Vote Secure ballot"
-                              mode="face-api"
+                            <FaceVerification
+                              token={token}
+                              electionId={selectedElection.id}
+                              candidateLabel={`${selectedCandidate.name} (${selectedCandidate.party})`}
+                              onBack={() => setVoteStep("view_candidates")}
+                              onVerified={(result) => {
+                                setFaceVerificationId(result.verificationId);
+                                setFaceVerificationStatus("matched");
+                                setFaceVerificationScore(
+                                  Math.round(result.similarityScore * 100),
+                                );
+                                setFaceVerificationMessage(result.message);
+                                setScanImage("server-face-verification-passed");
+                              }}
                             />
 
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1776,7 +1828,7 @@ export default function VoterDashboard({
                               </div>
                               <div className="text-[11px] text-slate-600 mb-2">
                                 {faceVerificationMessage ||
-                                  "Complete the camera scan to verify your identity before voting."}
+                                  "Complete the live camera verification to unlock voting."}
                               </div>
                               {faceVerificationScore > 0 && (
                                 <div className="text-[11px] text-slate-500 mb-2">
@@ -1839,7 +1891,11 @@ export default function VoterDashboard({
 
                           <button
                             type="button"
-                            disabled={!scanImage || voteSubmitting}
+                            disabled={
+                              faceVerificationStatus !== "matched" ||
+                              !faceVerificationId ||
+                              voteSubmitting
+                            }
                             onClick={handleCastBallot}
                             className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-750 disabled:opacity-50 text-white font-bold text-xs px-5 py-3 rounded-xl cursor-pointer disabled:cursor-not-allowed shadow transition-colors"
                           >

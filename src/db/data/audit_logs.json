@@ -1,5 +1,15 @@
 [
   {
+    "id": "log_9e8f899d-8a28-441b-a5d2-fda638c91843",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T06:35:21.398Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
     "id": "log_555be1bc-8301-46f7-bb92-36c3ae1e0d52",
     "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
     "userEmail": "rbibek696@gmail.com",
@@ -268,5 +278,85 @@
     "timestamp": "2026-06-24T02:30:13.071Z",
     "device": "Control Server",
     "browser": "Node.js Environment"
+  },
+  {
+    "id": "log_c081333f-b768-4733-ab71-c56e8794a691",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T06:51:27.783Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_4412a171-6811-47a9-8ad3-fd386e55ff8f",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:02:02.312Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_15184bca-e5a8-408e-a1f0-b7b335d9ef32",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:08:56.096Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_f2a0a962-b68d-4154-a6b5-d4ecf0d0f33c",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Document Upload (Citizenship & National ID Front/Back)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:27:27.688Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_e2b45e97-fc4c-4787-b194-af64b54bd179",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Biometric Face Capture & Parallax Liveness Check",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:27:27.689Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_cf0733a1-f29d-4670-ba4c-e02c05bd9c20",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Enrollment Submitted & Queued for Administrative Review",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:27:27.690Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_fb78be37-156b-4a66-9afe-962457b1ff7e",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Reset & Restarted Enrollment Profile Onboarding Fresh",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:38:56.611Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_ab293120-fba6-4c56-a6b5-5d3ed787427c",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T07:39:18.132Z",
+    "device": "Windows",
+    "browser": "Chrome"
   }
 ]

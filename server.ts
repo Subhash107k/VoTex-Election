@@ -12,6 +12,9 @@ import path from "path";
 import { z } from "zod";
 import { createServer as createViteServer } from "vite";
 import { Database, User, Candidate, Election, Vote, AuditLog, OTPRecord, Notification } from "./src/db/dbService.js";
+import { verifyFace } from "./middleware/verifyFace.js";
+import { createFaceVerificationRouter } from "./routes/faceVerification.routes.js";
+import { FaceVerificationService } from "./services/faceVerification.service.js";
 import bcrypt from "bcryptjs";
 
 const EnvSchema = z.object({
@@ -149,6 +152,8 @@ const requireRoles = (...roles: string[]) => {
     next();
   };
 };
+
+app.use("/api/face", createFaceVerificationRouter(authenticateToken));
 
 // ----------------------------------------------------
 // 1. DISPATCH LOG BUFFER (E-Mail & SMS Console)
@@ -2065,14 +2070,17 @@ const canExposePublishedResults = (election: Election) => {
   return election.status === "Published" && election.resultsPublished === true && now >= endTime;
 };
 
-app.post("/api/vote", authenticateToken, (req: any, res) => {
+app.post("/api/vote", authenticateToken, verifyFace, (req: any, res) => {
   try {
-    const { electionId, candidateId, faceCaptureImage, fingerprintImage } = req.body;
+    const { electionId, candidateId, fingerprintImage } = req.body;
+    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "Mozilla/5.0";
 
     // Validate voter verification completeness per system requirements
     if (req.user.role === "Voter") {
       const isVerifiedReady = req.user.isApproved && req.user.isVerified && req.user.isProfileComplete;
       if (!isVerifiedReady) {
+        Database.addAuditLog(req.user.id, req.user.email, "Voting rejected: profile verification incomplete", ip, userAgent);
         return res.status(403).json({ 
           error: "VERIFICATION_INCOMPLETE", 
           message: "Profile verification incomplete. You cannot vote until the profile is approved and all security-checks are completed." 
@@ -2081,6 +2089,7 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     }
 
     if (!electionId || !candidateId) {
+      Database.addAuditLog(req.user.id, req.user.email, "Voting rejected: election or candidate selection missing", ip, userAgent);
       return res.status(400).json({ error: "Election and Candidate selection must be provided" });
     }
 
@@ -2088,11 +2097,20 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const election = elections.find(e => e.id === electionId);
 
     if (!election) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected: election "${electionId}" was not found`, ip, userAgent);
       return res.status(404).json({ error: "Target election is unrecognized" });
     }
 
     if (election.status !== "Active") {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": election closed or inactive`, ip, userAgent);
       return res.status(400).json({ error: "This election is currently closed or in draft status" });
+    }
+
+    const candidates = Database.getCandidates();
+    const candidate = candidates.find(c => c.id === candidateId && c.electionId === electionId);
+    if (!candidate) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": candidate not valid for election`, ip, userAgent);
+      return res.status(400).json({ error: "Selected candidate is not valid for this election." });
     }
 
     // Verify timeframe window checks precisely
@@ -2100,17 +2118,16 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const start = new Date(election.startDate);
     const end = new Date(election.endDate);
     if (now < start) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": voting window has not opened`, ip, userAgent);
       return res.status(400).json({ error: "Voting window for this election campaign has not opened yet." });
     }
     if (now > end) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": voting window has closed`, ip, userAgent);
       return res.status(400).json({ error: "Voting window for this election campaign has closed." });
     }
 
-    // Biometric Liveness/Verification Check
-    if (!faceCaptureImage) {
-      return res.status(400).json({ error: "Liveness facial match signature is required before casting vote" });
-    }
     if (!fingerprintImage) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": fingerprint confirmation missing`, ip, userAgent);
       return res.status(400).json({ error: "Registered fingerprint confirmation is required before casting vote" });
     }
 
@@ -2119,6 +2136,7 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const registeredFingerprintHash = currentProfile?.fingerprintHash || createFingerprintHash(currentProfile?.fingerprintImage || "");
     const incomingFingerprintHash = createFingerprintHash(fingerprintImage);
     if (!registeredFingerprintHash || incomingFingerprintHash !== registeredFingerprintHash) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": fingerprint mismatch`, ip, userAgent);
       return res.status(400).json({
         error: "FINGERPRINT_MISMATCH",
         message: "The live fingerprint does not match your registered voter fingerprint."
@@ -2136,19 +2154,12 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
     const alreadyVoted = votes.some(v => v.anonymousVoterHash === voterHash);
 
     if (alreadyVoted) {
+      Database.addAuditLog(req.user.id, req.user.email, `Voting rejected for election "${election.title}": voter already cast a ballot`, ip, userAgent);
       return res.status(400).json({ 
         error: "VOTING_LOCKED", 
         message: "You have already voted. Multiple voting is not allowed." 
       });
     }
-
-    // Validate face verification base64 exists and has sufficient bytes
-    if (faceCaptureImage.length < 100) {
-      return res.status(400).json({ error: "Facial capture image resolution or quality is too low" });
-    }
-
-    const userAgent = req.headers["user-agent"] || "Mozilla/5.0";
-    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
 
     const voteId = createId("vote");
     const voteTime = new Date().toISOString();
@@ -2184,12 +2195,15 @@ app.post("/api/vote", authenticateToken, (req: any, res) => {
 
     votes.push(newVote);
     Database.saveVotes(votes);
+    if (req.faceVerification?.id) {
+      FaceVerificationService.consume(req.faceVerification.id);
+    }
 
     // Logging without associating who was voted for, keeping transaction logs clean but certified!
     Database.addAuditLog(
       req.user.id, 
       req.user.email, 
-      `Vote Ballot cast successfully for election "${election.title}"`, 
+      `Voting allowed and ballot cast successfully for election "${election.title}"`, 
       ip, 
       userAgent
     );

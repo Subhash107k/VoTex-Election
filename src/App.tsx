@@ -93,11 +93,11 @@ export default function App() {
   const [forgotForm, setForgotForm] = useState<ForgotPasswordForm>(
     emptyForgotPasswordForm,
   );
-  const [forgotStep, setForgotStep] =
-    useState<ForgotPasswordStep>("request");
+  const [forgotStep, setForgotStep] = useState<ForgotPasswordStep>("request");
 
   const clearSession = (reason?: string) => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem("votex_user");
     setToken(null);
     setCurrentUser(null);
 
@@ -108,6 +108,7 @@ export default function App() {
 
   const saveSession = (newToken: string, user: User) => {
     localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+    localStorage.setItem("votex_user", JSON.stringify(user));
     setToken(newToken);
     setCurrentUser(user);
   };

@@ -22,28 +22,45 @@ export default function NotificationConsole() {
     return token ? { Authorization: `Bearer ${token}` } : null;
   };
 
+  const getUserRole = () => {
+    try {
+      const raw = localStorage.getItem("votex_user");
+      if (!raw) return "";
+      const parsed = JSON.parse(raw);
+      return String(parsed?.role || "").toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+
   const fetchLogs = async () => {
     const headers = getAuthHeaders();
+    const userRole = getUserRole();
+    const isPrivileged = [
+      "administrator",
+      "super administrator",
+      "election officer",
+      "moderator",
+      "verification officer",
+      "support staff",
+      "faq manager",
+    ].includes(userRole);
 
     try {
       setLoading(true);
-      const primaryUrl = headers
-        ? "/api/system/dispatches"
-        : "/api/system/dispatches/public";
-      let res = await fetch(primaryUrl, headers ? { headers } : undefined);
 
-      // If authenticated request exists but server forbids (403), fall back to public view
-      if (res.status === 403 && headers) {
-        const fallback = await fetch("/api/system/dispatches/public");
-        if (fallback.ok) {
-          const data = await fallback.json();
+      if (!headers || !isPrivileged) {
+        const res = await fetch("/api/system/dispatches/public");
+        if (res.ok) {
+          const data = await res.json();
           setLogs(data.logs || []);
-          return;
+        } else {
+          setLogs([]);
         }
-        setLogs([]);
         return;
       }
 
+      const res = await fetch("/api/system/dispatches", { headers });
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -51,7 +68,7 @@ export default function NotificationConsole() {
         setLogs([]);
       }
     } catch (e) {
-      console.error("Unable to sync notifications console:", e);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -77,7 +94,7 @@ export default function NotificationConsole() {
   // Poll for logs
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(fetchLogs, 4000);
+    const interval = setInterval(fetchLogs, 10000);
     return () => clearInterval(interval);
   }, []);
 
