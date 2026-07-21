@@ -488,5 +488,55 @@
     "isUsed": false,
     "purpose": "Registration",
     "createdAt": "2026-07-19T12:28:27.348Z"
+  },
+  {
+    "id": "otp_email_d089d1ed-46d6-4f12-9cc5-083dd28fc9fa",
+    "email": "subhash1435@gmail.com",
+    "mobile": "",
+    "code": "920216",
+    "expiresAt": "2026-07-20T12:34:12.987Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-20T12:24:12.990Z"
+  },
+  {
+    "id": "otp_email_d8e73107-113b-4565-b58d-d01539b5db22",
+    "email": "subhash107s@gmail.com",
+    "mobile": "",
+    "code": "264358",
+    "expiresAt": "2026-07-20T12:36:58.272Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-20T12:26:58.272Z"
+  },
+  {
+    "id": "otp_sms_39cf4896-22b6-46e5-a309-b1c232f71fcb",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "141213",
+    "expiresAt": "2026-07-20T12:38:57.482Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-20T12:28:57.483Z"
+  },
+  {
+    "id": "otp_cae41cb4-d9c2-44b4-8c01-9402a42020b6",
+    "mobile": "",
+    "email": "subhash107k@gmail.com",
+    "code": "969968",
+    "expiresAt": "2026-07-20T15:08:59.138Z",
+    "isUsed": false,
+    "purpose": "PasswordReset",
+    "createdAt": "2026-07-20T14:58:59.138Z"
+  },
+  {
+    "id": "otp_email_6a08ddbd-bfd3-4d40-adba-3bc0d1c237d3",
+    "email": "sukriti947s@gmail.com",
+    "mobile": "",
+    "code": "167418",
+    "expiresAt": "2026-07-20T15:26:10.466Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-20T15:16:10.467Z"
   }
 ]

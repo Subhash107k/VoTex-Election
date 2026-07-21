@@ -1,5 +1,15 @@
 [
   {
+    "id": "log_cef281f7-f7c3-4ac9-8b36-efcae23ed948",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-20T15:11:12.002Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
     "id": "log_6fpcsstra",
     "userId": "admin-1",
     "userEmail": "subhash107k@gmail.com",

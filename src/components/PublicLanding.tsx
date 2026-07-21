@@ -37,32 +37,68 @@ import {
 } from "lucide-react";
 import BiometricScanner from "./BiometricScanner.tsx";
 import ElectionResults from "./ElectionResults.tsx";
+import PasswordStrength from "./common/PasswordStrength.tsx";
+import PublicFaqPage from "./PublicFaqPage.tsx";
+import PublicContactPage from "./PublicContactPage.tsx";
+import PublicDocsPage from "./PublicDocsPage.tsx";
+import type { PublicLandingProps } from "../types/auth.ts";
 
-// Helper Interface
-interface PublicLandingProps {
-  currentPath: string;
-  setCurrentPath: (path: string) => void;
-  loading: boolean;
-  loginForm: any;
-  setLoginForm: (form: any) => void;
-  handleLoginSubmit: (e: React.FormEvent) => void;
-  regForm: any;
-  setRegForm: (form: any) => void;
-  regFaceImage: string;
-  setRegFaceImage: (img: string) => void;
-  regFaceTemplate: number[] | null;
-  setRegFaceTemplate: (tpl: number[] | null) => void;
-  handleRegisterSubmit: (e: React.FormEvent) => void;
-  forgotForm: any;
-  setForgotForm: (form: any) => void;
-  forgotStep: "request" | "verify";
-  setForgotStep: (step: "request" | "verify") => void;
-  handleForgotPasswordSubmit: (e: React.FormEvent) => void;
-  handleResetPasswordSubmit: (e: React.FormEvent) => void;
-  loginAsPresetUser: (role: "super" | "officer" | "voter") => void;
-  theme: "light" | "dark";
-  setTheme: (t: "light" | "dark") => void;
-  passwordStrengthComponent: React.ReactNode;
+interface PasswordFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  inputBg: string;
+  autoComplete?: string;
+  placeholder?: string;
+  rightAction?: React.ReactNode;
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  inputBg,
+  autoComplete = "current-password",
+  placeholder = "Enter password",
+  rightAction,
+}: PasswordFieldProps) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <label className="block font-bold text-slate-550 dark:text-slate-400">
+          {label}
+        </label>
+        {rightAction}
+      </div>
+      <div className="relative">
+        <input
+          type={isPasswordVisible ? "text" : "password"}
+          required
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={`w-full rounded-xl border px-3 py-2.5 pl-9 pr-10 ${inputBg}`}
+        />
+        <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+        <button
+          type="button"
+          onClick={() => setIsPasswordVisible((current) => !current)}
+          className="absolute right-2 top-1.5 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+          aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+          title={isPasswordVisible ? "Hide password" : "Show password"}
+        >
+          {isPasswordVisible ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function PublicLanding({
@@ -88,7 +124,6 @@ export default function PublicLanding({
   loginAsPresetUser,
   theme,
   setTheme,
-  passwordStrengthComponent,
 }: PublicLandingProps) {
   // Mobile navigation drawer toggle
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -264,7 +299,7 @@ export default function PublicLanding({
         if (data?.remainingSec) {
           setEmailCountdown(data.remainingSec);
         }
-        throw new Error(data.error || "Failed sending SMTP verification code");
+        throw new Error(data.error || "Could not send the email code.");
       }
       if (data?.alreadyRegistered) {
         setEmailError(
@@ -286,7 +321,7 @@ export default function PublicLanding({
 
   const verifyEmailCode = async () => {
     if (!emailVerificationCode) {
-      setEmailError("Verification code is required");
+      setEmailError("Enter the email code.");
       return;
     }
     setEmailError("");
@@ -301,7 +336,8 @@ export default function PublicLanding({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Verification failed");
+      if (!res.ok)
+        throw new Error(data.error || "The email code is not correct.");
       setIsEmailVerifiedLocal(true);
       setTimeout(() => {
         setActiveRegStep(3);
@@ -335,7 +371,7 @@ export default function PublicLanding({
         if (data?.remainingSec) {
           setSmsCountdown(data.remainingSec);
         }
-        throw new Error(data.error || "Failed sending Twilio OTP");
+        throw new Error(data.error || "Could not send the SMS code.");
       }
       if (data?.alreadyRegistered) {
         setSmsError(
@@ -357,7 +393,7 @@ export default function PublicLanding({
 
   const verifySmsOtp = async () => {
     if (!smsVerificationCode) {
-      setSmsError("SMS token is required");
+      setSmsError("Enter the SMS code.");
       return;
     }
     setSmsError("");
@@ -372,7 +408,8 @@ export default function PublicLanding({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "OTP code invalid");
+      if (!res.ok)
+        throw new Error(data.error || "The SMS code is not correct.");
       setIsSmsVerifiedLocal(true);
       setTimeout(() => {
         setActiveRegStep(4);
@@ -431,24 +468,24 @@ export default function PublicLanding({
   // Standard interactive QA Accordion Data
   const faqs = [
     {
-      q: "How do I register on the VoTex platform?",
-      a: "Voters click on 'Register' to fill in passport / National ID numbers, emails, physical demographics, and capture a biometric spatial face model using their browser camera. Once approved, voting access is granted.",
+      q: "How do I create a VoTex account?",
+      a: "Click Create Account, enter your details, verify your email and phone, and complete the face capture step. After approval, you can sign in and vote.",
     },
     {
-      q: "Is my cast ballot entirely secure and anonymous?",
-      a: "Yes. VoTex applies advanced cryptographic hashing structures to separate your identity registration from your cast ballot. No administrator, candidate, or system agent can associate your individual profile with your choices.",
+      q: "Is my vote private?",
+      a: "Yes. VoTex keeps your voter account separate from your saved vote, so your choice is not shown with your profile.",
     },
     {
       q: "Can a voter cast their ballot more than once?",
-      a: "Absolutely not. The system implements a strict '1 Voter = 1 Choice Limit' using unique anonymous ballot claim tokens. Any second voting attempt under the same profile is blocked instantly by the ledger filters.",
+      a: "No. The system allows only one vote from each approved voter for each election.",
     },
     {
-      q: "How does the biometric facial verification work?",
-      a: "Our scanner maps geometric face coordinates and simulates liveness cues completely within the sandbox. It does not send raw recordings to third-party databases, ensuring 100% citizen data privacy.",
+      q: "How does face verification work?",
+      a: "The app asks you to use your camera for a face check. This helps confirm that the same voter is using the account.",
     },
     {
-      q: "When are the official election results published?",
-      a: "As soon as the configured election timeline ends, designated election administrators review the cryptographic audit receipts and publish real-time results directly to the citizen dashboards.",
+      q: "When are results shown?",
+      a: "Results are shown after the election ends and an admin publishes them.",
     },
   ];
 
@@ -478,7 +515,7 @@ export default function PublicLanding({
                   VoTex Public
                 </h1>
                 <span className="text-[9px] text-slate-500 font-mono tracking-wider block mt-0.5 uppercase font-bold">
-                  STATE REVOLUTIONARY AUDITS
+                  Secure public voting
                 </span>
               </div>
             </button>
@@ -521,18 +558,18 @@ export default function PublicLanding({
               >
                 Results
               </button>
-              <a
-                href="#faq-section"
-                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              <button
+                onClick={() => handleNav("/faq")}
+                className={`transition-colors cursor-pointer ${currentPath === "/faq" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
               >
                 FAQ
-              </a>
-              <a
-                href="#contact-section"
-                className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+              </button>
+              <button
+                onClick={() => handleNav("/contact")}
+                className={`transition-colors cursor-pointer ${currentPath === "/contact" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
               >
                 Contact
-              </a>
+              </button>
             </nav>
 
             {/* Right Action buttons & Theme switch */}
@@ -559,15 +596,15 @@ export default function PublicLanding({
                     : "bg-slate-900 text-slate-200 hover:bg-slate-850 hover:text-white border border-slate-800"
                 }`}
               >
-                Login (Voter)
+                Sign In
               </button>
 
               <button
                 onClick={() => handleNav("/register")}
                 className="px-3 md:px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 text-[10px] md:text-xs font-extrabold rounded-xl cursor-pointer shadow-sm"
               >
-                <span className="hidden sm:inline">Register Now</span>
-                <span className="sm:hidden">Register</span>
+                <span className="hidden sm:inline">Create Account</span>
+                <span className="sm:hidden">Join</span>
               </button>
 
               {/* Mobile hamburger menu */}
@@ -622,18 +659,18 @@ export default function PublicLanding({
             >
               Results
             </button>
-            <a
-              href="#faq-section"
-              className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+            <button
+              onClick={() => handleNav("/faq")}
+              className={`transition-colors cursor-pointer ${currentPath === "/faq" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
             >
               FAQ
-            </a>
-            <a
-              href="#contact-section"
-              className={`transition-colors ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}
+            </button>
+            <button
+              onClick={() => handleNav("/contact")}
+              className={`transition-colors cursor-pointer ${currentPath === "/contact" ? "text-emerald-500 font-extrabold" : `${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-white"}`}`}
             >
               Contact
-            </a>
+            </button>
           </nav>
         </div>
       </header>
@@ -695,20 +732,24 @@ export default function PublicLanding({
             >
               Results
             </button>
-            <a
-              href="#faq-section"
-              onClick={() => setMobileMenuOpen(false)}
+            <button
+              onClick={() => {
+                handleNav("/faq");
+                setMobileMenuOpen(false);
+              }}
               className="text-left text-sm font-semibold py-2"
             >
               FAQ
-            </a>
-            <a
-              href="#contact-section"
-              onClick={() => setMobileMenuOpen(false)}
+            </button>
+            <button
+              onClick={() => {
+                handleNav("/contact");
+                setMobileMenuOpen(false);
+              }}
               className="text-left text-sm font-semibold py-2"
             >
               Contact
-            </a>
+            </button>
 
             <div className="border-t border-slate-100 dark:border-slate-850 pt-4 flex gap-3 mt-2">
               <button
@@ -751,7 +792,7 @@ export default function PublicLanding({
                     className={`mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider ${isLight ? "bg-blue-100/70 text-blue-700" : "bg-emerald-950/40 text-emerald-400 border border-emerald-800/45"}`}
                   >
                     <Shield className="w-3.5 h-3.5" />
-                    <span>State Audited Certified Platform v1.42</span>
+                    <span>Secure voting demo</span>
                   </div>
 
                   <h1
@@ -767,10 +808,9 @@ export default function PublicLanding({
                   <p
                     className={`text-sm md:text-base ${textMuted} mb-8 leading-relaxed max-w-2xl`}
                   >
-                    VoTex is the state-certified digital secure framework
-                    combining native hardware biometric capturing with dynamic
-                    local validation tokens. Safeguard civic integrity with
-                    certified one-vote-per-voter liveness assurance records.
+                    VoTex helps voters register, verify their identity, and vote
+                    online. It uses login checks, OTP codes, and face capture to
+                    help protect one vote per voter.
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -779,7 +819,7 @@ export default function PublicLanding({
                       className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 font-extrabold rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/10 transition-transform hover:-translate-y-0.5 cursor-pointer flex items-center justify-center gap-2"
                     >
                       <UserCheck2 className="w-4 h-4" />
-                      <span>Onboard Register Now</span>
+                      <span>Create Account</span>
                     </button>
 
                     <button
@@ -873,7 +913,7 @@ export default function PublicLanding({
 
                     <div className="mt-6 pt-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col gap-1 text-[11px]">
                       <span className={`${textTitle} font-bold`}>
-                        Platform Public Audit Key
+                        Public security key
                       </span>
                       <span className="font-mono text-[9px] text-slate-400 break-all select-all py-1.5 px-2.5 bg-slate-100 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-850">
                         SHA256: 4e9c70b80dfa245cfdbe019
@@ -917,7 +957,7 @@ export default function PublicLanding({
                     <p
                       className={`text-[10px] md:text-xs font-mono font-bold mt-1 uppercase ${textMuted}`}
                     >
-                      Verified Citizens
+                      Verified Voters
                     </p>
                   </div>
 
@@ -950,7 +990,7 @@ export default function PublicLanding({
                     <p
                       className={`text-[10px] md:text-xs font-mono font-bold mt-1 uppercase ${textMuted}`}
                     >
-                      Cryptographic Votes Cast
+                      Votes Cast
                     </p>
                   </div>
                 </div>
@@ -966,30 +1006,26 @@ export default function PublicLanding({
                 <div className="flex flex-col lg:flex-row items-center gap-12">
                   <div className="flex-1 text-left">
                     <span className="text-[10px] text-blue-500 font-mono font-extrabold uppercase tracking-widest block mb-3">
-                      TRUST & DECENTRALIZATION STATEMENT
+                      About VoTex
                     </span>
                     <h2
                       className={`text-3xl md:text-4xl font-black ${textTitle} leading-tight mb-6 tracking-tight`}
                     >
-                      Democratizing Civil Voting Safely With Browser Sandbox
-                      Biometrics.
+                      Simple online voting with built-in identity checks.
                     </h2>
                     <p
                       className={`text-xs md:text-sm ${textMuted} mb-6 leading-relaxed`}
                     >
-                      VoTex answers the foundational trust challenges of modern
-                      online voting. By eliminating third-party visual reporting
-                      databases, the platform executes contour face liveness
-                      challenges locally on the client browser. No photos or
-                      templates are ever sent to unauthorized cloud networks.
+                      VoTex helps teams run digital elections with clear voter
+                      registration, secure sign in, OTP checks, and face
+                      verification.
                     </p>
                     <p
                       className={`text-xs md:text-sm ${textMuted} mb-8 leading-relaxed`}
                     >
-                      Ideal for academic boards, state administrations,
-                      institutional selections, and civil committees requiring
-                      secure cryptography, one-person-one-vote rules, and direct
-                      public verification structures.
+                      It is designed for colleges, clubs, committees, and
+                      organizations that need a clear one-person-one-vote
+                      process.
                     </p>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1000,13 +1036,12 @@ export default function PublicLanding({
                           className={`text-xs font-extrabold uppercase ${textTitle} mb-1 flex items-center gap-1.5`}
                         >
                           <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                          <span>No Identity Leakage</span>
+                          <span>Private votes</span>
                         </h4>
                         <p
                           className={`text-[10px] ${textMuted} leading-relaxed`}
                         >
-                          Voter credentials are separated from the dynamic
-                          ballot hash token, ensuring anonymity.
+                          Voter accounts are kept separate from saved votes.
                         </p>
                       </div>
 
@@ -1017,13 +1052,13 @@ export default function PublicLanding({
                           className={`text-xs font-extrabold uppercase ${textTitle} mb-1 flex items-center gap-1.5`}
                         >
                           <User className="w-4 h-4 text-blue-500" />
-                          <span>Decentralized Verification</span>
+                          <span>Extra checks</span>
                         </h4>
                         <p
                           className={`text-[10px] ${textMuted} leading-relaxed`}
                         >
-                          SMTP codes and Twilio SMS verification secure initial
-                          registration.
+                          Email and SMS codes help confirm the voter owns their
+                          contact details.
                         </p>
                       </div>
                     </div>
@@ -1038,7 +1073,7 @@ export default function PublicLanding({
                       >
                         <div className="flex items-center gap-2 text-indigo-500 mb-4 font-mono text-[10px] font-extrabold tracking-wider bg-indigo-500/10 w-fit px-2.5 py-1 rounded-full">
                           <Activity className="w-3.5 h-3.5" />
-                          <span>AUTHENTICATED AUDIT CHECKS</span>
+                          <span>Security checks</span>
                         </div>
                         <ul className="flex flex-col gap-4 text-xs font-sans text-left text-slate-600 dark:text-slate-300">
                           <li className="flex items-start gap-2">
@@ -1144,7 +1179,7 @@ export default function PublicLanding({
                     {
                       step: "01",
                       title: "Voter Registration",
-                      desc: "Submit your basic demographics details and choose your profile credentials.",
+                      desc: "Enter your basic details and choose your account password.",
                     },
                     {
                       step: "02",
@@ -1357,13 +1392,13 @@ export default function PublicLanding({
                         <div className="flex justify-between">
                           <span>Mails Dispatch:</span>
                           <span className="text-slate-700 dark:text-slate-300 font-bold uppercase">
-                            SMTP Secure
+                            Email codes
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span>SMS Integrations:</span>
                           <span className="text-slate-700 dark:text-slate-300 font-bold uppercase">
-                            Twilio OTP API
+                            SMS codes
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -1376,7 +1411,7 @@ export default function PublicLanding({
 
                       <div className="mt-6 pt-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col gap-1 text-[11px] text-left">
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-350">
-                          Audit Security Signature
+                          Security signature
                         </span>
                         <span className="text-[10px] text-emerald-500 font-mono font-bold break-all bg-emerald-500/5 p-2 rounded">
                           VoTex-Security-Verified-Enterprise-2026
@@ -1387,20 +1422,19 @@ export default function PublicLanding({
 
                   <div className="lg:col-span-7 text-left">
                     <span className="text-[10px] text-indigo-500 font-mono font-extrabold uppercase tracking-widest block mb-3">
-                      STATE INDUSTRIAL CRYPTOGRAPHY
+                      Security
                     </span>
                     <h2
                       className={`text-3xl md:text-4xl font-black ${textTitle} leading-tight mb-6 tracking-tight`}
                     >
-                      Enterprise Cryptography Restoring Integrity
+                      Built to protect each vote
                     </h2>
                     <p
                       className={`text-xs md:text-sm ${textMuted} mb-6 leading-relaxed`}
                     >
-                      VoTex constructs state-verified, tamper-proof ballot
-                      receipts. When voters execute candidates selections, the
-                      system records logs fully insulated using bcrypt
-                      encryption frameworks and client-auth secrets.
+                      VoTex records each vote carefully and keeps a history of
+                      important actions. Passwords are hashed, and protected
+                      routes require a valid login token.
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 text-xs">
@@ -1516,7 +1550,7 @@ export default function PublicLanding({
                         {[
                           {
                             title: "AES-256 Encryption",
-                            desc: "For secure resting database state of all sensitive credentials.",
+                            desc: "For saved private data that should stay protected.",
                           },
                           {
                             title: "Argon2id Password Hashing",
@@ -1917,10 +1951,8 @@ export default function PublicLanding({
                       <p
                         className={`text-[11px] leading-relaxed mb-8 ${textMuted}`}
                       >
-                        Need administrative support for credentials resetting,
-                        system auditing credentials, or mounting internal
-                        elections? Our support specialists are prepared to
-                        assist daily.
+                        Need help with your account, an election, or a report?
+                        Send a message and the support team will follow up.
                       </p>
 
                       <div className="flex flex-col gap-4 font-sans text-slate-600 dark:text-slate-300">
@@ -1930,7 +1962,7 @@ export default function PublicLanding({
                             <strong
                               className={`${textTitle} block font-semibold`}
                             >
-                              Security Ops Email
+                              Support email
                             </strong>
                             <span>support@votex-system.gov</span>
                           </div>
@@ -1942,7 +1974,7 @@ export default function PublicLanding({
                             <strong
                               className={`${textTitle} block font-semibold`}
                             >
-                              Citizen Hotline
+                              Help line
                             </strong>
                             <span>+1 (800) 555-VTEX (8839)</span>
                           </div>
@@ -1954,7 +1986,7 @@ export default function PublicLanding({
                             <strong
                               className={`${textTitle} block font-semibold`}
                             >
-                              HQ Headquarters Office
+                              Office
                             </strong>
                             <span>
                               600 Congress Ave. Suite 1400, Austin, TX 78701
@@ -1968,7 +2000,7 @@ export default function PublicLanding({
                             <strong
                               className={`${textTitle} block font-semibold`}
                             >
-                              Operational Working Hours
+                              Working hours
                             </strong>
                             <span>
                               Monday - Friday | 08:00 AM - 05:00 PM CST
@@ -2075,7 +2107,7 @@ export default function PublicLanding({
                                 message: e.target.value,
                               })
                             }
-                            placeholder="Write your comprehensive description here..."
+                            placeholder="Write your message here..."
                             className={`w-full px-3 py-2.5 rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-500/50 ${inputBg}`}
                           />
                         </div>
@@ -2084,8 +2116,7 @@ export default function PublicLanding({
                           <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl font-bold flex items-center gap-2">
                             <Check className="w-4 h-4" />
                             <span>
-                              Successfully dispatched! Support code VTEX-TKT-
-                              {supportCode} compiled.
+                              Message sent. Support code VTEX-TKT-{supportCode}.
                             </span>
                           </div>
                         )}
@@ -2096,8 +2127,8 @@ export default function PublicLanding({
                           className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-slate-950 font-extrabold uppercase rounded-xl tracking-wider shadow cursor-pointer transition-colors"
                         >
                           {contactSubmitting
-                            ? "TRANSMITTING TO OFFICERS..."
-                            : "Dispatch Support Ticket"}
+                            ? "Sending message..."
+                            : "Send Message"}
                         </button>
                       </form>
                     </div>
@@ -2114,11 +2145,11 @@ export default function PublicLanding({
                 <h3
                   className={`font-black text-lg ${textTitle} mb-1 tracking-tight`}
                 >
-                  Subscribe for Election Broadcasts
+                  Get Election Updates
                 </h3>
                 <p className={`text-xs ${textMuted} mb-6`}>
-                  Receive timely updates regarding upcoming civic rosters,
-                  candidate debates, and election result releases.
+                  Get simple updates about upcoming elections, candidates, and
+                  results.
                 </p>
 
                 <form
@@ -2143,7 +2174,7 @@ export default function PublicLanding({
 
                 {newsletterSuccess && (
                   <p className="text-emerald-500 font-bold mt-3">
-                    ✔ Successfully registered! Check inbox for confirmation.
+                    You are subscribed. Please check your email.
                   </p>
                 )}
               </div>
@@ -2158,21 +2189,21 @@ export default function PublicLanding({
               onClick={() => handleNav("/")}
               className={`mb-6 text-xs font-mono font-bold hover:underline flex items-center gap-1 cursor-pointer ${textMuted}`}
             >
-              <span>← RETURN BACK TO LOBBY</span>
+              <span>Back to home</span>
             </button>
 
             <div className="text-left mb-12">
               <span className="text-[10px] text-teal-500 font-mono font-extrabold tracking-widest block uppercase mb-1">
-                CENTRAL ELECTION RECORD DECK
+                Public elections
               </span>
               <h1
                 className={`text-3xl md:text-4xl font-black ${textTitle} tracking-tight`}
               >
-                Institutional Elections Registry
+                Elections
               </h1>
               <p className={`text-xs ${textMuted} mt-2 max-w-2xl`}>
-                Review current active elections campaigns, finalize votes, and
-                inspect published tally results safely.
+                Review active elections, vote when voting is open, and view
+                published results.
               </p>
             </div>
 
@@ -2180,7 +2211,7 @@ export default function PublicLanding({
               <div className="py-20 flex flex-col items-center justify-center">
                 <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-2" />
                 <span className="text-xs text-slate-400 font-mono">
-                  RETRIEVING OFF-SITE BALLOT LISTINGS...
+                  Loading elections...
                 </span>
               </div>
             ) : elections.length === 0 ? (
@@ -2189,12 +2220,10 @@ export default function PublicLanding({
               >
                 <Calendar className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                 <h3 className={`font-extrabold ${textTitle} text-sm`}>
-                  No Active Elections On Ledger
+                  No active elections
                 </h3>
                 <p className={`text-xs ${textMuted} mt-1`}>
-                  No institutional elections are currently registered.
-                  Administrators can deploy them directly from the control
-                  panel.
+                  No elections are open right now. Please check again later.
                 </p>
                 <button
                   onClick={() => handleNav("/")}
@@ -2299,10 +2328,10 @@ export default function PublicLanding({
                 className={`text-xl font-extrabold ${textTitle} mb-1 flex items-center gap-2`}
               >
                 <Lock className="w-5 h-5 text-emerald-500" />
-                <span>Voter Audits Login</span>
+                <span>Sign In</span>
               </h2>
               <p className={`text-xs ${textMuted} mb-6`}>
-                Input your registered credentials to sign your ballot securely.
+                Use your email and password to open your account.
               </p>
 
               {/* Collapsible active developer login presets */}
@@ -2316,13 +2345,13 @@ export default function PublicLanding({
               >
                 <div>
                   <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                    Account Mail Address
+                    Email address
                   </label>
                   <div className="relative">
                     <input
                       type="email"
                       required
-                      placeholder="citizen@domain.org"
+                      placeholder="voter@example.com"
                       value={loginForm.email}
                       onChange={(e) =>
                         setLoginForm({ ...loginForm, email: e.target.value })
@@ -2333,40 +2362,31 @@ export default function PublicLanding({
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase">
-                      Profile Password
-                    </label>
+                <PasswordField
+                  label="Password"
+                  value={loginForm.password}
+                  onChange={(password) =>
+                    setLoginForm({ ...loginForm, password })
+                  }
+                  inputBg={inputBg}
+                  autoComplete="current-password"
+                  rightAction={
                     <button
                       type="button"
                       onClick={() => handleNav("/forgot_password")}
-                      className="text-[10px] text-blue-500 hover:underline font-semibold"
+                      className="text-[10px] font-semibold text-blue-500 hover:underline"
                     >
-                      Forgot?
+                      Forgot password?
                     </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={loginForm.password}
-                      onChange={(e) =>
-                        setLoginForm({ ...loginForm, password: e.target.value })
-                      }
-                      className={`w-full px-3 py-2.5 pl-9 rounded-xl border ${inputBg}`}
-                    />
-                    <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
-                  </div>
-                </div>
+                  }
+                />
 
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 font-extrabold text-xs uppercase tracking-wider py-3.5 rounded-xl cursor-pointer mt-2"
                 >
-                  {loading ? "CHECKING CREDENTIALS..." : "Secure Voter Login"}
+                  {loading ? "Signing in..." : "Sign In"}
                 </button>
 
                 <p className={`text-[10px] text-center mt-3 ${textMuted}`}>
@@ -2376,19 +2396,19 @@ export default function PublicLanding({
                     onClick={() => handleNav("/register")}
                     className="text-emerald-500 font-bold hover:underline cursor-pointer"
                   >
-                    Onboard & Register Here
+                    Create one
                   </button>
                 </p>
 
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-850/60 flex flex-col items-center gap-1">
                   <p className={`text-[10px] text-center ${textMuted}`}>
-                    Need administrative controls?{" "}
+                    Need admin access?{" "}
                     <button
                       type="button"
                       onClick={() => handleNav("/admin/login")}
                       className="text-blue-500 font-bold hover:underline cursor-pointer"
                     >
-                      Administrative Login Center
+                      Admin sign in
                     </button>
                   </p>
                 </div>
@@ -2414,11 +2434,11 @@ export default function PublicLanding({
                 className={`text-xl font-extrabold ${textTitle} mb-1 flex items-center gap-2`}
               >
                 <UserCheck className="w-5 h-5 text-emerald-500" />
-                <span>Onboard Government Registry</span>
+                <span>Create Account</span>
               </h2>
               <p className={`text-xs ${textMuted} mb-6`}>
-                Create your citizen account. Verification of email and phone is
-                required to finalize.
+                Create your account. We will verify your email and phone before
+                you finish.
               </p>
 
               {loading && (
@@ -2429,10 +2449,10 @@ export default function PublicLanding({
                 onSubmit={handleRegisterSubmit}
                 className="flex flex-col gap-4 text-[10px] md:text-xs font-sans"
               >
-                {/* 0. Registration Role Toggle */}
+                {/* Choose the account role before sending verification codes. */}
                 <div>
-                  <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1.5">
-                    Account Classification
+                  <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1.5">
+                    Account type
                   </label>
                   <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-850">
                     <button
@@ -2444,7 +2464,7 @@ export default function PublicLanding({
                           : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                       }`}
                     >
-                      Citizen Voter
+                      Voter
                     </button>
                     <button
                       type="button"
@@ -2457,15 +2477,14 @@ export default function PublicLanding({
                           : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                       }`}
                     >
-                      Campaign Candidate
+                      Candidate
                     </button>
                   </div>
                 </div>
 
-                {/* 1. Full Name */}
                 <div>
-                  <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                    Full Citizen Name
+                  <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                    Full name
                   </label>
                   <input
                     type="text"
@@ -2479,10 +2498,9 @@ export default function PublicLanding({
                   />
                 </div>
 
-                {/* 2. Username */}
                 <div>
-                  <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                    Username (Choose Unique ID)
+                  <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                    Username
                   </label>
                   <input
                     type="text"
@@ -2496,19 +2514,19 @@ export default function PublicLanding({
                   />
                 </div>
 
-                {/* 3. Email & OTP verification widget */}
+                {/* Email codes prove the voter controls the email address. */}
                 <div className="p-3 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col gap-3">
                   <div className="flex justify-between items-center">
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase">
+                    <label className="block text-slate-550 dark:text-slate-400 font-bold">
                       Email Address
                     </label>
                     {isEmailVerifiedLocal ? (
                       <span className="text-[10px] text-emerald-400 font-bold font-mono">
-                        ✔ SMTP EMAIL VERIFIED
+                        Email verified
                       </span>
                     ) : (
                       <span className="text-[10px] text-amber-500 font-mono">
-                        Awaiting verification
+                        Not verified yet
                       </span>
                     )}
                   </div>
@@ -2571,13 +2589,12 @@ export default function PublicLanding({
                         !isEmailVerifiedLocal && (
                           <>
                             <p className="text-[9px] text-slate-600 dark:text-slate-300 font-mono">
-                              OTP sent to your email. Enter the code below to
-                              verify.
+                              We sent a code to your email. Enter it below.
                             </p>
                             <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex gap-2">
                               <input
                                 type="text"
-                                placeholder="6-digit SMTP verification code"
+                                placeholder="6-digit email code"
                                 value={emailVerificationCode}
                                 onChange={(e) =>
                                   setEmailVerificationCode(e.target.value)
@@ -2598,20 +2615,20 @@ export default function PublicLanding({
                     </>
                   ) : (
                     <p className="text-[10px] text-emerald-400 font-mono">
-                      OTP entry is now hidden after successful verification.
+                      Email verification is complete.
                     </p>
                   )}
                 </div>
 
-                {/* 4. Mobile & OTP SMS verification widget */}
+                {/* SMS codes prove the voter controls the phone number. */}
                 <div className="p-3 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col gap-3">
                   <div className="flex justify-between items-center">
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase">
-                      Mobile Contact No
+                    <label className="block text-slate-550 dark:text-slate-400 font-bold">
+                      Mobile number
                     </label>
                     {isSmsVerifiedLocal ? (
                       <span className="text-[10px] text-emerald-400 font-bold font-mono">
-                        ✔ SMS CONTACT VERIFIED
+                        Phone verified
                       </span>
                     ) : (
                       <span className="text-[10px] text-amber-500 font-mono">
@@ -2675,13 +2692,12 @@ export default function PublicLanding({
                       {isSmsOtpSent && !isSmsVerifiedLocal && (
                         <>
                           <p className="text-[9px] text-slate-600 dark:text-slate-300 font-mono">
-                            SMS OTP sent. Enter the code below to verify your
-                            phone.
+                            We sent a code to your phone. Enter it below.
                           </p>
                           <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex gap-2">
                             <input
                               type="text"
-                              placeholder="6-digit SMS Twilio OTP code"
+                              placeholder="6-digit SMS code"
                               value={smsVerificationCode}
                               onChange={(e) =>
                                 setSmsVerificationCode(e.target.value)
@@ -2702,50 +2718,38 @@ export default function PublicLanding({
                     </>
                   ) : (
                     <p className="text-[10px] text-emerald-400 font-mono">
-                      OTP entry is now hidden after successful verification.
+                      Phone verification is complete.
                     </p>
                   )}
                 </div>
 
-                {/* 5. Password & Confirm Password */}
+                {/* Password strength helps new users choose safer passwords. */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                      Passphrase
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={regForm.password}
-                      onChange={(e) =>
-                        setRegForm({ ...regForm, password: e.target.value })
-                      }
-                      className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
-                    />
-                  </div>
+                  <PasswordField
+                    label="Password"
+                    value={regForm.password}
+                    onChange={(password) =>
+                      setRegForm({ ...regForm, password })
+                    }
+                    inputBg={inputBg}
+                    autoComplete="new-password"
+                  />
 
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold uppercase mb-1">
-                      Confirm Passphrase
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={regForm.confirmPassword}
-                      onChange={(e) =>
-                        setRegForm({
-                          ...regForm,
-                          confirmPassword: e.target.value,
-                        })
-                      }
-                      className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
-                    />
-                  </div>
+                  <PasswordField
+                    label="Confirm password"
+                    value={regForm.confirmPassword}
+                    onChange={(confirmPassword) =>
+                      setRegForm({
+                        ...regForm,
+                        confirmPassword,
+                      })
+                    }
+                    inputBg={inputBg}
+                    autoComplete="new-password"
+                  />
                 </div>
 
-                {passwordStrengthComponent}
+                <PasswordStrength password={regForm.password} />
 
                 <button
                   type="submit"
@@ -2755,10 +2759,10 @@ export default function PublicLanding({
                   className={`w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-slate-950 font-extrabold uppercase tracking-wider py-4 rounded-xl cursor-pointer mt-4 leading-none disabled:opacity-40`}
                 >
                   {loading
-                    ? "TRANSMITTING SIGNATURE REGISTRY..."
+                    ? "Creating account..."
                     : !isEmailVerifiedLocal || !isSmsVerifiedLocal
-                      ? "Verify Contacts to Unlock Registration"
-                      : "Confirm & Setup Onboarding Account"}
+                      ? "Verify email and phone first"
+                      : "Create Account"}
                 </button>
 
                 <p className={`text-[10px] text-center mt-3 ${textMuted}`}>
@@ -2768,7 +2772,7 @@ export default function PublicLanding({
                     onClick={() => handleNav("/login")}
                     className="text-emerald-500 font-bold hover:underline cursor-pointer"
                   >
-                    Sign In Instantly
+                    Sign in
                   </button>
                 </p>
               </form>
@@ -2793,11 +2797,11 @@ export default function PublicLanding({
                 className={`text-xl font-extrabold ${textTitle} mb-1 flex items-center gap-2`}
               >
                 <Key className="w-5 h-5 text-emerald-500" />
-                <span>Reset Center</span>
+                <span>Reset Password</span>
               </h2>
               <p className={`text-xs ${textMuted} mb-6`}>
-                Recover your platform citizen audit profiles securely via OTP
-                verify codes.
+                Enter your email. We will send a code so you can choose a new
+                password.
               </p>
 
               {forgotStep === "request" ? (
@@ -2807,12 +2811,12 @@ export default function PublicLanding({
                 >
                   <div>
                     <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
-                      ENTER RECONSTRUCT EMAIL
+                      Email address
                     </label>
                     <input
                       type="email"
                       required
-                      placeholder="neo@example.com"
+                      placeholder="voter@example.com"
                       value={forgotForm.email}
                       onChange={(e) =>
                         setForgotForm({ ...forgotForm, email: e.target.value })
@@ -2825,7 +2829,7 @@ export default function PublicLanding({
                     type="submit"
                     className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-slate-950 font-extrabold uppercase rounded-xl tracking-wider transition-all cursor-pointer"
                   >
-                    Send Outbound Security OTP
+                    Send reset code
                   </button>
                 </form>
               ) : (
@@ -2835,14 +2839,14 @@ export default function PublicLanding({
                 >
                   <div className="p-2.5 bg-yellow-500/10 text-yellow-500 border border-dashed border-yellow-500/30 rounded-xl leading-relaxed text-[10px] mb-2 font-mono">
                     <strong>
-                      OTP code dispatched! Check your mail boxes or review the
-                      SMTP console log at the page footer menu bar.
+                      We sent a reset code. Check your email or the local
+                      message console.
                     </strong>
                   </div>
 
                   <div>
                     <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
-                      6-DIGIT PASSWORD CODES (OTP)
+                      6-digit reset code
                     </label>
                     <div className="relative">
                       <input
@@ -2879,30 +2883,26 @@ export default function PublicLanding({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
-                      NEW ACCOUNT PASSWORD
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={forgotForm.newPassword}
-                      onChange={(e) =>
-                        setForgotForm({
-                          ...forgotForm,
-                          newPassword: e.target.value,
-                        })
-                      }
-                      className={`w-full px-3 py-2.5 rounded-xl border ${inputBg}`}
-                    />
-                  </div>
+                  <PasswordField
+                    label="New password"
+                    value={forgotForm.newPassword}
+                    onChange={(newPassword) =>
+                      setForgotForm({
+                        ...forgotForm,
+                        newPassword,
+                      })
+                    }
+                    inputBg={inputBg}
+                    autoComplete="new-password"
+                  />
+
+                  <PasswordStrength password={forgotForm.newPassword} />
 
                   <button
                     type="submit"
                     className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold uppercase rounded-xl tracking-wider transition-all cursor-pointer"
                   >
-                    Confirm & Update Password
+                    Update password
                   </button>
                 </form>
               )}
@@ -2913,6 +2913,30 @@ export default function PublicLanding({
         {/* ==================== F: PUBLIC ELECTION RESULTS ==================== */}
         {currentPath === "/results" && (
           <ElectionResults onBack={() => handleNav("/")} isLight={isLight} />
+        )}
+
+        {currentPath === "/faq" && (
+          <PublicFaqPage handleNav={handleNav} theme={theme} />
+        )}
+
+        {currentPath === "/contact" && (
+          <PublicContactPage handleNav={handleNav} theme={theme} />
+        )}
+
+        {(currentPath === "/documentation" ||
+          currentPath === "/privacy" ||
+          currentPath === "/terms") && (
+          <PublicDocsPage
+            handleNav={handleNav}
+            theme={theme}
+            type={
+              currentPath === "/privacy"
+                ? "privacy"
+                : currentPath === "/terms"
+                  ? "terms"
+                  : "documentation"
+            }
+          />
         )}
       </main>
 
@@ -2934,20 +2958,19 @@ export default function PublicLanding({
                       VoTex
                     </h3>
                     <span className="text-[9px] font-mono text-slate-500 uppercase font-bold tracking-wider">
-                      Enterprise Audit Bureau
+                      Digital voting platform
                     </span>
                   </div>
                 </div>
 
                 <p className={`text-[11px] leading-relaxed mb-6 ${textMuted}`}>
-                  Certified digital voting platforms designed to secure
-                  electoral trust, prevent duplicate casts, and support locally
-                  validated camera biometric challenges seamlessly.
+                  VoTex helps voters register, verify their identity, and vote
+                  with clear steps.
                 </p>
               </div>
 
               <div className="text-[10px] text-slate-500 dark:text-slate-500 font-mono">
-                <span>SYSTEM VERSION 1.42 (STABLE)</span>
+                <span>Version 1.42</span>
               </div>
             </div>
 
@@ -2982,7 +3005,7 @@ export default function PublicLanding({
                     onClick={() => handleNav("/elections")}
                     className="hover:text-emerald-500 text-left transition-colors cursor-pointer"
                   >
-                    Elections Registry
+                    Elections
                   </button>
                 </li>
                 <li>
@@ -3015,19 +3038,28 @@ export default function PublicLanding({
                   </a>
                 </li>
                 <li>
-                  <span className="cursor-not-allowed opacity-60">
+                  <button
+                    onClick={() => handleNav("/documentation")}
+                    className="text-left transition-colors hover:text-emerald-500"
+                  >
                     Documentation
-                  </span>
+                  </button>
                 </li>
                 <li>
-                  <span className="cursor-not-allowed opacity-60">
+                  <button
+                    onClick={() => handleNav("/privacy")}
+                    className="text-left transition-colors hover:text-emerald-500"
+                  >
                     Privacy Policy
-                  </span>
+                  </button>
                 </li>
                 <li>
-                  <span className="cursor-not-allowed opacity-60">
+                  <button
+                    onClick={() => handleNav("/terms")}
+                    className="text-left transition-colors hover:text-emerald-500"
+                  >
                     Terms & Conditions
-                  </span>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -3047,7 +3079,7 @@ export default function PublicLanding({
                     onClick={() => handleNav("/register")}
                     className="hover:text-emerald-500 text-left transition-colors cursor-pointer font-bold text-emerald-500"
                   >
-                    Register Citizen
+                    Create Account
                   </button>
                 </li>
                 <li>
@@ -3071,7 +3103,7 @@ export default function PublicLanding({
                     onClick={() => handleNav("/admin/login")}
                     className="hover:text-emerald-500 text-left transition-colors cursor-pointer"
                   >
-                    Administrative Login
+                    Admin sign in
                   </button>
                 </li>
               </ul>
@@ -3080,14 +3112,12 @@ export default function PublicLanding({
 
           <div className="border-t border-slate-200/50 dark:border-slate-800/50 mt-12 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-mono text-slate-400">
             <div>
-              <span>© 2026 VoTex Bureau. All Rights Reserved.</span>
+              <span>© 2026 VoTex. All rights reserved.</span>
             </div>
             <div className="flex gap-4">
               <span>Built with React 19 + Node.js + local JSON Storage</span>
               <span>•</span>
-              <span className="text-emerald-500">
-                STATE SECURE ENGINE v1.42
-              </span>
+              <span className="text-emerald-500">Secure voting demo v1.42</span>
             </div>
           </div>
         </div>

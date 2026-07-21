@@ -4,7 +4,7 @@
     "question": "How do I create a voter account?",
     "answer": "To create an account, click the Register button. You will need to provide your full name, email, mobile number, and a strong password. You'll then receive OTP codes on both email and mobile to secure your credentials.",
     "category": "Registration",
-    "displayOrder": 1,
+    "displayOrder": 2,
     "status": "Published"
   },
   {
@@ -12,7 +12,7 @@
     "question": "Why is my voter account locked?",
     "answer": "For security reasons, your account is automatically locked for 5 minutes after 5 consecutive failed login attempts on your username or IP address. Contact support if you need immediate assistance.",
     "category": "Login & Account",
-    "displayOrder": 2,
+    "displayOrder": 1,
     "status": "Published"
   },
   {
