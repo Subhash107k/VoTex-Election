@@ -1,32 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 
-import AdminLoginPage from "./components/AdminLoginPage.tsx";
-import AdminPanel from "./components/AdminPanel.tsx";
-import CompleteProfile from "./components/CompleteProfile.tsx";
+import ErrorBoundary from "./components/common/ErrorBoundary.tsx";
 import NotificationConsole from "./components/NotificationConsole.tsx";
-import PublicLanding from "./components/PublicLanding.tsx";
 import SessionManager from "./components/SessionManager.tsx";
-import VoterDashboard from "./components/VoterDashboard.tsx";
-import { CandidateDashboard } from "./components/CandidateDashboard.tsx";
 import Toast from "./components/common/Toast.tsx";
 import { useBrowserPath } from "./hooks/useBrowserPath.ts";
 import { usePersistentTheme } from "./hooks/usePersistentTheme.ts";
 import { useToast } from "./hooks/useToast.ts";
 import {
   getCurrentUser,
+  getUserPreferences,
   loginAccount,
   registerAccount,
   requestPasswordReset,
   resetPassword,
+  updateUserPreferences,
 } from "./services/authService.ts";
 import type {
   ForgotPasswordForm,
   ForgotPasswordStep,
   LoginForm,
-  PresetLoginRole,
   RegisterForm,
 } from "./types/auth.ts";
 import type { User } from "./types.js";
+
+const AdminLoginPage = lazy(() => import("./components/AdminLoginPage.tsx"));
+const AdminPanel = lazy(() => import("./components/AdminPanel.tsx"));
+const CompleteProfile = lazy(() => import("./components/CompleteProfile.tsx"));
+const PublicLanding = lazy(() => import("./components/PublicLanding.tsx"));
+const VoterDashboard = lazy(() => import("./components/VoterDashboard.tsx"));
+const CandidateDashboard = lazy(() =>
+  import("./components/CandidateDashboard.tsx").then((module) => ({
+    default: module.CandidateDashboard,
+  })),
+);
 
 const TOKEN_STORAGE_KEY = "votex_token";
 const LOGOUT_REASON_KEY = "votex_logout_reason";
@@ -53,12 +60,6 @@ const emptyForgotPasswordForm: ForgotPasswordForm = {
   email: "",
   code: "",
   newPassword: "",
-};
-
-const demoCredentials: Record<PresetLoginRole, LoginForm> = {
-  super: { email: "admin@vote.com", password: "admin123" },
-  officer: { email: "officer@vote.com", password: "officer123" },
-  voter: { email: "voter@vote.com", password: "voter123" },
 };
 
 function getErrorMessage(error: unknown) {
@@ -97,7 +98,8 @@ export default function App() {
     localStorage.getItem(TOKEN_STORAGE_KEY),
   );
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(token));
+  const [preferencesReady, setPreferencesReady] = useState(false);
 
   const [regForm, setRegForm] = useState<RegisterForm>(emptyRegisterForm);
   const [regFaceImage, setRegFaceImage] = useState("");
@@ -138,7 +140,7 @@ export default function App() {
     } catch (error) {
       console.error(error);
       clearSession("Your session ended. Please sign in again.");
-      window.location.reload();
+      setCurrentPath("/login");
     } finally {
       setLoading(false);
     }
@@ -159,6 +161,54 @@ export default function App() {
       syncSession();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (currentUser) {
+      const homeByRole: Record<User["role"], string> = {
+        Voter: "/voter",
+        Candidate: "/candidate",
+        Administrator: "/admin",
+        "Super Administrator": "/admin",
+        "Election Officer": "/admin",
+        Moderator: "/admin",
+        "FAQ Manager": "/admin",
+        "Verification Officer": "/admin",
+        "Support Staff": "/admin",
+      };
+      if (currentPath === "/" || currentPath === "/login" || currentPath === "/admin/login") {
+        setCurrentPath(homeByRole[currentUser.role]);
+      }
+      return;
+    }
+
+    if (!loading && /^(\/admin|\/voter|\/candidate)/.test(currentPath)) {
+      setCurrentPath(currentPath.startsWith("/admin") ? "/admin/login" : "/login");
+    }
+  }, [currentUser, currentPath, loading, setCurrentPath]);
+
+  useEffect(() => {
+    if (!token || !currentUser) {
+      setPreferencesReady(false);
+      return;
+    }
+
+    let active = true;
+    getUserPreferences(token)
+      .then(({ preferences }) => {
+        if (!active) return;
+        setTheme(preferences.theme);
+        setPreferencesReady(true);
+      })
+      .catch(() => active && setPreferencesReady(false));
+    return () => {
+      active = false;
+    };
+  }, [token, currentUser?.id]);
+
+  useEffect(() => {
+    if (!token || !currentUser || !preferencesReady) return;
+    void updateUserPreferences(token, { theme }).catch(() => undefined);
+  }, [theme, token, currentUser?.id, preferencesReady]);
 
   const handleLogout = () => {
     window.dispatchEvent(new CustomEvent("trigger_votex_logout_confirm"));
@@ -255,29 +305,20 @@ export default function App() {
     }
   };
 
-  const loginAsPresetUser = async (rolePreset: PresetLoginRole) => {
-    if (Boolean((import.meta as any).env?.PROD)) {
-      showToast("Demo login is disabled in production.", "error");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const data = await loginAccount(demoCredentials[rolePreset]);
-      showToast(`Signed in as ${rolePreset}.`);
-      saveSession(data.token, data.user);
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="relative flex min-h-screen flex-col bg-slate-900 font-sans leading-relaxed text-slate-100">
+    <div className="relative flex min-h-screen flex-col bg-[var(--surface-page)] font-sans leading-relaxed text-[var(--text-primary)]">
       <Toast toast={toast} />
 
-      {currentUser && token ? (
+      <ErrorBoundary>
+      <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] text-sm font-semibold text-[var(--text-secondary)]">Loading application…</main>}>
+      {loading && token && !currentUser ? (
+        <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] px-6 text-[var(--text-primary)]">
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-5 py-4 shadow-lg">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <span className="text-sm font-semibold">Restoring your secure session…</span>
+          </div>
+        </main>
+      ) : currentUser && token ? (
         currentUser.role === "Voter" && !currentUser.isProfileComplete ? (
           <CompleteProfile
             token={token}
@@ -337,11 +378,12 @@ export default function App() {
           setForgotStep={setForgotStep}
           handleForgotPasswordSubmit={handleForgotPasswordSubmit}
           handleResetPasswordSubmit={handleResetPasswordSubmit}
-          loginAsPresetUser={loginAsPresetUser}
           theme={theme}
           setTheme={setTheme}
         />
       )}
+      </Suspense>
+      </ErrorBoundary>
 
       <SessionManager
         token={token}

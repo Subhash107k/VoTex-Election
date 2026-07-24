@@ -4,13 +4,32 @@ import type {
   LoginForm,
   RegisterForm,
 } from "../types/auth.ts";
-import type { User } from "../types.js";
+import type { User, UserPreferences } from "../types.js";
 import { authHeader, jsonRequestOptions, requestJson } from "./apiClient.ts";
 
 export function getCurrentUser(token: string) {
   return requestJson<{ user: User }>("/api/auth/me", {
     headers: authHeader(token),
   });
+}
+
+export function getUserPreferences(token: string) {
+  return requestJson<{ preferences: UserPreferences }>("/api/preferences/me", {
+    headers: authHeader(token),
+  });
+}
+
+export function updateUserPreferences(
+  token: string,
+  preferences: Partial<UserPreferences>,
+) {
+  return requestJson<{ preferences: UserPreferences }>(
+    "/api/preferences/me",
+    {
+      ...jsonRequestOptions("PUT", preferences),
+      headers: { ...authHeader(token), "Content-Type": "application/json" },
+    },
+  );
 }
 
 export function registerAccount(form: RegisterForm) {

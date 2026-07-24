@@ -28,6 +28,12 @@ export interface User {
   lockoutUntil?: number;
 }
 
+export interface UserPreferences {
+  language: "en" | "ne";
+  nepaliTypingEnabled: boolean;
+  theme: "light" | "dark";
+}
+
 export interface Faq {
   id: string;
   question: string;

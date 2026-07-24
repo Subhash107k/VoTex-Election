@@ -115,7 +115,7 @@ app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
-      if (!origin || !isProduction || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error("CORS origin is not allowed by VoTex policy."));
@@ -193,6 +193,10 @@ const authenticateToken = (req: any, res: any, next: any) => {
   const user = users.find((u) => u.id === payload.id);
   if (!user) {
     return res.status(404).json({ error: "User identity no longer exists" });
+  }
+
+  if ((payload.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+    return res.status(401).json({ error: "Access token has been revoked" });
   }
 
   req.user = user;
@@ -610,20 +614,14 @@ app.get("/api/public/stats", (req, res) => {
     const votesCast = votes.length;
 
     res.json({
-      registeredVoters: registeredVoters || 4125,
-      verifiedVoters: verifiedVoters || 3980,
-      electionsConducted: electionsConducted || 12,
-      candidates: totalCandidates || 36,
-      votesCast: votesCast || 94520,
+      registeredVoters,
+      verifiedVoters,
+      electionsConducted,
+      candidates: totalCandidates,
+      votesCast,
     });
   } catch (e) {
-    res.json({
-      registeredVoters: 4125,
-      verifiedVoters: 3980,
-      electionsConducted: 12,
-      candidates: 36,
-      votesCast: 94520,
-    });
+    res.status(500).json({ error: "Unable to load public statistics" });
   }
 });
 
@@ -861,8 +859,29 @@ app.post("/api/auth/verify-sms-otp", (req, res) => {
   }
 });
 
+const registrationSchema = z
+  .object({
+    fullName: z.string().trim().min(2).max(120),
+    username: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/),
+    email: z.string().trim().email().max(254),
+    mobile: z.string().trim().min(8).max(20),
+    dob: z.string().date(),
+    gender: z.enum(["Male", "Female", "Other"]),
+    occupation: z.string().trim().min(2).max(120),
+    password: z.string().min(12).max(128),
+    confirmPassword: z.string().min(12).max(128),
+    role: z.enum(["Voter", "Candidate"]),
+  })
+  .strict();
+
 app.post("/api/auth/register", (req, res) => {
   try {
+    const parsed = registrationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Registration data is invalid. Use a 12-character password and valid field values.",
+      });
+    }
     const {
       fullName,
       username,
@@ -874,7 +893,7 @@ app.post("/api/auth/register", (req, res) => {
       password,
       confirmPassword,
       role,
-    } = req.body;
+    } = parsed.data;
 
     if (
       !fullName ||
@@ -1222,6 +1241,62 @@ app.get("/api/auth/me", authenticateToken, (req: any, res) => {
   });
 });
 
+app.post("/api/auth/logout", authenticateToken, (req: any, res) => {
+  const users = Database.getUsers();
+  const user = users.find((candidate) => candidate.id === req.user.id);
+  if (user) {
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    Database.saveUsers(users);
+  }
+  res.status(204).end();
+});
+
+const preferenceSchema = z
+  .object({
+    language: z.enum(["en", "ne"]).optional(),
+    nepaliTypingEnabled: z.boolean().optional(),
+    theme: z.enum(["light", "dark"]).optional(),
+  })
+  .strict();
+
+const defaultPreferences = {
+  language: "en" as const,
+  nepaliTypingEnabled: false,
+  theme: "light" as const,
+};
+
+app.get("/api/preferences/me", authenticateToken, (req: any, res) => {
+  const preferences = Database.getUserPreferences();
+  const preference = preferences.find((item) => item.userId === req.user.id);
+  res.json({ preferences: preference || defaultPreferences });
+});
+
+app.put("/api/preferences/me", authenticateToken, (req: any, res) => {
+  const parsed = preferenceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid preference values" });
+  }
+
+  const preferences = Database.getUserPreferences();
+  const existingIndex = preferences.findIndex(
+    (item) => item.userId === req.user.id,
+  );
+  const existing = existingIndex >= 0 ? preferences[existingIndex] : null;
+  const preference = {
+    id: existing?.id || createId("pref"),
+    userId: req.user.id,
+    ...defaultPreferences,
+    ...existing,
+    ...parsed.data,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (existingIndex >= 0) preferences[existingIndex] = preference;
+  else preferences.push(preference);
+  Database.saveUserPreferences(preferences);
+  res.json({ preferences: preference });
+});
+
 app.get("/api/profile/my-profile", authenticateToken, (req: any, res) => {
   try {
     const userId = req.user.id;
@@ -1243,8 +1318,14 @@ app.get("/api/profile/my-profile", authenticateToken, (req: any, res) => {
 app.get("/api/profile/draft", authenticateToken, (req: any, res) => {
   try {
     const userId = req.user.id;
+    const formId = req.query.formId || "profile-onboarding";
     const drafts = Database.getProfileDrafts();
-    const draft = drafts.find((d) => d.userId === userId) || null;
+    const draft =
+      drafts.find(
+        (d: any) =>
+          d.userId === userId &&
+          (!formId || d.formId === formId || (!d.formId && formId === "profile-onboarding")),
+      ) || null;
     res.json({ draft });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1255,6 +1336,7 @@ app.post("/api/profile/draft", authenticateToken, (req: any, res) => {
   try {
     const userId = req.user.id;
     const {
+      formId,
       current_step,
       draft_status,
       verification_status,
@@ -1267,15 +1349,21 @@ app.post("/api/profile/draft", authenticateToken, (req: any, res) => {
     } = req.body;
 
     const drafts = Database.getProfileDrafts();
-    let draftIdx = drafts.findIndex((d) => d.userId === userId);
+    const targetFormId = formId || "profile-onboarding";
+    let draftIdx = drafts.findIndex(
+      (d: any) =>
+        d.userId === userId &&
+        (!targetFormId || d.formId === targetFormId || (!d.formId && targetFormId === "profile-onboarding")),
+    );
     const now = new Date().toISOString();
 
     let draft: any;
     if (draftIdx !== -1) {
       draft = drafts[draftIdx];
+      draft.formId = targetFormId;
       draft.current_step =
         current_step !== undefined ? current_step : draft.current_step;
-      draft.draft_status = draft_status || draft.draft_status;
+      draft.draft_status = draft_status || "Complete";
       draft.verification_status =
         verification_status || draft.verification_status;
       draft.citizenship_verified =
@@ -1301,8 +1389,9 @@ app.post("/api/profile/draft", authenticateToken, (req: any, res) => {
       draft = {
         id: createId("draft"),
         userId,
+        formId: targetFormId,
         current_step: current_step || 1,
-        draft_status: draft_status || "Draft",
+        draft_status: draft_status || "Complete",
         last_saved_at: now,
         verification_status: verification_status || "Pending",
         citizenship_verified: !!citizenship_verified,
@@ -1966,6 +2055,7 @@ app.post("/api/auth/reset-password", (req, res) => {
   }
 
   user.passwordHash = bcrypt.hashSync(newPassword, 10);
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   Database.saveUsers(users);
 
   record.isUsed = true;
@@ -2162,14 +2252,12 @@ app.delete(
 // 4. CANDIDATES APIs
 // ----------------------------------------------------
 
-const DEFAULT_CANDIDATE_PHOTO =
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=240";
-const DEFAULT_PARTY_LOGO =
-  "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=120";
+const DEFAULT_CANDIDATE_PHOTO = "";
+const DEFAULT_PARTY_LOGO = "";
 const DEFAULT_SYMBOL = {
-  name: "Tree",
-  code: "TREE",
-  displayColor: "#15803d",
+  name: "Unassigned",
+  code: "UNASSIGNED",
+  displayColor: "#64748b",
   imageUrl: "",
 };
 
@@ -4523,6 +4611,11 @@ app.post(
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
   (req, res) => {
+    return res.status(403).json({
+      error:
+        "Messaging configuration is environment-only and cannot be changed through the dashboard.",
+    });
+
     try {
       const {
         smtpHost,
@@ -4883,23 +4976,9 @@ app.post(
 async function startServer() {
   const httpServer = http.createServer(app);
 
-  // Asynchronously initialize MongoDB connection (handling seeding and synchronization)
-  Database.initializeMongo()
-    .then((connected) => {
-      if (connected) {
-        console.log("MongoDB initialization sequence succeeded!");
-      } else {
-        console.log(
-          "MongoDB unconfigured or skipped. Operating in localized filesystem fallback mode.",
-        );
-      }
-    })
-    .catch((err) => {
-      console.error(
-        "Critical error during MongoDB initialization sequence:",
-        err,
-      );
-    });
+  // Do not accept traffic until the authoritative database is available.
+  await Database.initializeMongo();
+  console.log("MongoDB initialization sequence succeeded!");
 
   if (process.env.NODE_ENV !== "production") {
     console.log("Vite launching in middleware mode...");

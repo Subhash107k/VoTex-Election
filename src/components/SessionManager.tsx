@@ -23,6 +23,17 @@ export default function SessionManager({ token, onLogout, onExtendSession, userR
 
   // Centralized logout operation
   const forceSecureLogout = (reason: string = "Session Expired") => {
+    // Revoke the current token server-side when possible before clearing it locally.
+    if (token) {
+      void fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-VoTex-Session-Cleanup": "true",
+        },
+      }).catch(() => undefined);
+    }
+
     // 1. Clear JWT and refresh configurations from LocalStorage
     localStorage.removeItem("votex_token");
     localStorage.removeItem("votex_refresh_token");
@@ -169,7 +180,12 @@ export default function SessionManager({ token, onLogout, onExtendSession, userR
     const customFetch = async function (...args: any[]) {
       try {
         const response = await originalFetch(...(args as [any, any]));
-        if (response.status === 401) {
+        const requestOptions = args[1] as RequestInit | undefined;
+        const headers = new Headers(requestOptions?.headers);
+        if (
+          response.status === 401 &&
+          headers.get("X-VoTex-Session-Cleanup") !== "true"
+        ) {
           console.warn("API returned 401 Unauthorized. Forcing secure logout...");
           forceSecureLogout("Your token has expired or is invalid. Please log in again.");
         }

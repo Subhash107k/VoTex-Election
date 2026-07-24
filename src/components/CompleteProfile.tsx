@@ -42,6 +42,7 @@ export default function CompleteProfile({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const profileDraftFormId = "profile-onboarding";
 
   const triggerToast = (msg: string, isError = false) => {
     if (isError) {
@@ -1036,15 +1037,16 @@ export default function CompleteProfile({
   };
 
   const saveDraftOnServer = async (stepOverride?: number) => {
-    if (!token) return;
+    if (!token) return null;
     try {
       setDraftSaveStatus("saving");
       const currentState = serializeStates();
       const currentStepVal = stepOverride !== undefined ? stepOverride : step;
 
       const payload = {
+        formId: profileDraftFormId,
         current_step: currentStepVal,
-        draft_status: "Draft",
+        draft_status: "Complete",
         verification_status: "Pending",
         citizenship_verified: false,
         national_id_verified: false,
@@ -1062,13 +1064,20 @@ export default function CompleteProfile({
         },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Save draft failed");
+      if (!res.ok) throw new Error("Save failed");
+
+      const data = await res.json();
+      if (data?.draft) {
+        setFoundDraft(data.draft);
+      }
 
       setDraftSaveStatus("saved");
       setLastSavedTime(new Date().toLocaleTimeString());
+      return data?.draft || null;
     } catch (e) {
       console.error(e);
       setDraftSaveStatus("failed");
+      return null;
     }
   };
 
@@ -1097,11 +1106,14 @@ export default function CompleteProfile({
     if (!token) return;
     const fetchDraft = async () => {
       try {
-        const res = await fetch("/api/profile/draft", {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const res = await fetch(
+          `/api/profile/draft?formId=${encodeURIComponent(profileDraftFormId)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        });
+        );
         if (res.ok) {
           const data = await res.json();
           if (data && data.draft) {
@@ -1426,11 +1438,14 @@ export default function CompleteProfile({
     try {
       setIsSavingStep(true);
       const nextStepVal = step + 1;
-      await saveDraftOnServer(nextStepVal);
-      triggerToast("✅ Your information has been saved successfully.");
+      const savedDraft = await saveDraftOnServer(nextStepVal);
+      if (!savedDraft) {
+        throw new Error("Draft save failed");
+      }
+      triggerToast("✅ Profile progress saved successfully.");
       setStep(nextStepVal);
     } catch (e) {
-      triggerToast("❌ Unable to save draft details.", true);
+      triggerToast("❌ Unable to save your data. Please try again.", true);
     } finally {
       setIsSavingStep(false);
     }
@@ -1706,22 +1721,42 @@ export default function CompleteProfile({
 
                 <div>
                   <label className="block text-slate-400 font-bold uppercase mb-1">
-                    Date of Birth (registry)
+                    Date of Birth (registry) *
                   </label>
-                  <div className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-slate-400" />
-                    {(() => {
-                      const dobVal = user?.dob || personal.dob || "";
-                      if (!dobVal) return "Not provided";
-                      const age = calculateAge(dobVal);
-                      return (
-                        <>
-                          <span className="mr-2">{dobVal}</span>
-                          <span className="text-slate-400">({age} years)</span>
-                        </>
-                      );
-                    })()}
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    {isDobLocked ? (
+                      <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70 flex items-center">
+                        <span className="mr-2">{personal.dob}</span>
+                        {personal.dob && (
+                          <span className="text-slate-400">({calculateAge(personal.dob)} years)</span>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        type="date"
+                        max={maxProfileDob}
+                        value={personal.dob}
+                        onChange={(e) =>
+                          setPersonal({
+                            ...personal,
+                            dob: e.target.value,
+                          })
+                        }
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                      />
+                    )}
                   </div>
+                  {isDobLocked && (
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Date of Birth was provided during registration and cannot be edited here.
+                    </p>
+                  )}
+                  {!isDobLocked && personal.dob && (
+                    <p className="mt-1 text-[10px] text-emerald-400">
+                      Selected age: {calculateAge(personal.dob)} years.
+                    </p>
+                  )}
                 </div>
 
                 <div>

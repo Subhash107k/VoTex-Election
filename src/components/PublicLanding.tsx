@@ -122,7 +122,6 @@ export default function PublicLanding({
   setForgotStep,
   handleForgotPasswordSubmit,
   handleResetPasswordSubmit,
-  loginAsPresetUser,
   theme,
   setTheme,
 }: PublicLandingProps) {
@@ -134,11 +133,11 @@ export default function PublicLanding({
 
   // Dynamic server statistics state
   const [stats, setStats] = useState({
-    registeredVoters: 4125,
-    verifiedVoters: 3980,
-    electionsConducted: 12,
-    candidates: 36,
-    votesCast: 94520,
+    registeredVoters: 0,
+    verifiedVoters: 0,
+    electionsConducted: 0,
+    candidates: 0,
+    votesCast: 0,
   });
 
   const maxRegisterDob = new Date();
@@ -490,7 +489,7 @@ export default function PublicLanding({
   const textMuted = isLight ? "text-slate-500" : "text-slate-400";
   const borderCard = isLight ? "border-slate-200" : "border-slate-850";
   const inputBg = isLight
-    ? "bg-slate-100 text-slate-900 border-slate-200 focus:border-blue-500 focus:bg-white"
+    ? "bg-slate-100 text-slate-900 border-slate-200 shadow-sm transition focus:border-blue-500 focus:bg-white focus:outline-none placeholder:text-slate-400"
     : "bg-slate-900 text-white border-slate-800 focus:border-emerald-500";
 
   // Standard interactive QA Accordion Data
@@ -1541,7 +1540,7 @@ export default function PublicLanding({
                             >
                               Support email
                             </strong>
-                            <span>support@votex-system.gov</span>
+                            <span>support@votex.gov.np</span>
                           </div>
                         </div>
 
@@ -1926,7 +1925,7 @@ export default function PublicLanding({
                     <input
                       type="text"
                       required
-                      placeholder="Email or username (e.g. voter@example.com or bibek95292)"
+                      placeholder="Email or username"
                       value={loginForm.email}
                       onChange={(e) =>
                         setLoginForm({ ...loginForm, email: e.target.value })
@@ -2029,14 +2028,14 @@ export default function PublicLanding({
                   <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1.5">
                     Account type
                   </label>
-                  <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-850">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/90 p-1.5 shadow-sm dark:border-slate-850 dark:bg-slate-900/60">
                     <button
                       type="button"
                       onClick={() => setRegForm({ ...regForm, role: "Voter" })}
                       className={`py-2 rounded-xl text-center font-bold transition-all cursor-pointer text-[10px] sm:text-xs ${
                         regForm.role === "Voter" || !regForm.role
-                          ? "bg-blue-600 dark:bg-indigo-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-200 dark:shadow-none"
+                          : "text-slate-600 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                       }`}
                     >
                       Voter
@@ -2048,8 +2047,8 @@ export default function PublicLanding({
                       }
                       className={`py-2 rounded-xl text-center font-bold transition-all cursor-pointer text-[10px] sm:text-xs ${
                         regForm.role === "Candidate"
-                          ? "bg-blue-600 dark:bg-indigo-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-200 dark:shadow-none"
+                          : "text-slate-600 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                       }`}
                     >
                       Candidate
@@ -2089,13 +2088,13 @@ export default function PublicLanding({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-3.5 shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900/60">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Date of Birth
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+                      <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       <input
                         type="date"
                         required
@@ -2104,11 +2103,11 @@ export default function PublicLanding({
                         onChange={(e) =>
                           setRegForm({ ...regForm, dob: e.target.value })
                         }
-                        className={`w-full rounded-xl border px-3 py-2 pl-9 ${inputBg}`}
+                        className={`w-full rounded-xl border px-3 py-2.5 pl-9 text-sm shadow-sm transition focus:outline-none ${isLight ? "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500 focus:bg-white" : "border-slate-700 bg-slate-950/70 text-slate-100 focus:border-emerald-500 focus:bg-slate-900"}`}
                       />
                     </div>
                     <p
-                      className={`mt-1 text-[10px] ${
+                      className={`mt-1 text-[10px] sm:text-[11px] ${
                         regForm.dob
                           ? dobAge !== null && dobAge >= 18
                             ? "text-emerald-400"
@@ -2120,8 +2119,8 @@ export default function PublicLanding({
                     </p>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-3.5 shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900/60">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Gender Identification
                     </label>
                     <select
@@ -2130,7 +2129,7 @@ export default function PublicLanding({
                       onChange={(e) =>
                         setRegForm({ ...regForm, gender: e.target.value })
                       }
-                      className={`w-full rounded-xl border px-3 py-2 ${inputBg}`}
+                      className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm transition focus:outline-none ${isLight ? "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500 focus:bg-white" : "border-slate-700 bg-slate-950/70 text-slate-100 focus:border-emerald-500 focus:bg-slate-900"}`}
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -2138,12 +2137,12 @@ export default function PublicLanding({
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-3.5 shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900/60 sm:col-span-2 xl:col-span-1">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Occupation / Profession
                     </label>
                     <div className="relative">
-                      <Briefcase className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+                      <Briefcase className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       <input
                         type="text"
                         required
@@ -2152,24 +2151,24 @@ export default function PublicLanding({
                         onChange={(e) =>
                           setRegForm({ ...regForm, occupation: e.target.value })
                         }
-                        className={`w-full rounded-xl border px-3 py-2 pl-9 ${inputBg}`}
+                        className={`w-full rounded-xl border px-3 py-2.5 pl-9 text-sm shadow-sm transition focus:outline-none ${isLight ? "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500 focus:bg-white" : "border-slate-700 bg-slate-950/70 text-slate-100 focus:border-emerald-500 focus:bg-slate-900"}`}
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Email codes prove the voter controls the email address. */}
-                <div className="p-3 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold">
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/30">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="block font-bold text-slate-700 dark:text-slate-200">
                       Email Address
                     </label>
                     {isEmailVerifiedLocal ? (
-                      <span className="text-[10px] text-emerald-400 font-bold font-mono">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold font-mono text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                         Email verified
                       </span>
                     ) : (
-                      <span className="text-[10px] text-amber-500 font-mono">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold font-mono text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                         Not verified yet
                       </span>
                     )}
@@ -2243,13 +2242,13 @@ export default function PublicLanding({
                                 onChange={(e) =>
                                   setEmailVerificationCode(e.target.value)
                                 }
-                                className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
+                                className={`w-full rounded-xl border px-3 py-2.5 shadow-sm transition ${inputBg}`}
                               />
                               <button
                                 type="button"
                                 onClick={verifyEmailCode}
                                 disabled={emailVerifyLoading}
-                                className="px-4 bg-emerald-500 text-slate-950 font-bold rounded-xl text-[10px] uppercase cursor-pointer shrink-0"
+                                className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2 text-[10px] font-bold uppercase text-slate-950 transition hover:bg-emerald-600"
                               >
                                 {emailVerifyLoading ? "Verifying..." : "Verify"}
                               </button>
@@ -2265,17 +2264,17 @@ export default function PublicLanding({
                 </div>
 
                 {/* SMS codes prove the voter controls the phone number. */}
-                <div className="p-3 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-slate-550 dark:text-slate-400 font-bold">
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/30">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="block font-bold text-slate-700 dark:text-slate-200">
                       Mobile number
                     </label>
                     {isSmsVerifiedLocal ? (
-                      <span className="text-[10px] text-emerald-400 font-bold font-mono">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold font-mono text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                         Phone verified
                       </span>
                     ) : (
-                      <span className="text-[10px] text-amber-500 font-mono">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold font-mono text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                         Awaiting verification
                       </span>
                     )}
@@ -2400,7 +2399,7 @@ export default function PublicLanding({
                   disabled={
                     loading || !isEmailVerifiedLocal || !isSmsVerifiedLocal
                   }
-                  className={`w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-slate-950 font-extrabold uppercase tracking-wider py-4 rounded-xl cursor-pointer mt-4 leading-none disabled:opacity-40`}
+                  className={`mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3.5 font-extrabold uppercase tracking-wider text-slate-950 shadow-sm transition hover:opacity-95 disabled:opacity-40`}
                 >
                   {loading
                     ? "Creating account..."

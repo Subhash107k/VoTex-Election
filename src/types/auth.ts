@@ -30,7 +30,6 @@ export interface ForgotPasswordForm {
 }
 
 export type ForgotPasswordStep = "request" | "verify";
-export type PresetLoginRole = "super" | "officer" | "voter";
 
 export interface AuthResult {
   token: string;
@@ -57,7 +56,6 @@ export interface PublicLandingProps {
   setForgotStep: (step: ForgotPasswordStep) => void;
   handleForgotPasswordSubmit: (event: React.FormEvent) => void;
   handleResetPasswordSubmit: (event: React.FormEvent) => void;
-  loginAsPresetUser: (role: PresetLoginRole) => void;
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
 }

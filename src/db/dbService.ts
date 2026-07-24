@@ -106,6 +106,8 @@ export interface User {
   failedLoginAttempts?: number;
   lockoutUntil?: number;
   isProfileComplete?: boolean;
+  /** Increments on password resets and logout to revoke all issued access tokens. */
+  tokenVersion?: number;
 }
 
 export interface UserProfile {
@@ -206,6 +208,7 @@ export interface FaceVerification {
 export interface ProfileDraft {
   id: string;
   userId: string;
+  formId?: string;
   draft_status: "Draft" | "Complete";
   current_step: number;
   last_saved_at: string;
@@ -218,6 +221,15 @@ export interface ProfileDraft {
   updated_at: string;
   created_at: string;
   formData: string; // serialized JSON form state
+}
+
+export interface UserPreferences {
+  id: string;
+  userId: string;
+  language: "en" | "ne";
+  nepaliTypingEnabled: boolean;
+  theme: "light" | "dark";
+  updatedAt: string;
 }
 
 export interface SystemConfig {
@@ -380,6 +392,7 @@ export class Database {
   private static mongoDb: any = null;
   public static isConnected: boolean = false;
   private static cache: Record<string, any[]> = {};
+  private static writeChains = new Map<string, Promise<void>>();
 
   // Operational State and Operational Counters
   public static simulatedLatency: number = 24;
@@ -485,34 +498,13 @@ export class Database {
   }
 
   static async initializeMongo(): Promise<boolean> {
-    // Save/load local pending queue on start
-    this.loadPendingQueueFromDisk();
-
     if (this.isForceFailoverActive) {
-      console.log(
-        "[SecOps Monitor] Force Failover active on boot. Booting local JSON registries only.",
-      );
-      this.addTimelineEvent(
-        "System booted with manual failover activated.",
-        "warning",
-        "Boot Manager",
-      );
-      this.startHealthCheck();
-      return false;
+      throw new Error("Database failover is not available in database-only mode.");
     }
 
     const uri = process.env.MONGODB_URI;
     if (!uri || uri.includes("username:password") || uri.trim() === "") {
-      console.log(
-        "MongoDB Connection: MONGODB_URI not configured. Operating in localized fallback.",
-      );
-      this.addTimelineEvent(
-        "VoTex server initialized inside local filesystem container.",
-        "info",
-        "Boot Manager",
-      );
-      this.startHealthCheck();
-      return false;
+      throw new Error("MONGODB_URI must be configured. Local JSON persistence is disabled.");
     }
 
     try {
@@ -537,8 +529,9 @@ export class Database {
         "Database Manager",
       );
 
-      // Seed & synchronize all tables/collections with high-fidelity datasets
+      // Hydrate in-memory read caches from the authoritative MongoDB collections.
       await this.syncAllCollections();
+      await this.ensureIndexes();
 
       // Kickstart the health check daemon
       this.startHealthCheck();
@@ -549,9 +542,7 @@ export class Database {
       return true;
     } catch (err: any) {
       const errMsg = err?.message || err || "";
-      console.warn(
-        `MongoDB active connection check failed: ${errMsg}. Gracefully booted local JSON fallback.`,
-      );
+      console.error(`MongoDB initialization failed: ${errMsg}`);
       this.addTimelineEvent(
         "MongoDB connection offline during initialization. Failover active.",
         "alert",
@@ -559,78 +550,33 @@ export class Database {
       );
       this.isConnected = false;
 
-      this.startHealthCheck();
-      return false;
+      throw new Error(`MongoDB initialization failed: ${errMsg}`);
     }
   }
 
   private static async syncAllCollections(): Promise<void> {
     const collectionsToSync = [
-      { name: "users", getDefault: () => this.getUsers() },
-      { name: "user_profiles", getDefault: () => this.getUserProfiles() },
-      {
-        name: "political_parties",
-        getDefault: () => this.getPoliticalParties(),
-      },
-      {
-        name: "identity_documents",
-        getDefault: () => this.getIdentityDocuments(),
-      },
-      {
-        name: "face_verifications",
-        getDefault: () => this.getFaceVerifications(),
-      },
-      { name: "candidates", getDefault: () => this.getCandidates() },
-      { name: "elections", getDefault: () => this.getElections() },
-      { name: "votes", getDefault: () => this.getVotes() },
-      { name: "audit_logs", getDefault: () => this.getAuditLogs() },
-      { name: "otps", getDefault: () => this.getOTPs() },
-      { name: "notifications", getDefault: () => this.getNotifications() },
-      { name: "profile_drafts", getDefault: () => this.getProfileDrafts() },
+      "users", "user_profiles", "political_parties", "identity_documents",
+      "face_verifications", "candidates", "elections", "votes", "audit_logs",
+      "otps", "notifications", "profile_drafts", "user_preferences",
     ];
 
-    for (const col of collectionsToSync) {
+    for (const name of collectionsToSync) {
       try {
-        const mongoCollection = this.mongoDb.collection(col.name);
-        const count = await mongoCollection.countDocuments();
-        if (count === 0) {
-          // Dynamic collection is completely empty! Back-populate/seed from pre-loaded defaults
-          const localData = col.getDefault();
-          if (localData && localData.length > 0) {
-            console.log(
-              `[SEED] Seeding new MongoDB table/collection "${col.name}" with ${localData.length} records...`,
-            );
-            const docsToInsert = localData.map((d: any) => ({
-              _id: d.id,
-              ...d,
-            }));
-            await mongoCollection.insertMany(docsToInsert);
-          }
-        } else {
-          // Pull from MongoDB as the primary source of truth
-          const docs = await mongoCollection.find({}).toArray();
-          const cleanDocs = docs.map((doc: any) => {
-            const { _id, ...rest } = doc;
-            return {
-              id: _id || doc.id,
-              ...rest,
-            };
-          });
-          this.cache[col.name] = cleanDocs;
-
-          // Align filesystem backup
-          const file = this.getFilePath(col.name);
-          fs.writeFileSync(file, JSON.stringify(cleanDocs, null, 2), "utf8");
-        }
+        const docs = await this.mongoDb.collection(name).find({}).toArray();
+        this.cache[name] = docs.map((doc: any) => {
+          const { _id, ...rest } = doc;
+          return { id: String(_id || doc.id), ...rest };
+        });
       } catch (colErr) {
         console.error(
-          `[SYNC ERROR] Failed to sync MongoDB collection "${col.name}":`,
+          `[SYNC ERROR] Failed to load MongoDB collection "${name}":`,
           colErr,
         );
       }
     }
 
-    // Keep System config in perfect parity
+    // Keep System config in MongoDB only
     try {
       const configCollection = this.mongoDb.collection("config");
       const configDoc = await configCollection.findOne({
@@ -643,11 +589,8 @@ export class Database {
           type: "system_config",
           ...localConfig,
         });
-      } else {
-        const { _id, type, ...cleanConfig } = configDoc;
-        const file = this.getFilePath("config");
-        fs.writeFileSync(file, JSON.stringify(cleanConfig, null, 2), "utf8");
       }
+      // MongoDB-only mode: Do not write to local JSON files
     } catch (cfgErr) {
       console.error(
         "[SYNC ERROR] Failed to sync config collection with MongoDB:",
@@ -659,31 +602,14 @@ export class Database {
   // --- Offline Synchronization Engine Logic ---
 
   private static loadPendingQueueFromDisk() {
-    const qFile = path.join(DB_DIR, "pending_queue.json");
-    try {
-      if (fs.existsSync(qFile)) {
-        const r = fs.readFileSync(qFile, "utf8");
-        this.pendingQueue = JSON.parse(r);
-      }
-    } catch (e) {
-      this.pendingQueue = [];
-    }
+    // MongoDB-only mode: No local pending queue files
+    this.pendingQueue = [];
   }
 
   private static savePendingQueueToDisk() {
-    const qFile = path.join(DB_DIR, "pending_queue.json");
-    try {
-      fs.writeFileSync(
-        qFile,
-        JSON.stringify(this.pendingQueue, null, 2),
-        "utf8",
-      );
-    } catch (e) {
-      console.error(
-        "Failed to save pending synchronization queue to fallback disk:",
-        e,
-      );
-    }
+    // MongoDB-only mode: No local queue files
+    // Pending operations are stored in memory only during this session
+    return;
   }
 
   public static async triggerBackgroundSync(): Promise<void> {
@@ -772,7 +698,7 @@ export class Database {
           (ao) => ao.id === op.id && ao.collection === op.collection,
         ),
     );
-    this.savePendingQueueToDisk();
+    // MongoDB-only mode: No local queue file saves
 
     this.addTimelineEvent(
       `Successfully synchronized ${succeed} transaction packets.`,
@@ -784,101 +710,15 @@ export class Database {
   // --- Cryptographic Backup and GCM Fallback Encryption Layer ---
 
   public static encryptFallbackFile(collection: string): boolean {
-    try {
-      const srcFile = this.getFilePath(collection);
-      if (!fs.existsSync(srcFile)) return false;
-
-      const plainText = fs.readFileSync(srcFile, "utf8");
-
-      const iv = crypto.randomBytes(12);
-      const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
-
-      let encrypted = cipher.update(plainText, "utf8", "hex");
-      encrypted += cipher.final("hex");
-      const authTag = cipher.getAuthTag();
-
-      const backupPackage = {
-        collection,
-        timestamp: new Date().toISOString(),
-        iv: iv.toString("hex"),
-        tag: authTag.toString("hex"),
-        payload: encrypted,
-      };
-
-      const destFile = path.join(BACKUP_DIR, `${collection}.json.enc`);
-      fs.writeFileSync(
-        destFile,
-        JSON.stringify(backupPackage, null, 2),
-        "utf8",
-      );
-
-      this.addTimelineEvent(
-        `Cryptographic fallback AES-GCM archive compiled: "${collection}.json.enc"`,
-        "success",
-        "Key Vault",
-      );
-      return true;
-    } catch (err: any) {
-      console.error(
-        `[Key Vault Error] Fallback encryption failed for "${collection}":`,
-        err,
-      );
-      return false;
-    }
+    // MongoDB-only mode: No local file backups
+    console.log(`[Database-Only Mode] Backup encryption disabled for "${collection}". Data persists in MongoDB only.`);
+    return false;
   }
 
   public static decryptAndRestoreFallbackFile(collection: string): boolean {
-    const srcFile = path.join(BACKUP_DIR, `${collection}.json.enc`);
-    if (!fs.existsSync(srcFile)) {
-      return false;
-    }
-
-    try {
-      const rawData = fs.readFileSync(srcFile, "utf8");
-      const pkg = JSON.parse(rawData);
-
-      const iv = Buffer.from(pkg.iv, "hex");
-      const tag = Buffer.from(pkg.tag, "hex");
-      const encryptedText = pkg.payload;
-
-      const decipher = crypto.createDecipheriv(
-        "aes-256-gcm",
-        ENCRYPTION_KEY,
-        iv,
-      );
-      decipher.setAuthTag(tag);
-
-      let decrypted = decipher.update(encryptedText, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-
-      // Verify that content is valid JSON before restoring
-      const parsed = JSON.parse(decrypted);
-      if (!Array.isArray(parsed)) {
-        throw new Error("Encrypted backup payload is structure-compromised.");
-      }
-
-      const destFile = this.getFilePath(collection);
-      fs.writeFileSync(destFile, decrypted, "utf8");
-      this.cache[collection] = parsed;
-
-      this.addTimelineEvent(
-        `Cryptographic backup restored and validated successfully: "${collection}"`,
-        "success",
-        "Key Vault",
-      );
-      return true;
-    } catch (err: any) {
-      this.addTimelineEvent(
-        `AES-GCM decryption integrity check failed on "${collection}.json.enc"`,
-        "alert",
-        "Key Vault",
-      );
-      console.error(
-        `[Key Vault Error] Fallback decryption failed for "${collection}":`,
-        err,
-      );
-      return false;
-    }
+    // MongoDB-only mode: No local file backups
+    console.log(`[Database-Only Mode] Backup restore disabled for "${collection}". Data loads from MongoDB only.`);
+    return false;
   }
 
   public static runIntegrityAuditAndValidate(): {
@@ -912,30 +752,8 @@ export class Database {
       reportList.push(`Failed to access votes catalog: ${err?.message || err}`);
     }
 
-    // Check backup integrity of encrypted .enc structures
-    const criticalCollections = ["users", "votes", "audit_logs"];
-    for (const col of criticalCollections) {
-      const encFile = path.join(BACKUP_DIR, `${col}.json.enc`);
-      if (!fs.existsSync(encFile)) {
-        reportList.push(
-          `Critical cryptographic archive is missing: "${col}.json.enc"`,
-        );
-      } else {
-        try {
-          const content = fs.readFileSync(encFile, "utf8");
-          const pkg = JSON.parse(content);
-          if (!pkg.iv || !pkg.tag || !pkg.payload) {
-            reportList.push(
-              `Cryptographic archive "${col}.json.enc" is structure-compromised.`,
-            );
-          }
-        } catch (e) {
-          reportList.push(
-            `Failed read operations on cryptographic archive: "${col}.json.enc"`,
-          );
-        }
-      }
-    }
+    // MongoDB-only mode: Do not check for local backup files
+    // All data is in MongoDB, backup checks not needed
 
     return {
       status: reportList.length === 0 ? "valid" : "compromised",
@@ -949,88 +767,81 @@ export class Database {
   }
 
   private static load<T>(collection: string, defaultData: T[] = []): T[] {
+    // MongoDB-only mode: Check cache first, then load from MongoDB only
     if (this.cache[collection]) {
       return this.cache[collection] as T[];
     }
 
-    const file = this.getFilePath(collection);
-    try {
-      if (fs.existsSync(file)) {
-        const data = fs.readFileSync(file, "utf8");
-        const parsed = JSON.parse(data);
-        this.cache[collection] = parsed;
-        return parsed as T[];
-      }
-    } catch (e) {
-      console.error(`Error loading collection ${collection}:`, e);
+    // If MongoDB is connected, load from MongoDB
+    if (this.isConnected && this.mongoDb) {
+      // This is handled asynchronously during syncAllCollections
+      // For now, return empty cache
     }
 
-    this.save(collection, defaultData);
-    this.cache[collection] = defaultData;
-    return defaultData;
+    // Cache will be populated during MongoDB sync, or return empty
+    this.cache[collection] = this.cache[collection] || [];
+    return this.cache[collection] as T[];
   }
 
   private static persistToJsonFile<T>(collection: string, data: T[]): void {
-    const file = this.getFilePath(collection);
-    try {
-      fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
-    } catch (e) {
-      console.error(`Error writing JSON file for ${collection}:`, e);
-    }
+    // Disabled in database-only mode: No local JSON file writes
+    // All data persists to MongoDB only
+    return;
   }
 
   private static save<T>(collection: string, data: T[]): void {
     const normalized = Array.isArray(data) ? data : [];
     this.cache[collection] = normalized;
-    const file = this.getFilePath(collection);
-    try {
-      fs.writeFileSync(file, JSON.stringify(normalized, null, 2), "utf8");
-    } catch (e) {
-      console.error(`Error saving collection ${collection}:`, e);
+
+    if (!this.isConnected || !this.mongoDb || this.isForceFailoverActive) {
+      throw new Error(`MongoDB is unavailable; ${collection} was not persisted.`);
     }
 
-    // Prefer MongoDB as the source of truth when available.
-    if (this.isConnected && this.mongoDb && !this.isForceFailoverActive) {
-      const dbInstance = this.mongoDb;
-      (async () => {
-        try {
-          const mongoCollection = dbInstance.collection(collection);
-          const docsToUpsert = (normalized || []).map((d: any) => ({
-            _id: d.id,
-            ...d,
-          }));
+    // Route handlers still use synchronous collection snapshots. Serialize their writes
+    // per collection so rapid requests cannot interleave and lose each other's changes.
+    const previous = this.writeChains.get(collection) || Promise.resolve();
+    const write = previous
+      .catch(() => undefined)
+      .then(async () => {
+        const mongoCollection = this.mongoDb.collection(collection);
+        const docs = normalized.map((value: any) => ({
+          ...value,
+          _id: value.id,
+          version: Math.max(1, Number(value.version || 0) + 1),
+          updatedAt: new Date().toISOString(),
+        }));
+        const ids = docs.map((document: any) => document._id);
 
-          if (docsToUpsert.length > 0) {
-            const operations = docsToUpsert.map((doc: any) => ({
+        if (docs.length > 0) {
+          await mongoCollection.bulkWrite(
+            docs.map((document: any) => ({
               replaceOne: {
-                filter: { _id: doc._id },
-                replacement: doc,
+                filter: { _id: document._id },
+                replacement: document,
                 upsert: true,
               },
-            }));
-            await mongoCollection.bulkWrite(operations);
-          } else {
-            await mongoCollection.deleteMany({});
-          }
-        } catch (dbErr: any) {
-          console.error(
-            `[WRITE ERROR] Failed to save write-through changes to MongoDB ${collection}:`,
-            dbErr,
+            })),
+            { ordered: true },
           );
-          this.addTimelineEvent(
-            `Primary database write failed for "${collection}". Transaction queued.`,
-            "warning",
-            "Sync Engine",
-          );
-
-          // Network failed, queue transaction packet for manual or background synchronization
-          this.enqueueOfflineWrite(collection, normalized);
+          await mongoCollection.deleteMany({ _id: { $nin: ids } });
+        } else {
+          await mongoCollection.deleteMany({});
         }
-      })();
-    } else {
-      // Offline fallback activated, queue local edits for future sync actions
-      this.enqueueOfflineWrite(collection, normalized);
-    }
+        this.cache[collection] = docs.map(({ _id, ...document }: any) => ({
+          id: String(_id),
+          ...document,
+        }));
+      })
+      .catch((dbErr: any) => {
+        console.error(`[WRITE ERROR] Failed to persist ${collection}:`, dbErr);
+        this.addTimelineEvent(
+          `Database write failed for "${collection}".`,
+          "alert",
+          "Database Engine",
+        );
+      });
+
+    this.writeChains.set(collection, write);
   }
 
   private static enqueueOfflineWrite(collection: string, data: any[]): void {
@@ -1064,73 +875,13 @@ export class Database {
   // --- Collection Accessors ---
 
   static getUsers(): User[] {
-    const defaultData: User[] = IS_PRODUCTION
-      ? []
-      : [
-          {
-            id: "admin-1",
-            fullName: "System Super Administrator",
-            username: "admin",
-            nationalID: "ADMIN-999-000",
-            email: "admin@vote.com",
-            mobile: "+1 (555) 019-2831",
-            address: "VoTex HQ Command Center, Sector 7",
-            dob: "1988-10-12",
-            gender: "Male",
-            passwordHash: bcrypt.hashSync("admin123", 10),
-            faceImage: "",
-            role: "Super Administrator",
-            isVerified: true,
-            isApproved: true,
-            isSuspended: false,
-            createdAt: new Date().toISOString(),
-            isProfileComplete: true,
-          },
-          {
-            id: "officer-1",
-            fullName: "Sarah Connor (Officer)",
-            username: "officer",
-            nationalID: "OFFICER-777-511",
-            email: "officer@vote.com",
-            mobile: "+1 (555) 777-2851",
-            address: "Elections Bureau, Austin, TX",
-            dob: "1994-04-18",
-            gender: "Female",
-            passwordHash: bcrypt.hashSync("officer123", 10),
-            faceImage: "",
-            role: "Election Officer",
-            isVerified: true,
-            isApproved: true,
-            isSuspended: false,
-            createdAt: new Date().toISOString(),
-            isProfileComplete: true,
-          },
-          {
-            id: "voter-1",
-            fullName: "Thomas Anderson (Neo)",
-            username: "voter",
-            nationalID: "VOTER-101-081",
-            email: "voter@vote.com",
-            mobile: "+1 (555) 101-0909",
-            address: "Nebuchadnezzar Bay 4",
-            dob: "1991-09-11",
-            gender: "Male",
-            passwordHash: bcrypt.hashSync("voter123", 10),
-            faceImage: "face_signature_sample_neo",
-            role: "Voter",
-            isVerified: true,
-            isApproved: true,
-            isSuspended: false,
-            createdAt: new Date().toISOString(),
-            isProfileComplete: true,
-          },
-        ];
-    return this.load<User>("users", defaultData);
+    // MongoDB-only mode: No default test data. Load from DB or local file fallback.
+    return this.load<User>("users", []);
   }
 
   static saveUsers(data: User[]): void {
     this.save("users", data);
-    this.persistToJsonFile("users", data);
+    // MongoDB-only mode: No local JSON files
   }
 
   static getUserProfiles(): UserProfile[] {
@@ -1207,7 +958,7 @@ export class Database {
 
   static saveUserProfiles(data: UserProfile[]): void {
     this.save("user_profiles", data);
-    this.persistToJsonFile("user_profiles", data);
+    // MongoDB-only mode: No local JSON files
   }
 
   static getPoliticalParties(): PoliticalParty[] {
@@ -1273,7 +1024,7 @@ export class Database {
         headquarters: "Chabahil, Kathmandu",
       },
     ];
-    return this.load<PoliticalParty>("political_parties", defaultData);
+    return this.load<PoliticalParty>("political_parties", []);
   }
 
   static savePoliticalParties(data: PoliticalParty[]): void {
@@ -1401,7 +1152,7 @@ export class Database {
 
   static saveIdentityDocuments(data: IdentityDocument[]): void {
     this.save("identity_documents", data);
-    this.persistToJsonFile("identity_documents", data);
+    // MongoDB-only mode: No local JSON files
   }
 
   static getFaceVerifications(): FaceVerification[] {
@@ -1410,7 +1161,7 @@ export class Database {
 
   static saveFaceVerifications(data: FaceVerification[]): void {
     this.save("face_verifications", data);
-    this.persistToJsonFile("face_verifications", data);
+    // MongoDB-only mode: No local JSON files
   }
 
   static getCandidates(): Candidate[] {
@@ -1499,7 +1250,7 @@ export class Database {
         electionId: "elect-3",
       },
     ];
-    return this.load<Candidate>("candidates", defaultData);
+    return this.load<Candidate>("candidates", []);
   }
 
   static saveCandidates(data: Candidate[]): void {
@@ -1548,7 +1299,7 @@ export class Database {
         createdAt: new Date().toISOString(),
       },
     ];
-    return this.load<Election>("elections", defaultData);
+    return this.load<Election>("elections", []);
   }
 
   static saveElections(data: Election[]): void {
@@ -1744,63 +1495,72 @@ export class Database {
     this.save("profile_drafts", data);
   }
 
+  private static async ensureIndexes(): Promise<void> {
+    if (!this.mongoDb) return;
+
+    await Promise.all([
+      this.mongoDb.collection("users").createIndexes([
+        { key: { email: 1 }, unique: true, name: "users_email_unique" },
+        { key: { nationalID: 1 }, unique: true, sparse: true, name: "users_national_id_unique" },
+        { key: { role: 1, accountStatus: 1 }, name: "users_role_status" },
+      ]),
+      this.mongoDb.collection("user_profiles").createIndex(
+        { userId: 1 },
+        { unique: true, name: "profiles_user_unique" },
+      ),
+      this.mongoDb.collection("user_preferences").createIndex(
+        { userId: 1 },
+        { unique: true, name: "preferences_user_unique" },
+      ),
+      this.mongoDb.collection("candidates").createIndex(
+        { electionId: 1, status: 1 },
+        { name: "candidates_election_status" },
+      ),
+      this.mongoDb.collection("votes").createIndex(
+        { electionId: 1, anonymousVoterHash: 1 },
+        { unique: true, name: "votes_one_per_voter_election" },
+      ),
+      this.mongoDb.collection("notifications").createIndex(
+        { userId: 1, timestamp: -1 },
+        { name: "notifications_user_time" },
+      ),
+      this.mongoDb.collection("otps").createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0, name: "otps_expiry" },
+      ),
+    ]);
+  }
+
+  static getUserPreferences(): UserPreferences[] {
+    return this.load<UserPreferences>("user_preferences", []);
+  }
+
+  static saveUserPreferences(data: UserPreferences[]): void {
+    this.save("user_preferences", data);
+  }
+
   // --- Configuration ---
   static getConfig(): SystemConfig {
     const defaultData = {
-      smtpHost: process.env.SMTP_HOST || "smtp.votex-secured.gov",
+      smtpHost: process.env.SMTP_HOST || "",
       smtpPort: parseInt(process.env.SMTP_PORT || "587") || 587,
-      smtpUser: process.env.SMTP_USER || "elections@votex.gov",
+      smtpUser: process.env.SMTP_USER || "",
       smtpPass: process.env.SMTP_PASS || "••••••••••••••••",
-      twilioSid:
-        process.env.TWILIO_ACCOUNT_SID || "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      twilioSid: "",
       twilioToken:
         process.env.TWILIO_AUTH_TOKEN || "••••••••••••••••••••••••••••••••",
-      twilioFrom: process.env.TWILIO_PHONE_NUMBER || "+15550000000",
+      twilioFrom: process.env.TWILIO_PHONE_NUMBER || "",
     };
-    const file = this.getFilePath("config");
-    try {
-      if (fs.existsSync(file)) {
-        const data = fs.readFileSync(file, "utf8");
-        const json = JSON.parse(data);
-        return {
-          smtpHost:
-            process.env.SMTP_HOST || json.smtpHost || defaultData.smtpHost,
-          smtpPort:
-            parseInt(process.env.SMTP_PORT || "") ||
-            json.smtpPort ||
-            defaultData.smtpPort,
-          smtpUser:
-            process.env.SMTP_USER || json.smtpUser || defaultData.smtpUser,
-          smtpPass:
-            process.env.SMTP_PASS &&
-            process.env.SMTP_PASS !== "YOUR_SMTP_SECURE_PASSWORD"
-              ? process.env.SMTP_PASS
-              : json.smtpPass || defaultData.smtpPass,
-          twilioSid:
-            process.env.TWILIO_ACCOUNT_SID ||
-            json.twilioSid ||
-            defaultData.twilioSid,
-          twilioToken:
-            process.env.TWILIO_AUTH_TOKEN &&
-            process.env.TWILIO_AUTH_TOKEN !== "your_twilio_auth_token_here"
-              ? process.env.TWILIO_AUTH_TOKEN
-              : json.twilioToken || defaultData.twilioToken,
-          twilioFrom:
-            process.env.TWILIO_PHONE_NUMBER ||
-            json.twilioFrom ||
-            defaultData.twilioFrom,
-        };
-      }
-    } catch (e) {}
-    this.saveConfig(defaultData);
-    return defaultData;
+    // MongoDB-only mode: Do not read from local config.json file
+    // Use environment variables and MongoDB config collection only
+    const defaultConfig = defaultData;
+    this.saveConfig(defaultConfig);
+    return defaultConfig;
   }
 
   static saveConfig(data: SystemConfig): void {
-    const file = this.getFilePath("config");
-    try {
-      fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
-    } catch (e) {}
+    // MongoDB-only mode: Do not write to local config.json file
+    // Config is stored in MongoDB only
 
     if (this.isConnected && this.mongoDb) {
       const configCollection = this.mongoDb.collection("config");
@@ -1830,9 +1590,10 @@ export class Database {
         email: user.email,
         role: user.role,
         fullName: user.fullName,
+        tokenVersion: user.tokenVersion || 0,
       },
       JWT_SECRET,
-      { expiresIn: "1d" },
+      { expiresIn: "2h" },
     );
   }
 

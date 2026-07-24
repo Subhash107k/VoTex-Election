@@ -84,7 +84,7 @@ export default function PublicContactPage({
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Support email</p>
                   <p className={`text-sm ${textMuted}`}>
-                    support@votex-system.gov
+                    support@votex.gov.np
                   </p>
                 </div>
               </div>
@@ -93,7 +93,7 @@ export default function PublicContactPage({
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Help line</p>
                   <p className={`text-sm ${textMuted}`}>
-                    +1 (800) 555-VTEX (8839)
+                    +977 9807847253
                   </p>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function PublicContactPage({
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Office</p>
                   <p className={`text-sm ${textMuted}`}>
-                    600 Congress Ave. Suite 1400, Austin, TX 78701
+                    Kathmandu, Nepal
                   </p>
                 </div>
               </div>
@@ -111,7 +111,7 @@ export default function PublicContactPage({
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Working hours</p>
                   <p className={`text-sm ${textMuted}`}>
-                    Monday – Friday | 08:00 AM – 05:00 PM CST
+                    Monday – Friday | 08:00 AM – 05:00 PM kathamadu
                   </p>
                 </div>
               </div>
