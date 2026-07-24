@@ -36,5 +36,43 @@
     "message": "Congratulations on completing your voter registration. Your profile is currently under review by our administrative team.",
     "type": "info",
     "timestamp": "2026-07-21T07:27:28.803Z"
+  },
+  {
+    "id": "n_6bba71b1-7570-468f-93b4-b136bf3de64f",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "title": "Enrollment Under Review",
+    "message": "Congratulations on completing your voter registration. Your profile is currently under review by our administrative team.",
+    "type": "info",
+    "timestamp": "2026-07-21T08:25:18.712Z"
+  },
+  {
+    "id": "n_ba08acd8-b010-4f73-9895-f68af5629be2",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "title": "Action Required - Corrections Requested",
+    "message": "Changes Requested: undefined",
+    "type": "warning",
+    "timestamp": "2026-07-21T08:31:38.061Z"
+  },
+  {
+    "id": "n_9abbbde7-2a08-4f13-bc25-9dd4f68f372c",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "title": "Enrollment Approved!",
+    "message": "Your voter registration has been fully approved.",
+    "type": "success",
+    "timestamp": "2026-07-21T08:32:14.606Z"
+  },
+  {
+    "id": "n_68bc0739-2ab2-46a8-a1df-5fcf34d9f4f0",
+    "title": "New Election Drafted: m,jvmsd vjdsv   bibek",
+    "message": "A new General Election is pending review or activation dates. Check detail schedules.",
+    "type": "info",
+    "timestamp": "2026-07-21T08:33:29.370Z"
+  },
+  {
+    "id": "n_2d9e416f-f60a-4cfb-9380-0feb9ce109db",
+    "title": "New Election Drafted: nation level",
+    "message": "A new General Election is pending review or activation dates. Check detail schedules.",
+    "type": "info",
+    "timestamp": "2026-07-21T09:10:57.093Z"
   }
 ]

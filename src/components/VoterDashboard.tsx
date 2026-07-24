@@ -460,8 +460,12 @@ export default function VoterDashboard({
     setErrorMsg("");
   };
 
+  const isAccountApproved =
+    currentUser.isApproved !== false ||
+    ["Approved", "Active"].includes(currentUser.accountStatus || "");
+
   const isVerificationCompleted =
-    currentUser.isApproved &&
+    isAccountApproved &&
     currentUser.isVerified &&
     currentUser.isProfileComplete;
 
@@ -508,7 +512,7 @@ export default function VoterDashboard({
         </div>
       </nav>
 
-      {!currentUser.isApproved ? (
+      {!isVerificationCompleted ? (
         <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-8 animate-in fade-in duration-300">
           {/* Header Banner */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">

@@ -34,6 +34,7 @@ import {
   Award,
   Check,
   Activity,
+  Briefcase,
 } from "lucide-react";
 import BiometricScanner from "./BiometricScanner.tsx";
 import ElectionResults from "./ElectionResults.tsx";
@@ -139,6 +140,32 @@ export default function PublicLanding({
     candidates: 36,
     votesCast: 94520,
   });
+
+  const maxRegisterDob = new Date();
+  maxRegisterDob.setFullYear(maxRegisterDob.getFullYear() - 18);
+  const maxRegisterDobString = maxRegisterDob.toISOString().slice(0, 10);
+
+  const getDobAge = (dobValue: string) => {
+    const date = new Date(dobValue);
+    if (Number.isNaN(date.getTime())) return 0;
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < date.getDate())
+    ) {
+      age -= 1;
+    }
+    return age;
+  };
+
+  const dobAge = regForm.dob ? getDobAge(regForm.dob) : null;
+  const dobAgeMessage = regForm.dob
+    ? dobAge >= 18
+      ? `Selected age: ${dobAge}. You may register.`
+      : `Underage: ${dobAge}. You must be at least 18 years old to register.`
+    : "Must be at least 18 years old.";
 
   // Dynamic active elections catalog
   const [elections, setElections] = useState<any[]>([]);
@@ -2060,6 +2087,75 @@ export default function PublicLanding({
                     }
                     className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                      Date of Birth
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+                      <input
+                        type="date"
+                        required
+                        max={maxRegisterDobString}
+                        value={regForm.dob}
+                        onChange={(e) =>
+                          setRegForm({ ...regForm, dob: e.target.value })
+                        }
+                        className={`w-full rounded-xl border px-3 py-2 pl-9 ${inputBg}`}
+                      />
+                    </div>
+                    <p
+                      className={`mt-1 text-[10px] ${
+                        regForm.dob
+                          ? dobAge !== null && dobAge >= 18
+                            ? "text-emerald-400"
+                            : "text-rose-400"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {dobAgeMessage}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                      Gender Identification
+                    </label>
+                    <select
+                      required
+                      value={regForm.gender}
+                      onChange={(e) =>
+                        setRegForm({ ...regForm, gender: e.target.value })
+                      }
+                      className={`w-full rounded-xl border px-3 py-2 ${inputBg}`}
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-550 dark:text-slate-400 font-bold mb-1">
+                      Occupation / Profession
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Engineer"
+                        value={regForm.occupation}
+                        onChange={(e) =>
+                          setRegForm({ ...regForm, occupation: e.target.value })
+                        }
+                        className={`w-full rounded-xl border px-3 py-2 pl-9 ${inputBg}`}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Email codes prove the voter controls the email address. */}

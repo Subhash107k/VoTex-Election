@@ -36,6 +36,9 @@ const emptyRegisterForm: RegisterForm = {
   username: "",
   email: "",
   mobile: "",
+  dob: "",
+  gender: "Male",
+  occupation: "",
   password: "",
   confirmPassword: "",
   role: "Voter",
@@ -71,6 +74,18 @@ function isSessionErrorMessage(message: string) {
     lowerMessage.includes("invalid") ||
     lowerMessage.includes("error")
   );
+}
+
+function calculateAge(dobString: string) {
+  const dobDate = new Date(dobString);
+  if (Number.isNaN(dobDate.getTime())) return 0;
+  const today = new Date();
+  let age = today.getFullYear() - dobDate.getFullYear();
+  const m = today.getMonth() - dobDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+    age -= 1;
+  }
+  return age;
 }
 
 export default function App() {
@@ -154,6 +169,27 @@ export default function App() {
 
     if (regForm.password !== regForm.confirmPassword) {
       showToast("Passwords do not match.", "error");
+      return;
+    }
+
+    if (!regForm.dob) {
+      showToast("Please provide your Date of Birth.", "error");
+      return;
+    }
+
+    const age = calculateAge(regForm.dob);
+    if (age < 18) {
+      showToast("You must be at least 18 years old to register.", "error");
+      return;
+    }
+
+    if (!regForm.gender) {
+      showToast("Please select your gender.", "error");
+      return;
+    }
+
+    if (!regForm.occupation.trim()) {
+      showToast("Occupation is required.", "error");
       return;
     }
 

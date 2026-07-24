@@ -758,5 +758,115 @@
     "isUsed": true,
     "purpose": "Registration",
     "createdAt": "2026-07-21T03:47:24.478Z"
+  },
+  {
+    "id": "otp_email_cd6aea2d-6d7b-461e-9d07-ea7683f2b052",
+    "email": "230311bibek@cosmoscollege.edu.np",
+    "mobile": "",
+    "code": "800691",
+    "expiresAt": "2026-07-21T09:10:59.048Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T09:00:59.050Z"
+  },
+  {
+    "id": "otp_sms_b3df6085-dbb3-4a58-aebc-10d58db12f25",
+    "email": "",
+    "mobile": "+9779807847253",
+    "code": "475543",
+    "expiresAt": "2026-07-21T09:11:55.735Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-21T09:01:55.735Z"
+  },
+  {
+    "id": "otp_email_6fd859d7-832a-4668-9d6b-9a3272f0acfa",
+    "email": "subhashsharma107k@gmail.com",
+    "mobile": "",
+    "code": "125753",
+    "expiresAt": "2026-07-23T12:06:21.236Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T11:56:21.236Z"
+  },
+  {
+    "id": "otp_email_e81ff096-c671-4a9b-8351-6904a489952c",
+    "email": "subhashsharma107k@gmail.com",
+    "mobile": "",
+    "code": "677519",
+    "expiresAt": "2026-07-23T12:35:12.428Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T12:25:12.428Z"
+  },
+  {
+    "id": "otp_sms_28260f29-8060-4ca9-957b-a7db286c8e3c",
+    "email": "",
+    "mobile": "+9779718471377",
+    "code": "721039",
+    "expiresAt": "2026-07-23T12:36:23.596Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T12:26:23.596Z"
+  },
+  {
+    "id": "otp_email_afebcf9d-43ea-4c75-8e59-58a86e580ca5",
+    "email": "bikesh56780@gmail.com",
+    "mobile": "",
+    "code": "325589",
+    "expiresAt": "2026-07-23T12:48:48.440Z",
+    "isUsed": false,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T12:38:48.440Z"
+  },
+  {
+    "id": "otp_email_2234f532-e6de-4bd5-8afa-5f17930a9e30",
+    "email": "bikesh56780@gmail.com",
+    "mobile": "",
+    "code": "238608",
+    "expiresAt": "2026-07-23T12:51:24.208Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T12:41:24.208Z"
+  },
+  {
+    "id": "otp_sms_09491d57-4c94-4671-a277-fd3559e530e4",
+    "email": "",
+    "mobile": "+9779807847250",
+    "code": "136503",
+    "expiresAt": "2026-07-23T12:52:19.574Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T12:42:19.574Z"
+  },
+  {
+    "id": "otp_email_13c8511f-c5cc-4efa-a99a-b545a1110933",
+    "email": "sharma654k@gmail.com",
+    "mobile": "",
+    "code": "122920",
+    "expiresAt": "2026-07-23T13:38:26.047Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T13:28:26.049Z"
+  },
+  {
+    "id": "otp_sms_58888aa9-422a-4b11-947f-82f13fb90387",
+    "email": "",
+    "mobile": "+9779807847222",
+    "code": "766216",
+    "expiresAt": "2026-07-23T13:38:48.990Z",
+    "isUsed": true,
+    "purpose": "Registration",
+    "createdAt": "2026-07-23T13:28:48.990Z"
+  },
+  {
+    "id": "otp_b6835732-2378-4d3f-8670-b8d6c2116298",
+    "mobile": "",
+    "email": "sharma654k@gmail.com",
+    "code": "481232",
+    "expiresAt": "2026-07-24T05:03:45.905Z",
+    "isUsed": true,
+    "purpose": "PasswordReset",
+    "createdAt": "2026-07-24T04:53:45.906Z"
   }
 ]

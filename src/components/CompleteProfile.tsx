@@ -96,6 +96,51 @@ export default function CompleteProfile({
     Record<string, string>
   >({});
 
+  const [maxProfileDob, setMaxProfileDob] = useState<string>("");
+
+  const calculateAge = (dobString: string) => {
+    const dobDate = new Date(dobString);
+    if (Number.isNaN(dobDate.getTime())) return 0;
+    const today = new Date();
+    let age = today.getFullYear() - dobDate.getFullYear();
+    const monthDiff = today.getMonth() - dobDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < dobDate.getDate())
+    ) {
+      age -= 1;
+    }
+    return age;
+  };
+
+  useEffect(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 18);
+    setMaxProfileDob(date.toISOString().slice(0, 10));
+  }, []);
+
+  const isDobLocked = Boolean(user?.dob);
+  const isOccupationLocked = Boolean(user?.occupation);
+  const isGenderLocked = Boolean(user?.gender);
+
+  useEffect(() => {
+    if (user) {
+      setPersonal((prev) => ({
+        ...prev,
+        dob: user.dob || prev.dob,
+        gender: user.gender || prev.gender,
+        occupation: user.occupation || prev.occupation,
+      }));
+    }
+  }, [user]);
+
+  const profileDobAge = personal.dob ? calculateAge(personal.dob) : null;
+  const profileDobAgeMessage = personal.dob
+    ? profileDobAge !== null && profileDobAge >= 18
+      ? `Selected age: ${profileDobAge}. You may continue.`
+      : `Underage: ${profileDobAge}. You must be at least 18 years old.`
+    : "Must be at least 18 years old.";
+
   // Reset temporary address when SameAsPermanent goes from checked to unchecked
   const prevSameAsPermanent = useRef(sameAsPermanent);
   useEffect(() => {
@@ -1228,7 +1273,12 @@ export default function CompleteProfile({
     if (step === 1) {
       const errors: Record<string, string> = {};
 
-      if (!personal.dob) errors.dob = "Date of Birth is required.";
+      if (!personal.dob) {
+        errors.dob = "Date of Birth is required.";
+      } else if (calculateAge(personal.dob) < 18) {
+        errors.dob =
+          "You must be at least 18 years old to complete the profile.";
+      }
       if (!personal.gender)
         errors.gender = "Gender identification is required.";
 
@@ -1635,32 +1685,18 @@ export default function CompleteProfile({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
                 <div>
                   <label className="block text-slate-400 font-bold uppercase mb-1">
-                    Date of Birth *
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="date"
-                      required
-                      value={personal.dob}
-                      onChange={(e) =>
-                        setPersonal({ ...personal, dob: e.target.value })
-                      }
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 font-bold uppercase mb-1">
                     Gender Identification *
                   </label>
                   <select
                     value={personal.gender}
-                    onChange={(e) =>
-                      setPersonal({ ...personal, gender: e.target.value })
+                    onChange={
+                      isGenderLocked
+                        ? undefined
+                        : (e) =>
+                            setPersonal({ ...personal, gender: e.target.value })
                     }
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
+                    disabled={isGenderLocked}
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px] disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -1670,20 +1706,55 @@ export default function CompleteProfile({
 
                 <div>
                   <label className="block text-slate-400 font-bold uppercase mb-1">
+                    Date of Birth (registry)
+                  </label>
+                  <div className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 flex items-center">
+                    <Calendar className="w-4 h-4 mr-2 text-slate-400" />
+                    {(() => {
+                      const dobVal = user?.dob || personal.dob || "";
+                      if (!dobVal) return "Not provided";
+                      const age = calculateAge(dobVal);
+                      return (
+                        <>
+                          <span className="mr-2">{dobVal}</span>
+                          <span className="text-slate-400">({age} years)</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase mb-1">
                     Occupation / Profession
                   </label>
                   <div className="relative">
                     <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="e.g. Engineer"
-                      value={personal.occupation}
-                      onChange={(e) =>
-                        setPersonal({ ...personal, occupation: e.target.value })
-                      }
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500"
-                    />
+                    {isOccupationLocked ? (
+                      <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70">
+                        {user?.occupation || "Not provided"}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder={user?.occupation || "Not provided"}
+                        value={personal.occupation}
+                        onChange={(e) =>
+                          setPersonal({
+                            ...personal,
+                            occupation: e.target.value,
+                          })
+                        }
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                      />
+                    )}
                   </div>
+                  {user?.occupation && (
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Occupation was provided during registration and cannot be
+                      edited here.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1691,9 +1762,17 @@ export default function CompleteProfile({
               <div className="bg-slate-950/20 p-4 rounded-xl border border-slate-800/50 space-y-3">
                 <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider border-b border-slate-800 pb-1.5 flex items-center gap-1.5">
                   <BadgePlus className="w-3.5 h-3.5" />
-                  <span>Extended Personal Identity Metadata</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
+                  <div>
+                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                      Full Name (English)
+                    </label>
+                    <div className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 flex items-center">
+                      {user?.fullName || "Not provided"}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-slate-400 font-bold uppercase mb-1">
                       Full Name (Nepali - unicode) *

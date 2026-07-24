@@ -10,6 +10,9 @@ export interface RegisterForm {
   username: string;
   email: string;
   mobile: string;
+  dob: string;
+  gender: "Male" | "Female" | "Other" | string;
+  occupation: string;
   password: string;
   confirmPassword: string;
   role: "Voter" | "Candidate" | string;

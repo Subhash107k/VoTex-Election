@@ -358,5 +358,225 @@
     "timestamp": "2026-07-21T07:39:18.132Z",
     "device": "Windows",
     "browser": "Chrome"
+  },
+  {
+    "id": "log_03eaa345-ea9c-4bb8-aadd-53782ac92c54",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:21:31.625Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_18a21c51-ba32-4fe3-bfd0-572f7ac314bb",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Document Upload (Citizenship & National ID Front/Back)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:25:18.682Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_efeb5160-879d-49db-9239-66575149d7d9",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Biometric Face Capture & Parallax Liveness Check",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:25:18.684Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_89691a7b-0c1d-4d03-b6bd-a3e1ae575320",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "Enrollment Submitted & Queued for Administrative Review",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:25:18.686Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_e09722af-e084-4e43-b993-e06869e3ad27",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:29:52.127Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_20308aae-d399-4975-885d-1f88bf83a23f",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "Admin Review on Voter [ID: front.jpeg] - Status: Pending Verification, Suspended: false",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:31:38.032Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_f28b66b6-f8a9-4fe1-8091-3b4c23672ae5",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "Admin Review on Voter [ID: front.jpeg] - Status: Approved, Suspended: false",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:32:14.593Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_0372918c-9e67-4687-845e-3d8bc9ffb555",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "Created Election: \"m,jvmsd vjdsv   bibek\"",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:33:29.367Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_723179ae-1c60-428e-9838-27f1bf72e5c5",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:34:32.030Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_91089e3e-5787-4103-8313-8dc6a484c31c",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T08:40:12.697Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_a8673860-f649-4310-aab7-151410eb893d",
+    "userId": "usr_9718378c-2761-45db-ba5f-1f610c39d3af",
+    "userEmail": "230311bibek@cosmoscollege.edu.np",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:02:26.905Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_27dc959c-7613-4a25-933f-09dd3daa31d5",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:02:51.444Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_6a999791-5bdd-4065-9eda-92bef9ff73a1",
+    "userId": "usr_9718378c-2761-45db-ba5f-1f610c39d3af",
+    "userEmail": "230311bibek@cosmoscollege.edu.np",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:03:17.108Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_47e742f5-322f-443c-96c9-d847be430373",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "User login successful (Super Administrator)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:10:05.723Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_673c80d3-776c-4c27-9974-3706a979d713",
+    "userId": "admin-1",
+    "userEmail": "subhash107k@gmail.com",
+    "action": "Created Election: \"nation level\"",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:10:57.091Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_d136e124-1850-4ce5-aaa4-ba22f6a90e86",
+    "userId": "usr_6b84deab-cea1-4c29-a171-c5b9abd036c3",
+    "userEmail": "rbibek696@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-21T09:12:08.646Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_e7ebe695-064b-4997-b829-8ef638575bca",
+    "userId": "usr_718ad0e4-af92-4093-ad95-a902a5295719",
+    "userEmail": "subhashsharma107k@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-23T12:27:17.795Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_eab3ed3b-ba57-48c9-acf6-067020c0731f",
+    "userId": "usr_b9b61a5b-aef4-49a4-9814-01c92ae63f4a",
+    "userEmail": "bikesh56780@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-23T12:42:42.120Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_ff5cf32b-6159-4f73-9d77-48169619b518",
+    "userId": "usr_b9b61a5b-aef4-49a4-9814-01c92ae63f4a",
+    "userEmail": "bikesh56780@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-23T12:49:23.240Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_0db91d04-b2b7-466b-b69e-2638e3000367",
+    "userId": "usr_e8359ac7-bd41-4a77-8c18-3bd8cdea8e78",
+    "userEmail": "sharma654k@gmail.com",
+    "action": "Voter Registered with split onboarding workflow [MongoDB Simulation]",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-23T13:29:15.300Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_3f4168f6-cf16-4f53-ad8d-ffc4699262ba",
+    "userId": "usr_e8359ac7-bd41-4a77-8c18-3bd8cdea8e78",
+    "userEmail": "sharma654k@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-23T13:29:56.262Z",
+    "device": "Windows",
+    "browser": "Chrome"
+  },
+  {
+    "id": "log_4c064363-0410-42c3-a5d4-874b20946788",
+    "userId": "usr_e8359ac7-bd41-4a77-8c18-3bd8cdea8e78",
+    "userEmail": "sharma654k@gmail.com",
+    "action": "User login successful (Voter)",
+    "ipAddress": "127.0.0.1",
+    "timestamp": "2026-07-24T04:55:11.299Z",
+    "device": "Windows",
+    "browser": "Chrome"
   }
 ]

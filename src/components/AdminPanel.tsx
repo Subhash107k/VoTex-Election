@@ -111,6 +111,14 @@ const getSymbolGlyph = (name?: string) =>
     Gear: "⚙️",
   })[name || ""] || "🗳️";
 
+const normalizeElectionDate = (value: string, fallback?: string) => {
+  const candidate = value?.trim() || fallback || new Date().toISOString();
+  const parsed = new Date(candidate);
+  return Number.isNaN(parsed.getTime())
+    ? new Date(fallback || Date.now()).toISOString()
+    : parsed.toISOString();
+};
+
 const DEFAULT_CANDIDATE_FORM = {
   id: "",
   name: "",
@@ -667,8 +675,14 @@ export default function AdminPanel({
 
       const bodyData = {
         ...electionForm,
-        startDate: new Date(electionForm.startDate).toISOString(),
-        endDate: new Date(electionForm.endDate).toISOString(),
+        startDate: normalizeElectionDate(
+          electionForm.startDate,
+          new Date().toISOString(),
+        ),
+        endDate: normalizeElectionDate(
+          electionForm.endDate,
+          new Date(Date.now() + 86400000 * 7).toISOString(),
+        ),
       };
 
       const res = await fetch(url, {
@@ -708,14 +722,22 @@ export default function AdminPanel({
     }
   };
 
+  const toLocalDateTimeValue = (value: string): string => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return new Date().toISOString().substring(0, 16);
+    }
+    return date.toISOString().substring(0, 16);
+  };
+
   const handleEditElectionClick = (elect: Election) => {
     setElectionForm({
       id: elect.id,
       title: elect.title,
       description: elect.description,
       type: elect.type,
-      startDate: new Date(elect.startDate).toISOString().substring(0, 16),
-      endDate: new Date(elect.endDate).toISOString().substring(0, 16),
+      startDate: toLocalDateTimeValue(elect.startDate),
+      endDate: toLocalDateTimeValue(elect.endDate),
       maxVotes: elect.maxVotes,
     });
     setShowElectionModal(true);
@@ -789,9 +811,15 @@ export default function AdminPanel({
           ...candidateForm,
           name: candidateForm.name || candidateForm.fullName,
           fullName: candidateForm.fullName || candidateForm.name,
-          party: candidateForm.isIndependent ? "Independent" : candidateForm.party,
-          politicalPartyName: candidateForm.isIndependent ? "Independent" : (candidateForm.politicalPartyName || candidateForm.party),
-          partyLogoUrl: candidateForm.isIndependent ? "" : candidateForm.partyLogoUrl,
+          party: candidateForm.isIndependent
+            ? "Independent"
+            : candidateForm.party,
+          politicalPartyName: candidateForm.isIndependent
+            ? "Independent"
+            : candidateForm.politicalPartyName || candidateForm.party,
+          partyLogoUrl: candidateForm.isIndependent
+            ? ""
+            : candidateForm.partyLogoUrl,
           keyPromises: candidateForm.keyPromises
             .split(/\r?\n/)
             .map((item) => item.replace(/^[-*]\s*/, "").trim())
@@ -872,7 +900,9 @@ export default function AdminPanel({
       candidateRegistrationNumber: cand.candidateRegistrationNumber || "",
       nominationDate: cand.nominationDate || "",
       electionSymbolAllocationDate: cand.electionSymbolAllocationDate || "",
-      candidateStatus: cand.candidateStatus || (cand.status === "Verified" ? "Approved" : cand.status || "Pending"),
+      candidateStatus:
+        cand.candidateStatus ||
+        (cand.status === "Verified" ? "Approved" : cand.status || "Pending"),
       party: cand.party || "",
       politicalPartyName: cand.politicalPartyName || cand.party || "",
       partyLogoUrl: cand.partyLogoUrl || cand.partyLogo || "",
@@ -2484,14 +2514,22 @@ export default function AdminPanel({
                     (c) => c.status === "Pending",
                   ).length;
                   const verifiedCount = candidates.filter(
-                    (c) => !c.status || c.status === "Verified" || c.status === "Approved" || c.candidateStatus === "Approved",
+                    (c) =>
+                      !c.status ||
+                      c.status === "Verified" ||
+                      c.status === "Approved" ||
+                      c.candidateStatus === "Approved",
                   ).length;
                   const rejectedCount = candidates.filter(
                     (c) => c.status === "Rejected",
                   ).length;
 
                   const filteredCandidatesList = candidates.filter((cand) => {
-                    const status = cand.candidateStatus || (cand.status === "Verified" ? "Approved" : cand.status || "Pending");
+                    const status =
+                      cand.candidateStatus ||
+                      (cand.status === "Verified"
+                        ? "Approved"
+                        : cand.status || "Pending");
                     if (candidateFilterStatus !== "All") {
                       if (
                         candidateFilterStatus === "Verified" &&
@@ -2517,14 +2555,18 @@ export default function AdminPanel({
                       const elecTitle = relatedElec
                         ? relatedElec.title.toLowerCase()
                         : "";
-                      const symbol = cand.electionSymbol?.name?.toLowerCase() || "";
-                      const constituency = cand.electoralConstituency?.toLowerCase() || "";
+                      const symbol =
+                        cand.electionSymbol?.name?.toLowerCase() || "";
+                      const constituency =
+                        cand.electoralConstituency?.toLowerCase() || "";
                       return (
                         (cand.name || "").toLowerCase().includes(q) ||
                         (cand.party || "").toLowerCase().includes(q) ||
                         symbol.includes(q) ||
                         constituency.includes(q) ||
-                        (cand.electionPosition || "").toLowerCase().includes(q) ||
+                        (cand.electionPosition || "")
+                          .toLowerCase()
+                          .includes(q) ||
                         elecTitle.includes(q)
                       );
                     }
@@ -2678,8 +2720,15 @@ export default function AdminPanel({
                             const relatedElec = elections.find(
                               (e) => e.id === cand.electionId,
                             );
-                            const candStatus = cand.candidateStatus || (cand.status === "Verified" ? "Approved" : cand.status || "Pending");
-                            const symbolColor = cand.electionSymbol?.displayColor || cand.partyColorTheme || "#2563eb";
+                            const candStatus =
+                              cand.candidateStatus ||
+                              (cand.status === "Verified"
+                                ? "Approved"
+                                : cand.status || "Pending");
+                            const symbolColor =
+                              cand.electionSymbol?.displayColor ||
+                              cand.partyColorTheme ||
+                              "#2563eb";
 
                             return (
                               <div
@@ -2704,18 +2753,31 @@ export default function AdminPanel({
                                         {cand.electionPosition || "Candidate"}
                                       </span>
                                       <h6 className="text-xs text-emerald-400 font-extrabold max-w-[70%] truncate">
-                                        {cand.isIndependent ? "Independent Candidate" : cand.party}
+                                        {cand.isIndependent
+                                          ? "Independent Candidate"
+                                          : cand.party}
                                       </h6>
                                     </div>
                                     <div
                                       className="absolute right-4 top-5 w-16 h-16 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-3xl bg-white"
                                       style={{ color: symbolColor }}
-                                      title={cand.electionSymbol?.name || "Election Symbol"}
+                                      title={
+                                        cand.electionSymbol?.name ||
+                                        "Election Symbol"
+                                      }
                                     >
                                       {cand.electionSymbol?.imageUrl ? (
-                                        <img src={cand.electionSymbol.imageUrl} alt={cand.electionSymbol.name} className="w-12 h-12 object-contain" />
+                                        <img
+                                          src={cand.electionSymbol.imageUrl}
+                                          alt={cand.electionSymbol.name}
+                                          className="w-12 h-12 object-contain"
+                                        />
                                       ) : (
-                                        <span>{getSymbolGlyph(cand.electionSymbol?.name)}</span>
+                                        <span>
+                                          {getSymbolGlyph(
+                                            cand.electionSymbol?.name,
+                                          )}
+                                        </span>
                                       )}
                                     </div>
                                     <img
@@ -2758,7 +2820,8 @@ export default function AdminPanel({
                                     </span>
                                     <div className="flex flex-wrap gap-1.5 mb-3">
                                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-                                        {cand.electoralConstituency || "Constituency pending"}
+                                        {cand.electoralConstituency ||
+                                          "Constituency pending"}
                                       </span>
                                       {cand.wardNumber && (
                                         <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
@@ -2766,7 +2829,8 @@ export default function AdminPanel({
                                         </span>
                                       )}
                                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                        {cand.electionSymbol?.name || "Symbol pending"}
+                                        {cand.electionSymbol?.name ||
+                                          "Symbol pending"}
                                       </span>
                                     </div>
                                     <p
@@ -2796,7 +2860,8 @@ export default function AdminPanel({
                                         >
                                           Registration:
                                         </span>{" "}
-                                        {cand.candidateRegistrationNumber || "Unassigned"}
+                                        {cand.candidateRegistrationNumber ||
+                                          "Unassigned"}
                                       </div>
                                       <div className="truncate">
                                         <span
@@ -2804,7 +2869,11 @@ export default function AdminPanel({
                                         >
                                           Manifesto:
                                         </span>{" "}
-                                        {(cand.keyPromises || [cand.manifestoText]).filter(Boolean)[0] || "Unspecified"}
+                                        {(
+                                          cand.keyPromises || [
+                                            cand.manifestoText,
+                                          ]
+                                        ).filter(Boolean)[0] || "Unspecified"}
                                       </div>
                                     </div>
                                   </div>
@@ -3276,8 +3345,13 @@ export default function AdminPanel({
 
                               <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                 <div>
-                                  <p className="font-bold text-slate-700">Independent Candidate</p>
-                                  <p className="text-[10px] text-slate-500">Hides party fields and marks this nominee as independent.</p>
+                                  <p className="font-bold text-slate-700">
+                                    Independent Candidate
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    Hides party fields and marks this nominee as
+                                    independent.
+                                  </p>
                                 </div>
                                 <input
                                   type="checkbox"
@@ -3286,10 +3360,18 @@ export default function AdminPanel({
                                     setCandidateForm({
                                       ...candidateForm,
                                       isIndependent: e.target.checked,
-                                      party: e.target.checked ? "Independent" : "",
-                                      politicalPartyName: e.target.checked ? "Independent" : "",
-                                      partyLogoUrl: e.target.checked ? "" : candidateForm.partyLogoUrl,
-                                      partyAbbreviation: e.target.checked ? "IND" : candidateForm.partyAbbreviation,
+                                      party: e.target.checked
+                                        ? "Independent"
+                                        : "",
+                                      politicalPartyName: e.target.checked
+                                        ? "Independent"
+                                        : "",
+                                      partyLogoUrl: e.target.checked
+                                        ? ""
+                                        : candidateForm.partyLogoUrl,
+                                      partyAbbreviation: e.target.checked
+                                        ? "IND"
+                                        : candidateForm.partyAbbreviation,
                                     })
                                   }
                                   className="h-5 w-5 accent-blue-600"
@@ -3300,37 +3382,41 @@ export default function AdminPanel({
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-slate-400 font-semibold mb-1">
-                                    POLITICAL AFFILIATION / PARTY
-                                  </label>
-                                  <select
-                                    required={!candidateForm.isIndependent}
-                                    value={candidateForm.party}
-                                    onChange={(e) => {
-                                      const selPartyName = e.target.value;
-                                      const selPartyObj = parties.find(
-                                        (p) => p.name === selPartyName,
-                                      );
-                                      setCandidateForm({
-                                        ...candidateForm,
-                                        party: selPartyName,
-                                        politicalPartyName: selPartyName,
-                                        partyAbbreviation: selPartyObj?.code || candidateForm.partyAbbreviation,
-                                        partyLogoUrl:
-                                          selPartyObj?.logoUrl || "",
-                                      });
-                                    }}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-850"
-                                  >
-                                    <option value="">-- Select Party --</option>
-                                    {parties.map((p) => (
-                                      <option key={p.id} value={p.name}>
-                                        {p.name}
+                                      POLITICAL AFFILIATION / PARTY
+                                    </label>
+                                    <select
+                                      required={!candidateForm.isIndependent}
+                                      value={candidateForm.party}
+                                      onChange={(e) => {
+                                        const selPartyName = e.target.value;
+                                        const selPartyObj = parties.find(
+                                          (p) => p.name === selPartyName,
+                                        );
+                                        setCandidateForm({
+                                          ...candidateForm,
+                                          party: selPartyName,
+                                          politicalPartyName: selPartyName,
+                                          partyAbbreviation:
+                                            selPartyObj?.code ||
+                                            candidateForm.partyAbbreviation,
+                                          partyLogoUrl:
+                                            selPartyObj?.logoUrl || "",
+                                        });
+                                      }}
+                                      className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-850"
+                                    >
+                                      <option value="">
+                                        -- Select Party --
                                       </option>
-                                    ))}
-                                    <option value="Independent">
-                                      Independent / None
-                                    </option>
-                                  </select>
+                                      {parties.map((p) => (
+                                        <option key={p.id} value={p.name}>
+                                          {p.name}
+                                        </option>
+                                      ))}
+                                      <option value="Independent">
+                                        Independent / None
+                                      </option>
+                                    </select>
                                   </div>
                                   <div>
                                     <label className="block text-slate-400 font-semibold mb-1">
@@ -3352,26 +3438,26 @@ export default function AdminPanel({
 
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                <label className="block text-slate-400 font-semibold mb-1">
-                                  TARGET CAMPAIGN BOARD
-                                </label>
-                                <select
-                                  required
-                                  value={candidateForm.electionId}
-                                  onChange={(e) =>
-                                    setCandidateForm({
-                                      ...candidateForm,
-                                      electionId: e.target.value,
-                                    })
-                                  }
-                                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white"
-                                >
-                                  {elections.map((elect) => (
-                                    <option key={elect.id} value={elect.id}>
-                                      {elect.title} ({elect.status})
-                                    </option>
-                                  ))}
-                                </select>
+                                  <label className="block text-slate-400 font-semibold mb-1">
+                                    TARGET CAMPAIGN BOARD
+                                  </label>
+                                  <select
+                                    required
+                                    value={candidateForm.electionId}
+                                    onChange={(e) =>
+                                      setCandidateForm({
+                                        ...candidateForm,
+                                        electionId: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white"
+                                  >
+                                    {elections.map((elect) => (
+                                      <option key={elect.id} value={elect.id}>
+                                        {elect.title} ({elect.status})
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div>
                                   <label className="block text-slate-400 font-semibold mb-1">
@@ -3448,11 +3534,14 @@ export default function AdminPanel({
                                     REGISTRATION NO.
                                   </label>
                                   <input
-                                    value={candidateForm.candidateRegistrationNumber}
+                                    value={
+                                      candidateForm.candidateRegistrationNumber
+                                    }
                                     onChange={(e) =>
                                       setCandidateForm({
                                         ...candidateForm,
-                                        candidateRegistrationNumber: e.target.value,
+                                        candidateRegistrationNumber:
+                                          e.target.value,
                                       })
                                     }
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl"
@@ -3503,11 +3592,14 @@ export default function AdminPanel({
                                   </label>
                                   <input
                                     type="date"
-                                    value={candidateForm.electionSymbolAllocationDate}
+                                    value={
+                                      candidateForm.electionSymbolAllocationDate
+                                    }
                                     onChange={(e) =>
                                       setCandidateForm({
                                         ...candidateForm,
-                                        electionSymbolAllocationDate: e.target.value,
+                                        electionSymbolAllocationDate:
+                                          e.target.value,
                                       })
                                     }
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl"
@@ -3536,21 +3628,21 @@ export default function AdminPanel({
 
                                 {!candidateForm.isIndependent && (
                                   <div>
-                                  <label className="block text-slate-400 font-semibold mb-1">
-                                    PARTY LOGO INSTANCE (URL)
-                                  </label>
-                                  <input
-                                    type="url"
-                                    placeholder="https://unsplash.com/..."
-                                    value={candidateForm.partyLogoUrl}
-                                    onChange={(e) =>
-                                      setCandidateForm({
-                                        ...candidateForm,
-                                        partyLogoUrl: e.target.value,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl"
-                                  />
+                                    <label className="block text-slate-400 font-semibold mb-1">
+                                      PARTY LOGO INSTANCE (URL)
+                                    </label>
+                                    <input
+                                      type="url"
+                                      placeholder="https://unsplash.com/..."
+                                      value={candidateForm.partyLogoUrl}
+                                      onChange={(e) =>
+                                        setCandidateForm({
+                                          ...candidateForm,
+                                          partyLogoUrl: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-3 py-2 border border-slate-200 rounded-xl"
+                                    />
                                   </div>
                                 )}
                               </div>
@@ -3563,7 +3655,10 @@ export default function AdminPanel({
                                   <select
                                     value={candidateForm.electionSymbol.code}
                                     onChange={(e) => {
-                                      const symbol = ELECTION_SYMBOL_OPTIONS.find((opt) => opt.code === e.target.value) || ELECTION_SYMBOL_OPTIONS[0];
+                                      const symbol =
+                                        ELECTION_SYMBOL_OPTIONS.find(
+                                          (opt) => opt.code === e.target.value,
+                                        ) || ELECTION_SYMBOL_OPTIONS[0];
                                       setCandidateForm({
                                         ...candidateForm,
                                         electionSymbol: symbol,
@@ -3572,8 +3667,12 @@ export default function AdminPanel({
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white"
                                   >
                                     {ELECTION_SYMBOL_OPTIONS.map((symbol) => (
-                                      <option key={symbol.code} value={symbol.code}>
-                                        {getSymbolGlyph(symbol.name)} {symbol.name}
+                                      <option
+                                        key={symbol.code}
+                                        value={symbol.code}
+                                      >
+                                        {getSymbolGlyph(symbol.name)}{" "}
+                                        {symbol.name}
                                       </option>
                                     ))}
                                   </select>
@@ -3745,7 +3844,9 @@ export default function AdminPanel({
                                   </label>
                                   <textarea
                                     rows={2}
-                                    value={candidateForm.criminalCaseDeclaration}
+                                    value={
+                                      candidateForm.criminalCaseDeclaration
+                                    }
                                     onChange={(e) =>
                                       setCandidateForm({
                                         ...candidateForm,

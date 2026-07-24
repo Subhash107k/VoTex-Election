@@ -8,6 +8,7 @@ export interface User {
   mobile: string;
   dob?: string;
   gender?: string;
+  occupation?: string;
   address?: string;
   isVerified: boolean;
   isApproved?: boolean;

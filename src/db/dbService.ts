@@ -32,13 +32,19 @@ const getRequiredSecret = (name: string, devFallback: string) => {
 
 // AES-256 standard encryption key derived from environment-managed key material.
 const ENCRYPTION_KEY = crypto.scryptSync(
-  getRequiredSecret("BACKUP_ENCRYPTION_SECRET", "dev-only-backup-secret-change-before-production"),
+  getRequiredSecret(
+    "BACKUP_ENCRYPTION_SECRET",
+    "dev-only-backup-secret-change-before-production",
+  ),
   "VOTEX-SECURE-SALT",
-  32
+  32,
 );
 
 // Secret for JWT. Development gets a local fallback; production fails closed.
-const JWT_SECRET = getRequiredSecret("JWT_SECRET", "dev-only-jwt-secret-change-before-production");
+const JWT_SECRET = getRequiredSecret(
+  "JWT_SECRET",
+  "dev-only-jwt-secret-change-before-production",
+);
 const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
 export interface User {
@@ -51,9 +57,19 @@ export interface User {
   address: string;
   dob: string;
   gender: "Male" | "Female" | "Other";
+  occupation?: string;
   passwordHash: string;
   faceImage: string; // Base64 raw image capture
-  role: "Administrator" | "Election Officer" | "Voter" | "Super Administrator" | "Moderator" | "FAQ Manager" | "Verification Officer" | "Support Staff" | "Candidate";
+  role:
+    | "Administrator"
+    | "Election Officer"
+    | "Voter"
+    | "Super Administrator"
+    | "Moderator"
+    | "FAQ Manager"
+    | "Verification Officer"
+    | "Support Staff"
+    | "Candidate";
   isVerified: boolean;
   isApproved?: boolean;
   isSuspended?: boolean;
@@ -72,7 +88,14 @@ export interface User {
     mobileVerified?: string;
   };
   registrationTimestamp?: string;
-  accountStatus?: "Pending" | "Active" | "Rejected" | "Approved" | "Pending Verification" | "Changes Requested" | "Pending Onboarding";
+  accountStatus?:
+    | "Pending"
+    | "Active"
+    | "Rejected"
+    | "Approved"
+    | "Pending Verification"
+    | "Changes Requested"
+    | "Pending Onboarding";
   rejectionReason?: string;
   requestedChangesFields?: string[];
   verificationReport?: any;
@@ -262,7 +285,12 @@ export interface Candidate {
   userId?: string;
   updatedAt?: string;
   verifiedAt?: string;
-  history?: { status: string; timestamp: string; note: string; actor: string }[];
+  history?: {
+    status: string;
+    timestamp: string;
+    note: string;
+    actor: string;
+  }[];
 }
 
 export interface Election {
@@ -270,7 +298,11 @@ export interface Election {
   title: string;
   description: string;
   status: "Draft" | "Active" | "Closed" | "Published";
-  type: "General Election" | "Provincial Election" | "Local Election" | "By-Election";
+  type:
+    | "General Election"
+    | "Provincial Election"
+    | "Local Election"
+    | "By-Election";
   startDate: string;
   endDate: string;
   resultsPublished: boolean;
@@ -298,7 +330,7 @@ export interface Vote {
   deviceInfo: string;
   timestamp: string;
   encryptedBallot?: string; // AES-256 hex string holding candidate selection
-  sha256Hash?: string;       // SHA-256 integrity hash of full ballot
+  sha256Hash?: string; // SHA-256 integrity hash of full ballot
   digitalSignature?: string; // Cryptographic RSA/HMAC-like signature tag representing proof of casting
 }
 
@@ -356,7 +388,7 @@ export class Database {
   public static syncSuccessCount: number = 18;
   public static syncFailureCount: number = 0;
   public static isForceFailoverActive: boolean = false;
-  
+
   // Real-time synchronization queues and timeline buffers
   public static pendingQueue: any[] = [];
   public static syncHistory: any[] = [];
@@ -365,23 +397,29 @@ export class Database {
       timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
       event: "VoTex Secure Kernel initialized",
       severity: "info",
-      source: "Core Engine"
+      source: "Core Engine",
     },
     {
       timestamp: new Date(Date.now() - 3600000).toISOString(),
       event: "Cryptographic local registries verified successfully",
       severity: "success",
-      source: "Local Ledger"
-    }
+      source: "Local Ledger",
+    },
   ];
 
   static startHealthCheck() {
-    console.log("[SecOps Monitor] Database heartbeat daemon started. Interval configuration: 30 seconds.");
+    console.log(
+      "[SecOps Monitor] Database heartbeat daemon started. Interval configuration: 30 seconds.",
+    );
     setInterval(async () => {
       if (this.isForceFailoverActive) {
         if (this.isConnected) {
           this.isConnected = false;
-          this.addTimelineEvent("Failover actively forced by system administrator.", "warning", "System Controller");
+          this.addTimelineEvent(
+            "Failover actively forced by system administrator.",
+            "warning",
+            "System Controller",
+          );
         }
         return;
       }
@@ -395,36 +433,50 @@ export class Database {
         }
 
         // Quick connect or command ping to test active line
-        const testClient = new MongoClient(uri, { serverSelectionTimeoutMS: 2000 });
+        const testClient = new MongoClient(uri, {
+          serverSelectionTimeoutMS: 2000,
+        });
         await testClient.connect();
         await testClient.db().admin().ping();
         await testClient.close();
-        
+
         this.simulatedLatency = Date.now() - start;
 
         if (!this.isConnected) {
           this.isConnected = true;
           this.totalReconnects++;
-          this.addTimelineEvent(`MongoDB live connection restored successfully. Signal latency is ${this.simulatedLatency}ms.`, "success", "Database Manager");
-          
+          this.addTimelineEvent(
+            `MongoDB live connection restored successfully. Signal latency is ${this.simulatedLatency}ms.`,
+            "success",
+            "Database Manager",
+          );
+
           // Automatically trigger background queuing synchronization
           await this.triggerBackgroundSync();
         }
       } catch (err) {
         if (this.isConnected) {
           this.isConnected = false;
-          this.addTimelineEvent("MongoDB signal lost. System gracefully activated secure local fallback.", "alert", "Database Manager");
+          this.addTimelineEvent(
+            "MongoDB signal lost. System gracefully activated secure local fallback.",
+            "alert",
+            "Database Manager",
+          );
         }
       }
     }, 30000);
   }
 
-  static addTimelineEvent(event: string, severity: "info" | "success" | "warning" | "alert", source: string) {
+  static addTimelineEvent(
+    event: string,
+    severity: "info" | "success" | "warning" | "alert",
+    source: string,
+  ) {
     this.systemTimeline.unshift({
       timestamp: new Date().toISOString(),
       event,
       severity,
-      source
+      source,
     });
     // Keep max 100 entries in timeline
     if (this.systemTimeline.length > 100) {
@@ -437,16 +489,28 @@ export class Database {
     this.loadPendingQueueFromDisk();
 
     if (this.isForceFailoverActive) {
-      console.log("[SecOps Monitor] Force Failover active on boot. Booting local JSON registries only.");
-      this.addTimelineEvent("System booted with manual failover activated.", "warning", "Boot Manager");
+      console.log(
+        "[SecOps Monitor] Force Failover active on boot. Booting local JSON registries only.",
+      );
+      this.addTimelineEvent(
+        "System booted with manual failover activated.",
+        "warning",
+        "Boot Manager",
+      );
       this.startHealthCheck();
       return false;
     }
 
     const uri = process.env.MONGODB_URI;
     if (!uri || uri.includes("username:password") || uri.trim() === "") {
-      console.log("MongoDB Connection: MONGODB_URI not configured. Operating in localized fallback.");
-      this.addTimelineEvent("VoTex server initialized inside local filesystem container.", "info", "Boot Manager");
+      console.log(
+        "MongoDB Connection: MONGODB_URI not configured. Operating in localized fallback.",
+      );
+      this.addTimelineEvent(
+        "VoTex server initialized inside local filesystem container.",
+        "info",
+        "Boot Manager",
+      );
       this.startHealthCheck();
       return false;
     }
@@ -454,21 +518,28 @@ export class Database {
     try {
       const start = Date.now();
       console.log("Initializing dynamic MongoDB client connection...");
-      const client = new MongoClient(uri, { connectTimeoutMS: 3000, serverSelectionTimeoutMS: 3000 });
+      const client = new MongoClient(uri, {
+        connectTimeoutMS: 3000,
+        serverSelectionTimeoutMS: 3000,
+      });
       await client.connect();
       const db = client.db();
-      
+
       this.mongoClient = client;
       this.mongoDb = db;
       this.isConnected = true;
       this.simulatedLatency = Date.now() - start;
       this.totalReconnects++;
 
-      this.addTimelineEvent(`Secure MongoDB connection established. Database: "${db.databaseName}"`, "success", "Database Manager");
+      this.addTimelineEvent(
+        `Secure MongoDB connection established. Database: "${db.databaseName}"`,
+        "success",
+        "Database Manager",
+      );
 
       // Seed & synchronize all tables/collections with high-fidelity datasets
       await this.syncAllCollections();
-      
+
       // Kickstart the health check daemon
       this.startHealthCheck();
 
@@ -478,10 +549,16 @@ export class Database {
       return true;
     } catch (err: any) {
       const errMsg = err?.message || err || "";
-      console.warn(`MongoDB active connection check failed: ${errMsg}. Gracefully booted local JSON fallback.`);
-      this.addTimelineEvent("MongoDB connection offline during initialization. Failover active.", "alert", "Database Manager");
+      console.warn(
+        `MongoDB active connection check failed: ${errMsg}. Gracefully booted local JSON fallback.`,
+      );
+      this.addTimelineEvent(
+        "MongoDB connection offline during initialization. Failover active.",
+        "alert",
+        "Database Manager",
+      );
       this.isConnected = false;
-      
+
       this.startHealthCheck();
       return false;
     }
@@ -491,16 +568,25 @@ export class Database {
     const collectionsToSync = [
       { name: "users", getDefault: () => this.getUsers() },
       { name: "user_profiles", getDefault: () => this.getUserProfiles() },
-      { name: "political_parties", getDefault: () => this.getPoliticalParties() },
-      { name: "identity_documents", getDefault: () => this.getIdentityDocuments() },
-      { name: "face_verifications", getDefault: () => this.getFaceVerifications() },
+      {
+        name: "political_parties",
+        getDefault: () => this.getPoliticalParties(),
+      },
+      {
+        name: "identity_documents",
+        getDefault: () => this.getIdentityDocuments(),
+      },
+      {
+        name: "face_verifications",
+        getDefault: () => this.getFaceVerifications(),
+      },
       { name: "candidates", getDefault: () => this.getCandidates() },
       { name: "elections", getDefault: () => this.getElections() },
       { name: "votes", getDefault: () => this.getVotes() },
       { name: "audit_logs", getDefault: () => this.getAuditLogs() },
       { name: "otps", getDefault: () => this.getOTPs() },
       { name: "notifications", getDefault: () => this.getNotifications() },
-      { name: "profile_drafts", getDefault: () => this.getProfileDrafts() }
+      { name: "profile_drafts", getDefault: () => this.getProfileDrafts() },
     ];
 
     for (const col of collectionsToSync) {
@@ -511,10 +597,12 @@ export class Database {
           // Dynamic collection is completely empty! Back-populate/seed from pre-loaded defaults
           const localData = col.getDefault();
           if (localData && localData.length > 0) {
-            console.log(`[SEED] Seeding new MongoDB table/collection "${col.name}" with ${localData.length} records...`);
+            console.log(
+              `[SEED] Seeding new MongoDB table/collection "${col.name}" with ${localData.length} records...`,
+            );
             const docsToInsert = localData.map((d: any) => ({
               _id: d.id,
-              ...d
+              ...d,
             }));
             await mongoCollection.insertMany(docsToInsert);
           }
@@ -525,39 +613,51 @@ export class Database {
             const { _id, ...rest } = doc;
             return {
               id: _id || doc.id,
-              ...rest
+              ...rest,
             };
           });
           this.cache[col.name] = cleanDocs;
-          
+
           // Align filesystem backup
           const file = this.getFilePath(col.name);
           fs.writeFileSync(file, JSON.stringify(cleanDocs, null, 2), "utf8");
         }
       } catch (colErr) {
-        console.error(`[SYNC ERROR] Failed to sync MongoDB collection "${col.name}":`, colErr);
+        console.error(
+          `[SYNC ERROR] Failed to sync MongoDB collection "${col.name}":`,
+          colErr,
+        );
       }
     }
 
     // Keep System config in perfect parity
     try {
       const configCollection = this.mongoDb.collection("config");
-      const configDoc = await configCollection.findOne({ type: "system_config" });
+      const configDoc = await configCollection.findOne({
+        type: "system_config",
+      });
       if (!configDoc) {
         const localConfig = this.getConfig();
-        await configCollection.insertOne({ _id: "system_config", type: "system_config", ...localConfig });
+        await configCollection.insertOne({
+          _id: "system_config",
+          type: "system_config",
+          ...localConfig,
+        });
       } else {
         const { _id, type, ...cleanConfig } = configDoc;
         const file = this.getFilePath("config");
         fs.writeFileSync(file, JSON.stringify(cleanConfig, null, 2), "utf8");
       }
     } catch (cfgErr) {
-      console.error("[SYNC ERROR] Failed to sync config collection with MongoDB:", cfgErr);
+      console.error(
+        "[SYNC ERROR] Failed to sync config collection with MongoDB:",
+        cfgErr,
+      );
     }
   }
 
   // --- Offline Synchronization Engine Logic ---
-  
+
   private static loadPendingQueueFromDisk() {
     const qFile = path.join(DB_DIR, "pending_queue.json");
     try {
@@ -573,9 +673,16 @@ export class Database {
   private static savePendingQueueToDisk() {
     const qFile = path.join(DB_DIR, "pending_queue.json");
     try {
-      fs.writeFileSync(qFile, JSON.stringify(this.pendingQueue, null, 2), "utf8");
+      fs.writeFileSync(
+        qFile,
+        JSON.stringify(this.pendingQueue, null, 2),
+        "utf8",
+      );
     } catch (e) {
-      console.error("Failed to save pending synchronization queue to fallback disk:", e);
+      console.error(
+        "Failed to save pending synchronization queue to fallback disk:",
+        e,
+      );
     }
   }
 
@@ -588,8 +695,14 @@ export class Database {
       return;
     }
 
-    console.log(`[Sync Engine] Discharging pending transaction queue: ${this.pendingQueue.length} operations waiting...`);
-    this.addTimelineEvent(`Discharging ${this.pendingQueue.length} queued records to MongoDB.`, "info", "Sync Engine");
+    console.log(
+      `[Sync Engine] Discharging pending transaction queue: ${this.pendingQueue.length} operations waiting...`,
+    );
+    this.addTimelineEvent(
+      `Discharging ${this.pendingQueue.length} queued records to MongoDB.`,
+      "info",
+      "Sync Engine",
+    );
 
     const activeQueue = [...this.pendingQueue];
     let succeed = 0;
@@ -598,11 +711,18 @@ export class Database {
       try {
         const collectionName = op.collection;
         const mCol = this.mongoDb.collection(collectionName);
-        
+
         // Conflict detection & Resolution using LWW (Last-Write-Wins) timestamps and versioning
         const existingDoc = await mCol.findOne({ _id: op.id });
-        if (existingDoc && existingDoc.lastModifiedAt && op.lastModifiedAt && new Date(existingDoc.lastModifiedAt) > new Date(op.lastModifiedAt)) {
-          console.log(`[Sync Conflict] Outdated write rejected for document "${op.id}" in collection "${collectionName}". Last-write-wins priority activated.`);
+        if (
+          existingDoc &&
+          existingDoc.lastModifiedAt &&
+          op.lastModifiedAt &&
+          new Date(existingDoc.lastModifiedAt) > new Date(op.lastModifiedAt)
+        ) {
+          console.log(
+            `[Sync Conflict] Outdated write rejected for document "${op.id}" in collection "${collectionName}". Last-write-wins priority activated.`,
+          );
           // Document in MongoDB is newer, skip local insert or merge
           succeed++;
           continue;
@@ -610,14 +730,25 @@ export class Database {
 
         // Apply dynamic upsert query to MongoDB database
         const { id, collection, version, ...recordData } = op;
-        await mCol.updateOne({ _id: id }, { $set: recordData }, { upsert: true });
+        await mCol.updateOne(
+          { _id: id },
+          { $set: recordData },
+          { upsert: true },
+        );
 
         succeed++;
         this.syncSuccessCount++;
       } catch (err: any) {
         this.syncFailureCount++;
-        console.error(`[Sync Engine] Error transmitting operation ${op.id} inside collection ${op.collection}:`, err);
-        this.addTimelineEvent(`Failed queue transmission for ${op.collection}/${op.id}: ${err?.message || err}`, "warning", "Sync Engine");
+        console.error(
+          `[Sync Engine] Error transmitting operation ${op.id} inside collection ${op.collection}:`,
+          err,
+        );
+        this.addTimelineEvent(
+          `Failed queue transmission for ${op.collection}/${op.id}: ${err?.message || err}`,
+          "warning",
+          "Sync Engine",
+        );
       }
     }
 
@@ -627,7 +758,7 @@ export class Database {
       timestamp: this.lastSyncTimestamp,
       operationsProcessed: activeQueue.length,
       successCount: succeed,
-      failureCount: activeQueue.length - succeed
+      failureCount: activeQueue.length - succeed,
     });
 
     if (this.syncHistory.length > 50) {
@@ -635,10 +766,19 @@ export class Database {
     }
 
     // Clean queue of completed/discharged items
-    this.pendingQueue = this.pendingQueue.filter(op => !activeQueue.some(ao => ao.id === op.id && ao.collection === op.collection));
+    this.pendingQueue = this.pendingQueue.filter(
+      (op) =>
+        !activeQueue.some(
+          (ao) => ao.id === op.id && ao.collection === op.collection,
+        ),
+    );
     this.savePendingQueueToDisk();
 
-    this.addTimelineEvent(`Successfully synchronized ${succeed} transaction packets.`, "success", "Sync Engine");
+    this.addTimelineEvent(
+      `Successfully synchronized ${succeed} transaction packets.`,
+      "success",
+      "Sync Engine",
+    );
   }
 
   // --- Cryptographic Backup and GCM Fallback Encryption Layer ---
@@ -649,10 +789,10 @@ export class Database {
       if (!fs.existsSync(srcFile)) return false;
 
       const plainText = fs.readFileSync(srcFile, "utf8");
-      
+
       const iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
-      
+
       let encrypted = cipher.update(plainText, "utf8", "hex");
       encrypted += cipher.final("hex");
       const authTag = cipher.getAuthTag();
@@ -662,16 +802,27 @@ export class Database {
         timestamp: new Date().toISOString(),
         iv: iv.toString("hex"),
         tag: authTag.toString("hex"),
-        payload: encrypted
+        payload: encrypted,
       };
 
       const destFile = path.join(BACKUP_DIR, `${collection}.json.enc`);
-      fs.writeFileSync(destFile, JSON.stringify(backupPackage, null, 2), "utf8");
-      
-      this.addTimelineEvent(`Cryptographic fallback AES-GCM archive compiled: "${collection}.json.enc"`, "success", "Key Vault");
+      fs.writeFileSync(
+        destFile,
+        JSON.stringify(backupPackage, null, 2),
+        "utf8",
+      );
+
+      this.addTimelineEvent(
+        `Cryptographic fallback AES-GCM archive compiled: "${collection}.json.enc"`,
+        "success",
+        "Key Vault",
+      );
       return true;
     } catch (err: any) {
-      console.error(`[Key Vault Error] Fallback encryption failed for "${collection}":`, err);
+      console.error(
+        `[Key Vault Error] Fallback encryption failed for "${collection}":`,
+        err,
+      );
       return false;
     }
   }
@@ -690,7 +841,11 @@ export class Database {
       const tag = Buffer.from(pkg.tag, "hex");
       const encryptedText = pkg.payload;
 
-      const decipher = crypto.createDecipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-gcm",
+        ENCRYPTION_KEY,
+        iv,
+      );
       decipher.setAuthTag(tag);
 
       let decrypted = decipher.update(encryptedText, "hex", "utf8");
@@ -706,19 +861,34 @@ export class Database {
       fs.writeFileSync(destFile, decrypted, "utf8");
       this.cache[collection] = parsed;
 
-      this.addTimelineEvent(`Cryptographic backup restored and validated successfully: "${collection}"`, "success", "Key Vault");
+      this.addTimelineEvent(
+        `Cryptographic backup restored and validated successfully: "${collection}"`,
+        "success",
+        "Key Vault",
+      );
       return true;
     } catch (err: any) {
-      this.addTimelineEvent(`AES-GCM decryption integrity check failed on "${collection}.json.enc"`, "alert", "Key Vault");
-      console.error(`[Key Vault Error] Fallback decryption failed for "${collection}":`, err);
+      this.addTimelineEvent(
+        `AES-GCM decryption integrity check failed on "${collection}.json.enc"`,
+        "alert",
+        "Key Vault",
+      );
+      console.error(
+        `[Key Vault Error] Fallback decryption failed for "${collection}":`,
+        err,
+      );
       return false;
     }
   }
 
-  public static runIntegrityAuditAndValidate(): { status: "valid" | "compromised"; checkedCount: number; errors: string[] } {
+  public static runIntegrityAuditAndValidate(): {
+    status: "valid" | "compromised";
+    checkedCount: number;
+    errors: string[];
+  } {
     const reportList: string[] = [];
     let checkCounter = 0;
-    
+
     // Validate votes cryptographically
     try {
       const votes = this.getVotes();
@@ -726,12 +896,16 @@ export class Database {
         checkCounter++;
         // Verify ballot format
         if (!v.id || !v.electionId || !v.candidateId) {
-          reportList.push(`Vote record "${v.id || "unknown"}" is missing primary parameters.`);
+          reportList.push(
+            `Vote record "${v.id || "unknown"}" is missing primary parameters.`,
+          );
         }
-        
+
         // Mock checking signature block
         if (v.anonymousVoterHash && v.anonymousVoterHash.length !== 64) {
-          reportList.push(`Vote record "${v.id}" anonymous hash holds invalid length.`);
+          reportList.push(
+            `Vote record "${v.id}" anonymous hash holds invalid length.`,
+          );
         }
       }
     } catch (err: any) {
@@ -743,16 +917,22 @@ export class Database {
     for (const col of criticalCollections) {
       const encFile = path.join(BACKUP_DIR, `${col}.json.enc`);
       if (!fs.existsSync(encFile)) {
-        reportList.push(`Critical cryptographic archive is missing: "${col}.json.enc"`);
+        reportList.push(
+          `Critical cryptographic archive is missing: "${col}.json.enc"`,
+        );
       } else {
         try {
           const content = fs.readFileSync(encFile, "utf8");
           const pkg = JSON.parse(content);
           if (!pkg.iv || !pkg.tag || !pkg.payload) {
-            reportList.push(`Cryptographic archive "${col}.json.enc" is structure-compromised.`);
+            reportList.push(
+              `Cryptographic archive "${col}.json.enc" is structure-compromised.`,
+            );
           }
         } catch (e) {
-          reportList.push(`Failed read operations on cryptographic archive: "${col}.json.enc"`);
+          reportList.push(
+            `Failed read operations on cryptographic archive: "${col}.json.enc"`,
+          );
         }
       }
     }
@@ -760,7 +940,7 @@ export class Database {
     return {
       status: reportList.length === 0 ? "valid" : "compromised",
       checkedCount: checkCounter,
-      errors: reportList
+      errors: reportList,
     };
   }
 
@@ -833,8 +1013,15 @@ export class Database {
             await mongoCollection.deleteMany({});
           }
         } catch (dbErr: any) {
-          console.error(`[WRITE ERROR] Failed to save write-through changes to MongoDB ${collection}:`, dbErr);
-          this.addTimelineEvent(`Primary database write failed for "${collection}". Transaction queued.`, "warning", "Sync Engine");
+          console.error(
+            `[WRITE ERROR] Failed to save write-through changes to MongoDB ${collection}:`,
+            dbErr,
+          );
+          this.addTimelineEvent(
+            `Primary database write failed for "${collection}". Transaction queued.`,
+            "warning",
+            "Sync Engine",
+          );
 
           // Network failed, queue transaction packet for manual or background synchronization
           this.enqueueOfflineWrite(collection, normalized);
@@ -850,87 +1037,94 @@ export class Database {
     // Keep a maximum queuing representation by storing the latest state for versioned Last-Write-Wins updates
     if (!data || data.length === 0) return;
 
-    data.forEach(item => {
-      const qId = item.id || `op-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
-      
+    data.forEach((item) => {
+      const qId =
+        item.id || `op-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+
       // Filter out duplicate or stale operations for the same ID in this collection to prevent bloated queues
-      this.pendingQueue = this.pendingQueue.filter(op => !(op.id === qId && op.collection === collection));
+      this.pendingQueue = this.pendingQueue.filter(
+        (op) => !(op.id === qId && op.collection === collection),
+      );
 
       this.pendingQueue.push({
         id: qId,
         collection,
         version: (item.version || 0) + 1,
         lastModifiedAt: new Date().toISOString(),
-        ...item
+        ...item,
       });
     });
 
     this.savePendingQueueToDisk();
-    console.log(`[Queue Engine] Logged ${data.length} transactions for collection "${collection}" inside the offline queue. Outstanding: ${this.pendingQueue.length}`);
+    console.log(
+      `[Queue Engine] Logged ${data.length} transactions for collection "${collection}" inside the offline queue. Outstanding: ${this.pendingQueue.length}`,
+    );
   }
 
   // --- Collection Accessors ---
 
   static getUsers(): User[] {
-    const defaultData: User[] = IS_PRODUCTION ? [] : [
-      {
-        id: "admin-1",
-        fullName: "System Super Administrator",
-        username: "admin",
-        nationalID: "ADMIN-999-000",
-        email: "admin@vote.com",
-        mobile: "+1 (555) 019-2831",
-        address: "VoTex HQ Command Center, Sector 7",
-        dob: "1988-10-12",
-        gender: "Male",
-        passwordHash: bcrypt.hashSync("admin123", 10),
-        faceImage: "",
-        role: "Super Administrator",
-        isVerified: true,
-        isApproved: true,
-        isSuspended: false,
-        createdAt: new Date().toISOString(),
-        isProfileComplete: true
-      },
-      {
-        id: "officer-1",
-        fullName: "Sarah Connor (Officer)",
-        username: "officer",
-        nationalID: "OFFICER-777-511",
-        email: "officer@vote.com",
-        mobile: "+1 (555) 777-2851",
-        address: "Elections Bureau, Austin, TX",
-        dob: "1994-04-18",
-        gender: "Female",
-        passwordHash: bcrypt.hashSync("officer123", 10),
-        faceImage: "",
-        role: "Election Officer",
-        isVerified: true,
-        isApproved: true,
-        isSuspended: false,
-        createdAt: new Date().toISOString(),
-        isProfileComplete: true
-      },
-      {
-        id: "voter-1",
-        fullName: "Thomas Anderson (Neo)",
-        username: "voter",
-        nationalID: "VOTER-101-081",
-        email: "voter@vote.com",
-        mobile: "+1 (555) 101-0909",
-        address: "Nebuchadnezzar Bay 4",
-        dob: "1991-09-11",
-        gender: "Male",
-        passwordHash: bcrypt.hashSync("voter123", 10),
-        faceImage: "face_signature_sample_neo",
-        role: "Voter",
-        isVerified: true,
-        isApproved: true,
-        isSuspended: false,
-        createdAt: new Date().toISOString(),
-        isProfileComplete: true
-      }
-    ];
+    const defaultData: User[] = IS_PRODUCTION
+      ? []
+      : [
+          {
+            id: "admin-1",
+            fullName: "System Super Administrator",
+            username: "admin",
+            nationalID: "ADMIN-999-000",
+            email: "admin@vote.com",
+            mobile: "+1 (555) 019-2831",
+            address: "VoTex HQ Command Center, Sector 7",
+            dob: "1988-10-12",
+            gender: "Male",
+            passwordHash: bcrypt.hashSync("admin123", 10),
+            faceImage: "",
+            role: "Super Administrator",
+            isVerified: true,
+            isApproved: true,
+            isSuspended: false,
+            createdAt: new Date().toISOString(),
+            isProfileComplete: true,
+          },
+          {
+            id: "officer-1",
+            fullName: "Sarah Connor (Officer)",
+            username: "officer",
+            nationalID: "OFFICER-777-511",
+            email: "officer@vote.com",
+            mobile: "+1 (555) 777-2851",
+            address: "Elections Bureau, Austin, TX",
+            dob: "1994-04-18",
+            gender: "Female",
+            passwordHash: bcrypt.hashSync("officer123", 10),
+            faceImage: "",
+            role: "Election Officer",
+            isVerified: true,
+            isApproved: true,
+            isSuspended: false,
+            createdAt: new Date().toISOString(),
+            isProfileComplete: true,
+          },
+          {
+            id: "voter-1",
+            fullName: "Thomas Anderson (Neo)",
+            username: "voter",
+            nationalID: "VOTER-101-081",
+            email: "voter@vote.com",
+            mobile: "+1 (555) 101-0909",
+            address: "Nebuchadnezzar Bay 4",
+            dob: "1991-09-11",
+            gender: "Male",
+            passwordHash: bcrypt.hashSync("voter123", 10),
+            faceImage: "face_signature_sample_neo",
+            role: "Voter",
+            isVerified: true,
+            isApproved: true,
+            isSuspended: false,
+            createdAt: new Date().toISOString(),
+            isProfileComplete: true,
+          },
+        ];
     return this.load<User>("users", defaultData);
   }
 
@@ -946,15 +1140,18 @@ export class Database {
         userId: "voter-1",
         dob: "1991-09-11",
         gender: "Male",
-        permanentAddress: "Bagmati Province, Kathmandu District, Kathmandu Metropolitan, Ward No. 3, Tole 05, Nepal",
-        temporaryAddress: "Bagmati Province, Kathmandu District, Kathmandu Metropolitan, Ward No. 3, Tole 05, Nepal",
+        permanentAddress:
+          "Bagmati Province, Kathmandu District, Kathmandu Metropolitan, Ward No. 3, Tole 05, Nepal",
+        temporaryAddress:
+          "Bagmati Province, Kathmandu District, Kathmandu Metropolitan, Ward No. 3, Tole 05, Nepal",
         province: "Bagmati Province",
         district: "Kathmandu",
         municipality: "Kathmandu Metropolitan",
         wardNumber: "3",
         postalCode: "44600",
         occupation: "Security Auditor / Software Architect",
-        profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
+        profilePhoto:
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
         createdAt: new Date().toISOString(),
         permCountry: "Nepal",
         permProvince: "Bagmati Province",
@@ -973,7 +1170,7 @@ export class Database {
         tempStreetAddress: "Lainchaur Sadak",
         tempPostalCode: "44600",
         isTemporarySameAsPermanent: true,
-        
+
         fullNameNepali: "थोमस एन्डरसन (नियो)",
         maritalStatus: "Married",
         educationStatus: "Masters in Cryptographic Systems",
@@ -999,9 +1196,11 @@ export class Database {
         citizenshipIssueAuthority: "District Administration Office",
         nidIssueDate: "2019-09-22",
         nidStatus: "Approved",
-        nidFrontImage: "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?auto=format&fit=crop&q=80&w=400",
-        nidBackImage: "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&q=80&w=400"
-      }
+        nidFrontImage:
+          "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?auto=format&fit=crop&q=80&w=400",
+        nidBackImage:
+          "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&q=80&w=400",
+      },
     ];
     return this.load<UserProfile>("user_profiles", defaultProfiles);
   }
@@ -1017,52 +1216,62 @@ export class Database {
         id: "party-1",
         name: "Nepali Congress",
         code: "NC",
-        logoUrl: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=100",
-        description: "One of the major democratic political parties of Nepal, founded in 1950, advocating social democracy and democratic socialism.",
+        logoUrl:
+          "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=100",
+        description:
+          "One of the major democratic political parties of Nepal, founded in 1950, advocating social democracy and democratic socialism.",
         leader: "Sher Bahadur Deuba",
         foundedYear: "1950",
-        headquarters: "Sanepa, Lalitpur"
+        headquarters: "Sanepa, Lalitpur",
       },
       {
         id: "party-2",
         name: "CPN (Unified Marxist–Leninist)",
         code: "CPN-UML",
-        logoUrl: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=100",
-        description: "A prominent left-wing communist party in Nepal, advocating People's Multiparty Democracy (PMPD) and civic-socialist integration.",
+        logoUrl:
+          "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=100",
+        description:
+          "A prominent left-wing communist party in Nepal, advocating People's Multiparty Democracy (PMPD) and civic-socialist integration.",
         leader: "KP Sharma Oli",
         foundedYear: "1991",
-        headquarters: "Chyasal, Lalitpur"
+        headquarters: "Chyasal, Lalitpur",
       },
       {
         id: "party-3",
         name: "CPN (Maoist Centre)",
         code: "CPN-MC",
-        logoUrl: "https://images.unsplash.com/photo-1603504824368-2b821dfbb25e?auto=format&fit=crop&q=80&w=100",
-        description: "Major communist political group formed after peace accords, advocating socialist paths and decentralized rural upliftment.",
+        logoUrl:
+          "https://images.unsplash.com/photo-1603504824368-2b821dfbb25e?auto=format&fit=crop&q=80&w=100",
+        description:
+          "Major communist political group formed after peace accords, advocating socialist paths and decentralized rural upliftment.",
         leader: "Pushpa Kamal Dahal (Prachanda)",
         foundedYear: "1994",
-        headquarters: "Perisdanda, Kathmandu"
+        headquarters: "Perisdanda, Kathmandu",
       },
       {
         id: "party-4",
         name: "Rastriya Swatantra Party",
         code: "RSP",
-        logoUrl: "https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&q=80&w=100",
-        description: "A modern reformist, secular entity focused on transparency, digital public systems, and youth integration, founded in 2022.",
+        logoUrl:
+          "https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&q=80&w=100",
+        description:
+          "A modern reformist, secular entity focused on transparency, digital public systems, and youth integration, founded in 2022.",
         leader: "Rabi Lamichhane",
         foundedYear: "2022",
-        headquarters: "Basundhara, Kathmandu"
+        headquarters: "Basundhara, Kathmandu",
       },
       {
         id: "party-5",
         name: "Rastriya Prajatantra Party",
         code: "RPP",
-        logoUrl: "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=100",
-        description: "A right-wing conservative and nationalist party focusing on heritage restoration and constitutional balances.",
+        logoUrl:
+          "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=100",
+        description:
+          "A right-wing conservative and nationalist party focusing on heritage restoration and constitutional balances.",
         leader: "Rajendra Lingden",
         foundedYear: "1990",
-        headquarters: "Chabahil, Kathmandu"
-      }
+        headquarters: "Chabahil, Kathmandu",
+      },
     ];
     return this.load<PoliticalParty>("political_parties", defaultData);
   }
@@ -1076,83 +1285,94 @@ export class Database {
       {
         id: "faq-1",
         question: "How do I create a voter account?",
-        answer: "To create an account, click the Register button. You will need to provide your full name, email, mobile number, and a strong password. You'll then receive OTP codes on both email and mobile to secure your credentials.",
+        answer:
+          "To create an account, click the Register button. You will need to provide your full name, email, mobile number, and a strong password. You'll then receive OTP codes on both email and mobile to secure your credentials.",
         category: "Registration",
         displayOrder: 1,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-2",
         question: "Why is my voter account locked?",
-        answer: "For security reasons, your account is automatically locked for 5 minutes after 5 consecutive failed login attempts on your username or IP address. Contact support if you need immediate assistance.",
+        answer:
+          "For security reasons, your account is automatically locked for 5 minutes after 5 consecutive failed login attempts on your username or IP address. Contact support if you need immediate assistance.",
         category: "Login & Account",
         displayOrder: 2,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-3",
         question: "What is required to complete the voter onboarding process?",
-        answer: "You must complete your profile by providing your legal details, upload high-clarity images of your Citizenship Card or National ID, draw your digital signature, and successfully complete the face liveness verification scanner.",
+        answer:
+          "You must complete your profile by providing your legal details, upload high-clarity images of your Citizenship Card or National ID, draw your digital signature, and successfully complete the face liveness verification scanner.",
         category: "Identity Verification",
         displayOrder: 3,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-4",
         question: "Can I use temporary or scanned documents for verification?",
-        answer: "Only original high-resolution photographs of your Citizenship Certificate or National ID card are accepted. Scanned PDFs, black and white photocopies, or sheared document margins are flagged as high risk.",
+        answer:
+          "Only original high-resolution photographs of your Citizenship Certificate or National ID card are accepted. Scanned PDFs, black and white photocopies, or sheared document margins are flagged as high risk.",
         category: "Citizenship & National ID",
         displayOrder: 4,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-5",
         question: "How does the biometric face liveness scanner operate?",
-        answer: "Our scanner runs standard secure local mathematical landmarks mapping using your front-facing camera. It tracks micro-movements, face tilt, and color-parallax cues to ensure a genuine human is present.",
+        answer:
+          "Our scanner runs standard secure local mathematical landmarks mapping using your front-facing camera. It tracks micro-movements, face tilt, and color-parallax cues to ensure a genuine human is present.",
         category: "Face Verification",
         displayOrder: 5,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-6",
         question: "Is fingerprint scanning mandatory for all elections?",
-        answer: "For standard general elections or highly protected voting booths, a dual fingerprint signature matching is recommended. Standard local community elections only require verified face liveness model clearance.",
+        answer:
+          "For standard general elections or highly protected voting booths, a dual fingerprint signature matching is recommended. Standard local community elections only require verified face liveness model clearance.",
         category: "Fingerprint Verification",
         displayOrder: 6,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-7",
-        question: "How long does the administrative panel take to review registrations?",
-        answer: "Authorized verification officers examine profile submissions daily. Review and approval typically complete within 12 to 24 hours. You will receive real-time email/SMS alerts status updates.",
+        question:
+          "How long does the administrative panel take to review registrations?",
+        answer:
+          "Authorized verification officers examine profile submissions daily. Review and approval typically complete within 12 to 24 hours. You will receive real-time email/SMS alerts status updates.",
         category: "Admin Approval",
         displayOrder: 7,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-8",
         question: "Who can see how I voted?",
-        answer: "No one. VoTex operates on a strictly auditable cryptographic ballot separation mechanism. Your voter identity register and cast ballot are decoupled utilizing unlinkable SHA-256 tokens.",
+        answer:
+          "No one. VoTex operates on a strictly auditable cryptographic ballot separation mechanism. Your voter identity register and cast ballot are decoupled utilizing unlinkable SHA-256 tokens.",
         category: "Privacy & Security",
         displayOrder: 8,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-9",
         question: "How can I securely reset my password?",
-        answer: "Click 'Forgot Password' on the login screen. Enter your registered email address to receive a secure OTP code. Enter the OTP code alongside your new password to finalize changes safely.",
+        answer:
+          "Click 'Forgot Password' on the login screen. Enter your registered email address to receive a secure OTP code. Enter the OTP code alongside your new password to finalize changes safely.",
         category: "Password Reset",
         displayOrder: 9,
-        status: "Published"
+        status: "Published",
       },
       {
         id: "faq-10",
         question: "Why does the biometric facial scanner fail to launch?",
-        answer: "Ensure that your web browser is granted camera access permissions. If the problem persists, close other background applications using the camera, clear cache and reload, or try from a different browser.",
+        answer:
+          "Ensure that your web browser is granted camera access permissions. If the problem persists, close other background applications using the camera, clear cache and reload, or try from a different browser.",
         category: "Technical Issues",
         displayOrder: 10,
-        status: "Published"
-      }
+        status: "Published",
+      },
     ];
     return this.load<Faq>("faqs", defaultData);
   }
@@ -1166,12 +1386,15 @@ export class Database {
       {
         id: "doc_voter1",
         userId: "voter-1",
-        citizenshipFrontImage: "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
-        citizenshipBackImage: "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
+        citizenshipFrontImage:
+          "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
+        citizenshipBackImage:
+          "https://images.unsplash.com/photo-1557804506-6fd06a60291d?auto=format&fit=crop&q=80&w=400",
         citizenshipNumber: "9823-1283-12",
-        signatureImage: "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=200",
-        createdAt: new Date().toISOString()
-      }
+        signatureImage:
+          "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=200",
+        createdAt: new Date().toISOString(),
+      },
     ];
     return this.load<IdentityDocument>("identity_documents", defaultDocs);
   }
@@ -1196,62 +1419,85 @@ export class Database {
         id: "cand-1",
         name: "Ram Chandra Poudel",
         party: "Nepali Congress",
-        biography: "Decades of legislative dedication, socio-democractic public action, and democratic system integration.",
+        biography:
+          "Decades of legislative dedication, socio-democractic public action, and democratic system integration.",
         education: "Masters in Arts and Economics, Tribhuvan University",
-        experience: "Speaker of House of Representatives, Senior Federal Minister",
-        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
-        partyLogoUrl: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=100",
-        manifestoText: "Expand public infrastructure support, safeguard constitutional structures, increase central-state digital connectivity, and guarantee free, auditable state services.",
-        electionId: "elect-1"
+        experience:
+          "Speaker of House of Representatives, Senior Federal Minister",
+        photoUrl:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
+        partyLogoUrl:
+          "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=100",
+        manifestoText:
+          "Expand public infrastructure support, safeguard constitutional structures, increase central-state digital connectivity, and guarantee free, auditable state services.",
+        electionId: "elect-1",
       },
       {
         id: "cand-2",
         name: "Subas Chandra Nembang",
         party: "CPN (Unified Marxist–Leninist)",
-        biography: "Constitutional expert, lawyer, and chief integrator of the 2015 Federal Constitution of Nepal.",
+        biography:
+          "Constitutional expert, lawyer, and chief integrator of the 2015 Federal Constitution of Nepal.",
         education: "Bachelor of Laws (LLB), Tribhuvan University",
         experience: "Chairman of Constituent Assembly (2 terms), Law Minister",
-        photoUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200",
-        partyLogoUrl: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=100",
-        manifestoText: "Strengthen federal judicial reviews, advocate for youth micro-financing across all provinces, and establish completely transparent municipal asset oversight boards.",
-        electionId: "elect-1"
+        photoUrl:
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200",
+        partyLogoUrl:
+          "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=100",
+        manifestoText:
+          "Strengthen federal judicial reviews, advocate for youth micro-financing across all provinces, and establish completely transparent municipal asset oversight boards.",
+        electionId: "elect-1",
       },
       {
         id: "cand-3",
         name: "Pushpa Kamal Dahal",
         party: "CPN (Maoist Centre)",
-        biography: "Architect of the Federal Peace Accords and champion of marginalized community inclusion in legislative assemblies.",
+        biography:
+          "Architect of the Federal Peace Accords and champion of marginalized community inclusion in legislative assemblies.",
         education: "Bachelor in Science in Agriculture, IAAS Chitwan",
-        experience: "Prime Minister of Nepal (three terms), Federal Parliament Head",
-        photoUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
-        partyLogoUrl: "https://images.unsplash.com/photo-1603504824368-2b821dfbb25e?auto=format&fit=crop&q=80&w=100",
-        manifestoText: "Enact progressive agricultural transformations, scale rural electricity networks, and support decentralised development allocations for regional community bodies.",
-        electionId: "elect-2"
+        experience:
+          "Prime Minister of Nepal (three terms), Federal Parliament Head",
+        photoUrl:
+          "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
+        partyLogoUrl:
+          "https://images.unsplash.com/photo-1603504824368-2b821dfbb25e?auto=format&fit=crop&q=80&w=100",
+        manifestoText:
+          "Enact progressive agricultural transformations, scale rural electricity networks, and support decentralised development allocations for regional community bodies.",
+        electionId: "elect-2",
       },
       {
         id: "cand-4",
         name: "Rabi Lamichhane",
         party: "Rastriya Swatantra Party",
-        biography: "Committed leader for anti-corruption practices, digital public frameworks, and direct citizen inquiry systems.",
+        biography:
+          "Committed leader for anti-corruption practices, digital public frameworks, and direct citizen inquiry systems.",
         education: "Administrative & Digital Systems Management",
-        experience: "Federal Home Minister, Investigative TV Broadcast Host, MP",
-        photoUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200",
-        partyLogoUrl: "https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&q=80&w=100",
-        manifestoText: "Deploy robust paperless administrative apps, eliminate state-procurement corruption, establish instant voter mobile feedback lines, and optimize security audits.",
-        electionId: "elect-3"
+        experience:
+          "Federal Home Minister, Investigative TV Broadcast Host, MP",
+        photoUrl:
+          "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200",
+        partyLogoUrl:
+          "https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&q=80&w=100",
+        manifestoText:
+          "Deploy robust paperless administrative apps, eliminate state-procurement corruption, establish instant voter mobile feedback lines, and optimize security audits.",
+        electionId: "elect-3",
       },
       {
         id: "cand-5",
         name: "Rajendra Lingden",
         party: "Rastriya Prajatantra Party",
-        biography: "Vocal nationalist leader advocating for civic accountability, absolute corruption checks, and high constitutional integrity.",
+        biography:
+          "Vocal nationalist leader advocating for civic accountability, absolute corruption checks, and high constitutional integrity.",
         education: "Masters in Political Science, Tribhuvan University",
         experience: "Member of Parliament (Jhapa), National Party President",
-        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200",
-        partyLogoUrl: "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=100",
-        manifestoText: "Preserve traditional heritage assets, mandate self-sustainable industrial segments, and ensure active security checkpoints across national registries.",
-        electionId: "elect-3"
-      }
+        photoUrl:
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200",
+        partyLogoUrl:
+          "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&q=80&w=100",
+        manifestoText:
+          "Preserve traditional heritage assets, mandate self-sustainable industrial segments, and ensure active security checkpoints across national registries.",
+        electionId: "elect-3",
+      },
     ];
     return this.load<Candidate>("candidates", defaultData);
   }
@@ -1265,39 +1511,42 @@ export class Database {
       {
         id: "elect-1",
         title: "Nepal House of Representatives General Election 2026",
-        description: "National parliamentary voting to choose constituency representatives across the 7 provinces of Nepal for the federal government.",
+        description:
+          "National parliamentary voting to choose constituency representatives across the 7 provinces of Nepal for the federal government.",
         status: "Active",
         type: "General Election",
         startDate: "2026-06-15T00:00:00.000Z",
         endDate: "2026-07-20T23:59:59.000Z",
         resultsPublished: false,
         maxVotes: 15400000,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       },
       {
         id: "elect-2",
         title: "Bagmati Provincial Assembly Representative Seat Election",
-        description: "Provincial legislative assembly representative election for constituent districts of the Bagmati region.",
+        description:
+          "Provincial legislative assembly representative election for constituent districts of the Bagmati region.",
         status: "Active",
         type: "Provincial Election",
         startDate: "2026-06-10T00:00:00.000Z",
         endDate: "2026-07-15T23:59:59.000Z",
         resultsPublished: false,
         maxVotes: 1200000,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       },
       {
         id: "elect-3",
         title: "Kathmandu Metropolitan Mayoral and Local Council Selection",
-        description: "Local governing bodies election to vote for Mayor, Deputy Mayor, and Ward representatives of Kathmandu city.",
+        description:
+          "Local governing bodies election to vote for Mayor, Deputy Mayor, and Ward representatives of Kathmandu city.",
         status: "Published",
         type: "Local Election",
         startDate: "2026-05-01T00:00:00.000Z",
         endDate: "2026-05-15T00:00:00.000Z",
         resultsPublished: true,
         maxVotes: 350000,
-        createdAt: new Date().toISOString()
-      }
+        createdAt: new Date().toISOString(),
+      },
     ];
     return this.load<Election>("elections", defaultData);
   }
@@ -1312,106 +1561,119 @@ export class Database {
         id: "v-pre-1",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 122 / Windows 11",
-        timestamp: "2026-05-05T14:22:10.000Z"
+        timestamp: "2026-05-05T14:22:10.000Z",
       },
       {
         id: "v-pre-2",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "f104d41e2049baefccbb752222ae41e4649b934ca495991b7852b855acbdca111",
+        anonymousVoterHash:
+          "f104d41e2049baefccbb752222ae41e4649b934ca495991b7852b855acbdca111",
         deviceInfo: "Safari Mobile / iOS 17",
-        timestamp: "2026-05-06T09:15:30.000Z"
+        timestamp: "2026-05-06T09:15:30.000Z",
       },
       {
         id: "v-pre-3",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Edge 121 / Windows 11",
-        timestamp: "2026-05-15T09:20:11.000Z"
+        timestamp: "2026-05-15T09:20:11.000Z",
       },
       {
         id: "v-pre-4",
         electionId: "elect-3",
         candidateId: "cand-3-2",
-        anonymousVoterHash: "b3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "b3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Firefox 125 / Ubuntu Linux",
-        timestamp: "2026-05-15T10:14:12.000Z"
+        timestamp: "2026-05-15T10:14:12.000Z",
       },
       {
         id: "v-pre-5",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "c3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "c3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 123 / macOS Sonoma",
-        timestamp: "2026-05-15T11:05:00.000Z"
+        timestamp: "2026-05-15T11:05:00.000Z",
       },
       {
         id: "v-pre-6",
         electionId: "elect-3",
         candidateId: "cand-3-2",
-        anonymousVoterHash: "d3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "d3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 124 / Android 14",
-        timestamp: "2026-05-15T11:30:45.000Z"
+        timestamp: "2026-05-15T11:30:45.000Z",
       },
       {
         id: "v-pre-7",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "13b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "13b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Safari 17 / macOS Sonoma",
-        timestamp: "2026-05-15T11:45:00.000Z"
+        timestamp: "2026-05-15T11:45:00.000Z",
       },
       {
         id: "v-pre-8",
         electionId: "elect-3",
         candidateId: "cand-3-2",
-        anonymousVoterHash: "23b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "23b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 122 / Windows 11",
-        timestamp: "2026-05-15T12:05:10.000Z"
+        timestamp: "2026-05-15T12:05:10.000Z",
       },
       {
         id: "v-pre-9",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "33b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "33b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 122 / Windows 11",
-        timestamp: "2026-05-15T12:15:20.000Z"
+        timestamp: "2026-05-15T12:15:20.000Z",
       },
       {
         id: "v-pre-10",
         electionId: "elect-3",
         candidateId: "cand-3-2",
-        anonymousVoterHash: "43b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "43b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Safari Mobile / iOS 17",
-        timestamp: "2026-05-15T12:20:30.000Z"
+        timestamp: "2026-05-15T12:20:30.000Z",
       },
       {
         id: "v-pre-11",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "53b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "53b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Firefox 125 / macOS Sonoma",
-        timestamp: "2026-05-15T12:35:10.000Z"
+        timestamp: "2026-05-15T12:35:10.000Z",
       },
       {
         id: "v-pre-12",
         electionId: "elect-3",
         candidateId: "cand-3-1",
-        anonymousVoterHash: "63b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "63b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Opera 102 / Windows 11",
-        timestamp: "2026-05-15T12:45:00.000Z"
+        timestamp: "2026-05-15T12:45:00.000Z",
       },
       {
         id: "v-pre-13",
         electionId: "elect-3",
         candidateId: "cand-3-2",
-        anonymousVoterHash: "73b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        anonymousVoterHash:
+          "73b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         deviceInfo: "Chrome 122 / Windows 11",
-        timestamp: "2026-05-15T13:00:00.000Z"
-      }
+        timestamp: "2026-05-15T13:00:00.000Z",
+      },
     ];
     return this.load<Vote>("votes", defaultData);
   }
@@ -1430,8 +1692,8 @@ export class Database {
         ipAddress: "127.0.0.1",
         timestamp: new Date().toISOString(),
         device: "Control Server",
-        browser: "Node.js Environment"
-      }
+        browser: "Node.js Environment",
+      },
     ];
     return this.load<AuditLog>("audit_logs", defaultData);
   }
@@ -1453,17 +1715,19 @@ export class Database {
       {
         id: "n-1",
         title: "National Digital Innovation Board Election is Active",
-        message: "Eligible voters can now login and register their camera facial template to participate.",
+        message:
+          "Eligible voters can now login and register their camera facial template to participate.",
         type: "success",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       {
         id: "n-2",
         title: "Welcome to VoTex platform",
-        message: "Verify your email and setup biometric credentials to vote safely.",
+        message:
+          "Verify your email and setup biometric credentials to vote safely.",
         type: "info",
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     ];
     return this.load<Notification>("notifications", defaultData);
   }
@@ -1487,9 +1751,11 @@ export class Database {
       smtpPort: parseInt(process.env.SMTP_PORT || "587") || 587,
       smtpUser: process.env.SMTP_USER || "elections@votex.gov",
       smtpPass: process.env.SMTP_PASS || "••••••••••••••••",
-      twilioSid: process.env.TWILIO_ACCOUNT_SID || "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      twilioToken: process.env.TWILIO_AUTH_TOKEN || "••••••••••••••••••••••••••••••••",
-      twilioFrom: process.env.TWILIO_PHONE_NUMBER || "+15550000000"
+      twilioSid:
+        process.env.TWILIO_ACCOUNT_SID || "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      twilioToken:
+        process.env.TWILIO_AUTH_TOKEN || "••••••••••••••••••••••••••••••••",
+      twilioFrom: process.env.TWILIO_PHONE_NUMBER || "+15550000000",
     };
     const file = this.getFilePath("config");
     try {
@@ -1497,13 +1763,32 @@ export class Database {
         const data = fs.readFileSync(file, "utf8");
         const json = JSON.parse(data);
         return {
-          smtpHost: process.env.SMTP_HOST || json.smtpHost || defaultData.smtpHost,
-          smtpPort: parseInt(process.env.SMTP_PORT || "") || json.smtpPort || defaultData.smtpPort,
-          smtpUser: process.env.SMTP_USER || json.smtpUser || defaultData.smtpUser,
-          smtpPass: (process.env.SMTP_PASS && process.env.SMTP_PASS !== "YOUR_SMTP_SECURE_PASSWORD") ? process.env.SMTP_PASS : (json.smtpPass || defaultData.smtpPass),
-          twilioSid: process.env.TWILIO_ACCOUNT_SID || json.twilioSid || defaultData.twilioSid,
-          twilioToken: (process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_AUTH_TOKEN !== "your_twilio_auth_token_here") ? process.env.TWILIO_AUTH_TOKEN : (json.twilioToken || defaultData.twilioToken),
-          twilioFrom: process.env.TWILIO_PHONE_NUMBER || json.twilioFrom || defaultData.twilioFrom
+          smtpHost:
+            process.env.SMTP_HOST || json.smtpHost || defaultData.smtpHost,
+          smtpPort:
+            parseInt(process.env.SMTP_PORT || "") ||
+            json.smtpPort ||
+            defaultData.smtpPort,
+          smtpUser:
+            process.env.SMTP_USER || json.smtpUser || defaultData.smtpUser,
+          smtpPass:
+            process.env.SMTP_PASS &&
+            process.env.SMTP_PASS !== "YOUR_SMTP_SECURE_PASSWORD"
+              ? process.env.SMTP_PASS
+              : json.smtpPass || defaultData.smtpPass,
+          twilioSid:
+            process.env.TWILIO_ACCOUNT_SID ||
+            json.twilioSid ||
+            defaultData.twilioSid,
+          twilioToken:
+            process.env.TWILIO_AUTH_TOKEN &&
+            process.env.TWILIO_AUTH_TOKEN !== "your_twilio_auth_token_here"
+              ? process.env.TWILIO_AUTH_TOKEN
+              : json.twilioToken || defaultData.twilioToken,
+          twilioFrom:
+            process.env.TWILIO_PHONE_NUMBER ||
+            json.twilioFrom ||
+            defaultData.twilioFrom,
         };
       }
     } catch (e) {}
@@ -1524,10 +1809,13 @@ export class Database {
           await configCollection.updateOne(
             { _id: "system_config" },
             { $set: data },
-            { upsert: true }
+            { upsert: true },
           );
         } catch (dbErr) {
-          console.error("[WRITE ERROR] Error writing config write-through to MongoDB:", dbErr);
+          console.error(
+            "[WRITE ERROR] Error writing config write-through to MongoDB:",
+            dbErr,
+          );
         }
       })();
     }
@@ -1537,9 +1825,14 @@ export class Database {
 
   static generateToken(user: User): string {
     return jwt.sign(
-      { id: user.id, email: user.email, role: user.role, fullName: user.fullName },
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.fullName,
+      },
       JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
   }
 
@@ -1551,15 +1844,22 @@ export class Database {
     }
   }
 
-  static addAuditLog(userId: string, email: string, action: string, ip: string, userAgent: string) {
+  static addAuditLog(
+    userId: string,
+    email: string,
+    action: string,
+    ip: string,
+    userAgent: string,
+  ) {
     const logs = this.getAuditLogs();
     const parser = (agent: string) => {
       let browser = "Chrome";
       let os = "Web Device";
       if (agent.includes("Firefox")) browser = "Firefox";
-      else if (agent.includes("Safari") && !agent.includes("Chrome")) browser = "Safari";
+      else if (agent.includes("Safari") && !agent.includes("Chrome"))
+        browser = "Safari";
       else if (agent.includes("Edge")) browser = "Edge";
-      
+
       if (agent.includes("Windows")) os = "Windows";
       else if (agent.includes("Macintosh")) os = "Mac OS";
       else if (agent.includes("iPhone") || agent.includes("iPad")) os = "iOS";
@@ -1577,7 +1877,7 @@ export class Database {
       ipAddress: ip || "127.0.0.1",
       timestamp: new Date().toISOString(),
       device: details.os,
-      browser: details.browser
+      browser: details.browser,
     };
     logs.unshift(newLog);
     this.saveAuditLogs(logs);
