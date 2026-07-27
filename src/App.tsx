@@ -28,6 +28,9 @@ const AdminLoginPage = lazy(() => import("./components/AdminLoginPage.tsx"));
 const AdminPanel = lazy(() => import("./components/AdminPanel.tsx"));
 const CompleteProfile = lazy(() => import("./components/CompleteProfile.tsx"));
 const PublicLanding = lazy(() => import("./components/PublicLanding.tsx"));
+const LoginPage = lazy(() => import("./components/auth/LoginPage.tsx"));
+const RegisterPage = lazy(() => import("./components/auth/RegisterPage.tsx"));
+const ForgotPasswordPage = lazy(() => import("./components/auth/ForgotPasswordPage.tsx"));
 const VoterDashboard = lazy(() => import("./components/VoterDashboard.tsx"));
 const CandidateDashboard = lazy(() =>
   import("./components/CandidateDashboard.tsx").then((module) => ({
@@ -43,6 +46,8 @@ const emptyRegisterForm: RegisterForm = {
   username: "",
   email: "",
   mobile: "",
+  nationalID: "",
+  citizenshipNumber: "",
   dob: "",
   gender: "Male",
   occupation: "",
@@ -325,6 +330,8 @@ export default function App() {
             user={currentUser}
             onLogout={handleLogout}
             onComplete={setCurrentUser}
+            theme={theme}
+            setTheme={setTheme}
           />
         ) : currentUser.role === "Voter" ? (
           <VoterDashboard
@@ -354,6 +361,43 @@ export default function App() {
         <AdminLoginPage
           currentPath={currentPath}
           setCurrentPath={setCurrentPath}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      ) : currentPath === "/login" ? (
+        <LoginPage
+          setCurrentPath={setCurrentPath}
+          loading={loading}
+          loginForm={loginForm}
+          setLoginForm={setLoginForm}
+          handleLoginSubmit={handleLoginSubmit}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      ) : currentPath === "/register" ? (
+        <RegisterPage
+          setCurrentPath={setCurrentPath}
+          loading={loading}
+          regForm={regForm}
+          setRegForm={setRegForm}
+          regFaceImage={regFaceImage}
+          setRegFaceImage={setRegFaceImage}
+          regFaceTemplate={regFaceTemplate}
+          setRegFaceTemplate={setRegFaceTemplate}
+          handleRegisterSubmit={handleRegisterSubmit}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      ) : currentPath === "/forgot_password" || currentPath === "/forgot-password" ? (
+        <ForgotPasswordPage
+          setCurrentPath={setCurrentPath}
+          loading={loading}
+          forgotForm={forgotForm}
+          setForgotForm={setForgotForm}
+          forgotStep={forgotStep}
+          setForgotStep={setForgotStep}
+          handleForgotPasswordSubmit={handleForgotPasswordSubmit}
+          handleResetPasswordSubmit={handleResetPasswordSubmit}
           theme={theme}
           setTheme={setTheme}
         />

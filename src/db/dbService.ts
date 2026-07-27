@@ -52,6 +52,7 @@ export interface User {
   fullName: string;
   username?: string;
   nationalID: string;
+  citizenshipNumber?: string;
   email: string;
   mobile: string;
   address: string;
@@ -228,7 +229,7 @@ export interface UserPreferences {
   userId: string;
   language: "en" | "ne";
   nepaliTypingEnabled: boolean;
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "high-contrast";
   updatedAt: string;
 }
 
@@ -499,12 +500,16 @@ export class Database {
 
   static async initializeMongo(): Promise<boolean> {
     if (this.isForceFailoverActive) {
-      throw new Error("Database failover is not available in database-only mode.");
+      throw new Error(
+        "Database failover is not available in database-only mode.",
+      );
     }
 
     const uri = process.env.MONGODB_URI;
     if (!uri || uri.includes("username:password") || uri.trim() === "") {
-      throw new Error("MONGODB_URI must be configured. Local JSON persistence is disabled.");
+      throw new Error(
+        "MONGODB_URI must be configured. Local JSON persistence is disabled.",
+      );
     }
 
     try {
@@ -556,9 +561,19 @@ export class Database {
 
   private static async syncAllCollections(): Promise<void> {
     const collectionsToSync = [
-      "users", "user_profiles", "political_parties", "identity_documents",
-      "face_verifications", "candidates", "elections", "votes", "audit_logs",
-      "otps", "notifications", "profile_drafts", "user_preferences",
+      "users",
+      "user_profiles",
+      "political_parties",
+      "identity_documents",
+      "face_verifications",
+      "candidates",
+      "elections",
+      "votes",
+      "audit_logs",
+      "otps",
+      "notifications",
+      "profile_drafts",
+      "user_preferences",
     ];
 
     for (const name of collectionsToSync) {
@@ -711,13 +726,17 @@ export class Database {
 
   public static encryptFallbackFile(collection: string): boolean {
     // MongoDB-only mode: No local file backups
-    console.log(`[Database-Only Mode] Backup encryption disabled for "${collection}". Data persists in MongoDB only.`);
+    console.log(
+      `[Database-Only Mode] Backup encryption disabled for "${collection}". Data persists in MongoDB only.`,
+    );
     return false;
   }
 
   public static decryptAndRestoreFallbackFile(collection: string): boolean {
     // MongoDB-only mode: No local file backups
-    console.log(`[Database-Only Mode] Backup restore disabled for "${collection}". Data loads from MongoDB only.`);
+    console.log(
+      `[Database-Only Mode] Backup restore disabled for "${collection}". Data loads from MongoDB only.`,
+    );
     return false;
   }
 
@@ -794,7 +813,9 @@ export class Database {
     this.cache[collection] = normalized;
 
     if (!this.isConnected || !this.mongoDb || this.isForceFailoverActive) {
-      throw new Error(`MongoDB is unavailable; ${collection} was not persisted.`);
+      throw new Error(
+        `MongoDB is unavailable; ${collection} was not persisted.`,
+      );
     }
 
     // Route handlers still use synchronous collection snapshots. Serialize their writes
@@ -1495,39 +1516,174 @@ export class Database {
     this.save("profile_drafts", data);
   }
 
+  private static async deduplicateCollectionByField(
+    collectionName: string,
+    fieldName: string,
+  ): Promise<void> {
+    if (!this.mongoDb) return;
+
+    const collection = this.mongoDb.collection(collectionName);
+
+    await collection.updateMany(
+      { [fieldName]: { $in: ["", null] } },
+      { $unset: { [fieldName]: "" } },
+    );
+
+    const duplicateGroups = await collection
+      .aggregate([
+        {
+          $match: {
+            [fieldName]: { $exists: true, $nin: [null, ""] },
+          },
+        },
+        {
+          $group: {
+            _id: `$${fieldName}`,
+            ids: { $push: "$_id" },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $match: { count: { $gt: 1 } },
+        },
+      ])
+      .toArray();
+
+    for (const group of duplicateGroups) {
+      const duplicateIds = (group.ids as unknown[]).slice(1);
+      if (duplicateIds.length > 0) {
+        await collection.deleteMany({ _id: { $in: duplicateIds } });
+      }
+    }
+  }
+
+  private static async ensureUniqueIndex(
+    collectionName: string,
+    keySpec: Record<string, 1 | -1>,
+    options: Record<string, unknown>,
+    duplicateField: string,
+  ): Promise<void> {
+    if (!this.mongoDb) return;
+
+    const collection = this.mongoDb.collection(collectionName);
+
+    try {
+      await collection.createIndex(keySpec, options);
+      return;
+    } catch (error: any) {
+      const message = error?.message || "";
+      const isDuplicateKeyError =
+        error?.code === 11000 || message.includes("duplicate key");
+
+      if (!isDuplicateKeyError) {
+        throw error;
+      }
+
+      await this.deduplicateCollectionByField(collectionName, duplicateField);
+      await collection.createIndex(keySpec, options);
+    }
+  }
+
   private static async ensureIndexes(): Promise<void> {
     if (!this.mongoDb) return;
 
+    const usersCol = this.mongoDb.collection("users");
+
+    // Clean empty string values for sparse fields and deduplicate before indexing
+    for (const field of [
+      "username",
+      "mobile",
+      "nationalID",
+      "citizenshipNumber",
+    ]) {
+      await usersCol.updateMany({ [field]: "" }, { $unset: { [field]: "" } });
+      await this.deduplicateCollectionByField("users", field);
+    }
+    await this.deduplicateCollectionByField("users", "email");
+
+    await usersCol.createIndexes([
+      { key: { email: 1 }, unique: true, name: "users_email_unique" },
+      {
+        key: { username: 1 },
+        unique: true,
+        sparse: true,
+        name: "users_username_unique",
+      },
+      {
+        key: { mobile: 1 },
+        unique: true,
+        sparse: true,
+        name: "users_mobile_unique",
+      },
+      {
+        key: { nationalID: 1 },
+        unique: true,
+        sparse: true,
+        name: "users_national_id_unique",
+      },
+      {
+        key: { citizenshipNumber: 1 },
+        unique: true,
+        sparse: true,
+        name: "users_citizenship_number_unique",
+      },
+      { key: { role: 1, accountStatus: 1 }, name: "users_role_status" },
+    ]);
+
+    await this.ensureUniqueIndex(
+      "user_profiles",
+      { userId: 1 },
+      { unique: true, name: "profiles_user_unique" },
+      "userId",
+    );
+    await this.ensureUniqueIndex(
+      "user_profiles",
+      { citizenshipNumber: 1 },
+      {
+        unique: true,
+        sparse: true,
+        name: "profiles_citizenship_number_unique",
+      },
+      "citizenshipNumber",
+    );
+    await this.ensureUniqueIndex(
+      "user_profiles",
+      { nidNumber: 1 },
+      { unique: true, sparse: true, name: "profiles_nid_number_unique" },
+      "nidNumber",
+    );
+
     await Promise.all([
-      this.mongoDb.collection("users").createIndexes([
-        { key: { email: 1 }, unique: true, name: "users_email_unique" },
-        { key: { nationalID: 1 }, unique: true, sparse: true, name: "users_national_id_unique" },
-        { key: { role: 1, accountStatus: 1 }, name: "users_role_status" },
-      ]),
-      this.mongoDb.collection("user_profiles").createIndex(
-        { userId: 1 },
-        { unique: true, name: "profiles_user_unique" },
-      ),
-      this.mongoDb.collection("user_preferences").createIndex(
-        { userId: 1 },
-        { unique: true, name: "preferences_user_unique" },
-      ),
-      this.mongoDb.collection("candidates").createIndex(
-        { electionId: 1, status: 1 },
-        { name: "candidates_election_status" },
-      ),
-      this.mongoDb.collection("votes").createIndex(
-        { electionId: 1, anonymousVoterHash: 1 },
-        { unique: true, name: "votes_one_per_voter_election" },
-      ),
-      this.mongoDb.collection("notifications").createIndex(
-        { userId: 1, timestamp: -1 },
-        { name: "notifications_user_time" },
-      ),
-      this.mongoDb.collection("otps").createIndex(
-        { expiresAt: 1 },
-        { expireAfterSeconds: 0, name: "otps_expiry" },
-      ),
+      this.mongoDb
+        .collection("user_preferences")
+        .createIndex(
+          { userId: 1 },
+          { unique: true, name: "preferences_user_unique" },
+        ),
+      this.mongoDb
+        .collection("candidates")
+        .createIndex(
+          { electionId: 1, status: 1 },
+          { name: "candidates_election_status" },
+        ),
+      this.mongoDb
+        .collection("votes")
+        .createIndex(
+          { electionId: 1, anonymousVoterHash: 1 },
+          { unique: true, name: "votes_one_per_voter_election" },
+        ),
+      this.mongoDb
+        .collection("notifications")
+        .createIndex(
+          { userId: 1, timestamp: -1 },
+          { name: "notifications_user_time" },
+        ),
+      this.mongoDb
+        .collection("otps")
+        .createIndex(
+          { expiresAt: 1 },
+          { expireAfterSeconds: 0, name: "otps_expiry" },
+        ),
     ]);
   }
 

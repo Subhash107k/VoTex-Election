@@ -53,6 +53,7 @@ import {
   Flag,
   Sun,
   Moon,
+  Upload,
 } from "lucide-react";
 import {
   User,
@@ -263,6 +264,8 @@ export default function AdminPanel({
   const [showElectionModal, setShowElectionModal] = useState(false);
 
   const [candidateForm, setCandidateForm] = useState(DEFAULT_CANDIDATE_FORM);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
 
   const [announcementForm, setAnnouncementForm] = useState({
@@ -1111,6 +1114,36 @@ export default function AdminPanel({
       triggerToast("Backup downloaded successfully!");
     } catch (err: any) {
       triggerToast(err.message, true);
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setCandidateForm({
+          ...candidateForm,
+          photoUrl: result,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setCandidateForm({
+          ...candidateForm,
+          partyLogoUrl: result,
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -3612,18 +3645,37 @@ export default function AdminPanel({
                                   <label className="block text-slate-400 font-semibold mb-1">
                                     PHOTO RESOLUTION URL
                                   </label>
-                                  <input
-                                    type="url"
-                                    placeholder="https://unsplash.com/..."
-                                    value={candidateForm.photoUrl}
-                                    onChange={(e) =>
-                                      setCandidateForm({
-                                        ...candidateForm,
-                                        photoUrl: e.target.value,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl"
-                                  />
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="url"
+                                      placeholder="https://unsplash.com/..."
+                                      value={candidateForm.photoUrl}
+                                      onChange={(e) =>
+                                        setCandidateForm({
+                                          ...candidateForm,
+                                          photoUrl: e.target.value,
+                                        })
+                                      }
+                                      className="flex-1 px-3 py-2 border border-slate-200 rounded-xl"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        photoInputRef.current?.click()
+                                      }
+                                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center gap-2 font-semibold whitespace-nowrap transition-colors"
+                                    >
+                                      <Upload className="h-4 w-4" />
+                                      Upload
+                                    </button>
+                                    <input
+                                      ref={photoInputRef}
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handlePhotoUpload}
+                                      className="hidden"
+                                    />
+                                  </div>
                                 </div>
 
                                 {!candidateForm.isIndependent && (
@@ -3631,18 +3683,37 @@ export default function AdminPanel({
                                     <label className="block text-slate-400 font-semibold mb-1">
                                       PARTY LOGO INSTANCE (URL)
                                     </label>
-                                    <input
-                                      type="url"
-                                      placeholder="https://unsplash.com/..."
-                                      value={candidateForm.partyLogoUrl}
-                                      onChange={(e) =>
-                                        setCandidateForm({
-                                          ...candidateForm,
-                                          partyLogoUrl: e.target.value,
-                                        })
-                                      }
-                                      className="w-full px-3 py-2 border border-slate-200 rounded-xl"
-                                    />
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="url"
+                                        placeholder="https://unsplash.com/..."
+                                        value={candidateForm.partyLogoUrl}
+                                        onChange={(e) =>
+                                          setCandidateForm({
+                                            ...candidateForm,
+                                            partyLogoUrl: e.target.value,
+                                          })
+                                        }
+                                        className="flex-1 px-3 py-2 border border-slate-200 rounded-xl"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          logoInputRef.current?.click()
+                                        }
+                                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center gap-2 font-semibold whitespace-nowrap transition-colors"
+                                      >
+                                        <Upload className="h-4 w-4" />
+                                        Upload
+                                      </button>
+                                      <input
+                                        ref={logoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        className="hidden"
+                                      />
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -7223,11 +7294,20 @@ export default function AdminPanel({
                                     }
                                     alt={voter.fullName}
                                     referrerPolicy="no-referrer"
-                                    className="w-24 h-24 rounded-full object-cover border-4 border-slate-805 relative bg-slate-900"
+                                    className={`w-24 h-24 rounded-full object-cover border-4 relative bg-slate-900 ${
+                                      profile?.profilePhoto
+                                        ? "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                                        : "border-slate-805"
+                                    }`}
                                   />
                                   <span className="absolute bottom-1 right-1 p-1 bg-emerald-500 text-slate-900 rounded-full border border-slate-950">
                                     <CheckCircle className="w-3.5 h-3.5" />
                                   </span>
+                                  {profile?.profilePhoto && (
+                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/90 text-slate-950 rounded border border-emerald-400">
+                                      REAL
+                                    </span>
+                                  )}
                                 </div>
 
                                 <h4 className="text-sm font-bold text-slate-200">
@@ -7287,14 +7367,26 @@ export default function AdminPanel({
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                                   Fingerprint Capture Record
                                 </h5>
-                                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 flex items-center justify-center min-h-28">
+                                <div
+                                  className="rounded-xl border-2 bg-slate-950/60 p-3 flex flex-col items-center justify-center min-h-32 gap-2"
+                                  style={{
+                                    borderColor: fingerprintPreview
+                                      ? "#10b981"
+                                      : "rgb(30, 41, 59)",
+                                  }}
+                                >
                                   {fingerprintPreview ? (
-                                    <img
-                                      src={fingerprintPreview}
-                                      alt={`${voter.fullName} fingerprint record`}
-                                      referrerPolicy="no-referrer"
-                                      className="w-24 h-24 object-contain rounded-lg border border-emerald-500/30 bg-slate-900 p-2"
-                                    />
+                                    <>
+                                      <div className="text-[9px] font-bold uppercase bg-emerald-500/90 text-slate-950 px-2 py-1 rounded">
+                                        Real Fingerprint Upload
+                                      </div>
+                                      <img
+                                        src={fingerprintPreview}
+                                        alt={`${voter.fullName} fingerprint record`}
+                                        referrerPolicy="no-referrer"
+                                        className="w-28 h-28 object-contain rounded-lg border border-emerald-500/50 bg-slate-900 p-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                      />
+                                    </>
                                   ) : (
                                     <div className="text-[10px] text-slate-600 font-mono text-center">
                                       No fingerprint record attached yet
@@ -7303,7 +7395,9 @@ export default function AdminPanel({
                                 </div>
                                 <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wide">
                                   Capture method:{" "}
-                                  {fingerprintMethod.replace(/-/g, " ")}
+                                  <span className="text-slate-300 font-semibold">
+                                    {fingerprintMethod.replace(/-/g, " ")}
+                                  </span>
                                 </div>
                               </div>
 
@@ -7553,7 +7647,7 @@ export default function AdminPanel({
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
                                   <div>
-                                    <span className="text-[9px] text-slate-500 block text-slate-500">
+                                    <span className="text-[9px] text-slate-500 block">
                                       DOCUMENT SPECIFICATION TYPE:
                                     </span>
                                     <span className="text-slate-200 font-extrabold">
@@ -7562,7 +7656,7 @@ export default function AdminPanel({
                                     </span>
                                   </div>
                                   <div>
-                                    <span className="text-[9px] text-slate-500 block text-slate-500">
+                                    <span className="text-[9px] text-slate-500 block">
                                       ISSUE DOCUMENT SERIAL CODE:
                                     </span>
                                     <span className="text-slate-200 font-extrabold">
@@ -7572,10 +7666,19 @@ export default function AdminPanel({
 
                                   {/* Front Image preview */}
                                   <div className="space-y-1.5">
-                                    <span className="text-[9px] text-slate-500 block uppercase">
-                                      Document Scan (Front Facing)
-                                    </span>
-                                    <div className="aspect-[4/3] bg-slate-950/50 border border-slate-800 rounded-xl overflow-hidden relative group">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        Document Scan (Front Facing)
+                                      </span>
+                                      {doc?.docFrontImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          UPLOADED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`aspect-[4/3] bg-slate-950/50 rounded-xl overflow-hidden relative group border-2 ${doc?.docFrontImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
                                       {doc?.docFrontImage ? (
                                         <img
                                           src={doc.docFrontImage}
@@ -7593,10 +7696,19 @@ export default function AdminPanel({
 
                                   {/* Back Image preview */}
                                   <div className="space-y-1.5">
-                                    <span className="text-[9px] text-slate-500 block uppercase">
-                                      Document Scan (Rear Facing)
-                                    </span>
-                                    <div className="aspect-[4/3] bg-slate-950/50 border border-slate-800 rounded-xl overflow-hidden relative group">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        Document Scan (Rear Facing)
+                                      </span>
+                                      {doc?.docBackImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          UPLOADED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`aspect-[4/3] bg-slate-950/50 rounded-xl overflow-hidden relative group border-2 ${doc?.docBackImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
                                       {doc?.docBackImage ? (
                                         <img
                                           src={doc.docBackImage}
@@ -7612,12 +7724,81 @@ export default function AdminPanel({
                                     </div>
                                   </div>
 
+                                  {/* NID Card Front Image preview */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        NID Card (Front Side)
+                                      </span>
+                                      {profile?.nidFrontImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          UPLOADED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`aspect-[4/3] bg-slate-950/50 rounded-xl overflow-hidden relative group border-2 ${profile?.nidFrontImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
+                                      {profile?.nidFrontImage ? (
+                                        <img
+                                          src={profile.nidFrontImage}
+                                          alt="NID Card Front"
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-contain"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center justify-center h-full text-slate-600 font-mono text-[10px]">
+                                          No NID Front Scan
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* NID Card Back Image preview */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        NID Card (Back Side)
+                                      </span>
+                                      {profile?.nidBackImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          UPLOADED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`aspect-[4/3] bg-slate-950/50 rounded-xl overflow-hidden relative group border-2 ${profile?.nidBackImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
+                                      {profile?.nidBackImage ? (
+                                        <img
+                                          src={profile.nidBackImage}
+                                          alt="NID Card Back"
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-contain"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center justify-center h-full text-slate-600 font-mono text-[10px]">
+                                          No NID Back Scan
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
                                   {/* Signature preview */}
                                   <div className="sm:col-span-2 border-t border-slate-800/40 pt-4 space-y-1.5">
-                                    <span className="text-[9px] text-slate-500 block uppercase">
-                                      Official High-Contrast Signature Record
-                                    </span>
-                                    <div className="h-24 bg-white/5 border border-slate-800 rounded-xl overflow-hidden relative flex items-center justify-center p-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        Official High-Contrast Signature Record
+                                      </span>
+                                      {doc?.signatureImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          UPLOADED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`h-24 bg-white/5 rounded-xl overflow-hidden relative flex items-center justify-center p-2 border-2 ${doc?.signatureImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
                                       {doc?.signatureImage ? (
                                         <img
                                           src={doc.signatureImage}
@@ -7631,6 +7812,161 @@ export default function AdminPanel({
                                         </span>
                                       )}
                                     </div>
+                                  </div>
+
+                                  {/* Live Face Capture */}
+                                  <div className="sm:col-span-2 border-t border-slate-800/40 pt-4 space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] text-slate-500 block uppercase">
+                                        Live Face Capture / Liveness Detection
+                                      </span>
+                                      {profile?.faceImage && (
+                                        <span className="text-[8px] font-bold bg-emerald-500/90 text-slate-950 px-1.5 py-0.5 rounded">
+                                          CAPTURED
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`aspect-square bg-slate-950/50 rounded-xl overflow-hidden relative group border-2 ${profile?.faceImage ? "border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]" : "border-slate-800"}`}
+                                    >
+                                      {profile?.faceImage ? (
+                                        <img
+                                          src={profile.faceImage}
+                                          alt="Live Face Capture"
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center justify-center h-full text-slate-600 font-mono text-[10px]">
+                                          No Live Capture Recorded
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Real Uploads Summary Panel */}
+                              <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800 space-y-4">
+                                <div className="flex items-center gap-2 border-b border-slate-800/80 pb-2">
+                                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                  <h5 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider font-mono">
+                                    Biometric Document Verification Status
+                                  </h5>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${profile?.profilePhoto ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${profile?.profilePhoto ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      PROFILE PHOTO
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {profile?.profilePhoto
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${doc?.docFrontImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${doc?.docFrontImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      CITIZENSHIP FRONT
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {doc?.docFrontImage
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${doc?.docBackImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${doc?.docBackImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      CITIZENSHIP BACK
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {doc?.docBackImage
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${doc?.signatureImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${doc?.signatureImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      SIGNATURE
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {doc?.signatureImage
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${profile?.faceImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${profile?.faceImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      LIVE FACE
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {profile?.faceImage
+                                        ? "✓ CAPTURED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${fingerprintPreview ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${fingerprintPreview ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      FINGERPRINT
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {fingerprintPreview
+                                        ? "✓ RECORDED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${profile?.nidFrontImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${profile?.nidFrontImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      NID FRONT
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {profile?.nidFrontImage
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`p-2.5 rounded-lg border ${profile?.nidBackImage ? "bg-emerald-500/10 border-emerald-500/30" : "bg-slate-900/30 border-slate-800"}`}
+                                  >
+                                    <span
+                                      className={`text-[9px] block ${profile?.nidBackImage ? "text-emerald-400" : "text-slate-500"}`}
+                                    >
+                                      NID BACK
+                                    </span>
+                                    <span className="font-extrabold text-slate-200">
+                                      {profile?.nidBackImage
+                                        ? "✓ VERIFIED"
+                                        : "✗ MISSING"}
+                                    </span>
                                   </div>
                                 </div>
                               </div>

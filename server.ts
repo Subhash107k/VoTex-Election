@@ -115,9 +115,31 @@ app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
+      // Allow same-origin or undefined origin (server-to-server, curl)
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      // In non-production (dev) allow localhost and local network addresses
+      if (!isProduction) {
+        try {
+          const url = new URL(origin);
+          const hostname = url.hostname;
+          // Allow localhost and 127.0.0.1 and local LAN IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+          if (
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname.startsWith("192.168.") ||
+            hostname.startsWith("10.") ||
+            /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+          ) {
+            return callback(null, true);
+          }
+        } catch (e) {
+          // If URL parsing fails, fall through to deny
+        }
+      }
+
       return callback(new Error("CORS origin is not allowed by VoTex policy."));
     },
   }),
@@ -154,6 +176,7 @@ app.use(
   [
     "/api/auth/login",
     "/api/auth/register",
+    "/api/auth/check-availability",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
   ],
@@ -186,7 +209,7 @@ const authenticateToken = (req: any, res: any, next: any) => {
 
   const payload = Database.verifyToken(token);
   if (!payload) {
-    return res.status(403).json({ error: "Invalid or expired access token" });
+    return res.status(401).json({ error: "Invalid or expired access token" });
   }
 
   const users = Database.getUsers();
@@ -859,12 +882,166 @@ app.post("/api/auth/verify-sms-otp", (req, res) => {
   }
 });
 
+const normalizeEmailValue = (val?: string) =>
+  String(val || "")
+    .trim()
+    .toLowerCase();
+const normalizeUsernameValue = (val?: string) =>
+  String(val || "")
+    .trim()
+    .toLowerCase();
+const normalizePhoneValue = (val?: string) =>
+  String(val || "")
+    .trim()
+    .replace(/[\s\-()]/g, "");
+const normalizeNidValue = (val?: string) =>
+  String(val || "")
+    .trim()
+    .replace(/[\s\-]/g, "")
+    .toUpperCase();
+const normalizeCitizenshipValue = (val?: string) =>
+  String(val || "")
+    .trim()
+    .replace(/[\s\-]/g, "")
+    .toUpperCase();
+
+app.get("/api/auth/check-availability", (req, res) => {
+  try {
+    const email = req.query.email ? String(req.query.email) : undefined;
+    const username = req.query.username
+      ? String(req.query.username)
+      : undefined;
+    const phone = req.query.phone
+      ? String(req.query.phone)
+      : req.query.mobile
+        ? String(req.query.mobile)
+        : undefined;
+    const nid = req.query.nid
+      ? String(req.query.nid)
+      : req.query.nationalID
+        ? String(req.query.nationalID)
+        : undefined;
+    const citizenship = req.query.citizenship
+      ? String(req.query.citizenship)
+      : req.query.citizenshipNumber
+        ? String(req.query.citizenshipNumber)
+        : undefined;
+
+    const users = Database.getUsers();
+    const profiles = Database.getUserProfiles();
+
+    const available: Record<string, boolean> = {
+      email: true,
+      username: true,
+      phone: true,
+      nid: true,
+      citizenship: true,
+    };
+    const message: Record<string, string> = {};
+
+    if (email) {
+      const emailStd = normalizeEmailValue(email);
+      if (emailStd) {
+        const taken = users.some(
+          (u) => normalizeEmailValue(u.email) === emailStd,
+        );
+        if (taken) {
+          available.email = false;
+          message.email = "Email already registered.";
+        }
+      }
+    }
+
+    if (username) {
+      const userStd = normalizeUsernameValue(username);
+      if (userStd) {
+        const taken = users.some(
+          (u) => u.username && normalizeUsernameValue(u.username) === userStd,
+        );
+        if (taken) {
+          available.username = false;
+          message.username = "Username already taken.";
+        }
+      }
+    }
+
+    if (phone) {
+      const phoneStd = normalizePhoneValue(phone);
+      if (phoneStd) {
+        const taken = users.some(
+          (u) =>
+            u.mobile &&
+            (areSameMobile(u.mobile, phoneStd) ||
+              normalizePhoneValue(u.mobile) === phoneStd),
+        );
+        if (taken) {
+          available.phone = false;
+          message.phone = "Phone number already registered.";
+        }
+      }
+    }
+
+    if (nid) {
+      const nidStd = normalizeNidValue(nid);
+      if (nidStd) {
+        const takenInUsers = users.some(
+          (u) => u.nationalID && normalizeNidValue(u.nationalID) === nidStd,
+        );
+        const takenInProfiles = profiles.some(
+          (p) => p.nidNumber && normalizeNidValue(p.nidNumber) === nidStd,
+        );
+        if (takenInUsers || takenInProfiles) {
+          available.nid = false;
+          message.nid = "National ID already exists.";
+        }
+      }
+    }
+
+    if (citizenship) {
+      const citStd = normalizeCitizenshipValue(citizenship);
+      if (citStd) {
+        const takenInUsers = users.some(
+          (u) =>
+            u.citizenshipNumber &&
+            normalizeCitizenshipValue(u.citizenshipNumber) === citStd,
+        );
+        const takenInProfiles = profiles.some(
+          (p) =>
+            p.citizenshipNumber &&
+            normalizeCitizenshipValue(p.citizenshipNumber) === citStd,
+        );
+        if (takenInUsers || takenInProfiles) {
+          available.citizenship = false;
+          message.citizenship = "Citizenship number already exists.";
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      available,
+      message,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 const registrationSchema = z
   .object({
     fullName: z.string().trim().min(2).max(120),
-    username: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/),
+    username: z
+      .string()
+      .trim()
+      .min(3)
+      .max(40)
+      .regex(/^[a-zA-Z0-9_.-]+$/),
     email: z.string().trim().email().max(254),
     mobile: z.string().trim().min(8).max(20),
+    nationalID: z.string().trim().min(3).max(40).optional(),
+    nid: z.string().trim().min(3).max(40).optional(),
+    citizenshipNumber: z.string().trim().min(3).max(40).optional(),
+    citizenship: z.string().trim().min(3).max(40).optional(),
     dob: z.string().date(),
     gender: z.enum(["Male", "Female", "Other"]),
     occupation: z.string().trim().min(2).max(120),
@@ -879,7 +1056,9 @@ app.post("/api/auth/register", (req, res) => {
     const parsed = registrationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
-        error: "Registration data is invalid. Use a 12-character password and valid field values.",
+        success: false,
+        error:
+          "Registration data is invalid. Use a 12-character password and valid field values.",
       });
     }
     const {
@@ -887,6 +1066,10 @@ app.post("/api/auth/register", (req, res) => {
       username,
       email,
       mobile,
+      nationalID,
+      nid,
+      citizenshipNumber,
+      citizenship,
       dob,
       gender,
       occupation,
@@ -895,20 +1078,26 @@ app.post("/api/auth/register", (req, res) => {
       role,
     } = parsed.data;
 
+    const nidVal = nationalID || nid || "";
+    const citizenshipVal = citizenshipNumber || citizenship || "";
+
     if (
       !fullName ||
       !username ||
       !email ||
       !mobile ||
+      !nidVal ||
+      !citizenshipVal ||
       !dob ||
       !gender ||
       !occupation ||
       !password ||
       !confirmPassword
     ) {
-      return res
-        .status(400)
-        .json({ error: "All required registration fields must be completed" });
+      return res.status(400).json({
+        success: false,
+        error: "All required registration fields must be completed",
+      });
     }
 
     const birthDate = new Date(dob);
@@ -920,6 +1109,7 @@ app.post("/api/auth/register", (req, res) => {
       monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
     if (actualAge < 18) {
       return res.status(400).json({
+        success: false,
         error: "Registration requires users to be at least 18 years old.",
       });
     }
@@ -927,45 +1117,88 @@ app.post("/api/auth/register", (req, res) => {
     if (password !== confirmPassword) {
       return res
         .status(400)
-        .json({ error: "Password confirmations do not match" });
+        .json({ success: false, error: "Password confirmations do not match" });
     }
 
-    const emailStandard = validateEmail(email);
-    const usernameStandard = username.toLowerCase().trim();
-    const mobileStandard = validateNepaliMobile(mobile);
+    const emailStandard = normalizeEmailValue(email);
+    const usernameStandard = normalizeUsernameValue(username);
+    const mobileStandard = normalizePhoneValue(mobile);
+    const nidStandard = normalizeNidValue(nidVal);
+    const citizenshipStandard = normalizeCitizenshipValue(citizenshipVal);
+
     const users = Database.getUsers();
+    const profiles = Database.getUserProfiles();
+    const errors: Record<string, string> = {};
 
-    if (!emailStandard) {
-      return res
-        .status(400)
-        .json({ error: "Please provide a valid email address." });
-    }
-    if (!mobileStandard) {
-      return res
-        .status(400)
-        .json({ error: "Please provide a valid Nepali mobile number." });
+    if (!emailStandard || !validateEmail(email)) {
+      errors.email = "Please provide a valid email address.";
+    } else if (
+      users.some((u) => normalizeEmailValue(u.email) === emailStandard)
+    ) {
+      errors.email = "Email already registered.";
     }
 
-    // 1. Double check unique entries
-    if (
+    if (!usernameStandard) {
+      errors.username = "Please provide a valid username.";
+    } else if (
       users.some(
-        (u) => u.username && u.username.toLowerCase() === usernameStandard,
+        (u) =>
+          u.username && normalizeUsernameValue(u.username) === usernameStandard,
       )
     ) {
+      errors.username = "Username already taken.";
+    }
+
+    if (!mobileStandard || !validateNepaliMobile(mobile)) {
+      errors.phone = "Please provide a valid Nepali mobile number.";
+    } else if (
+      users.some(
+        (u) =>
+          areSameMobile(u.mobile, mobileStandard) ||
+          normalizePhoneValue(u.mobile) === mobileStandard,
+      )
+    ) {
+      errors.phone = "Phone number already registered.";
+    }
+
+    if (!nidStandard) {
+      errors.nid = "National ID is required.";
+    } else if (
+      users.some(
+        (u) => u.nationalID && normalizeNidValue(u.nationalID) === nidStandard,
+      ) ||
+      profiles.some(
+        (p) => p.nidNumber && normalizeNidValue(p.nidNumber) === nidStandard,
+      )
+    ) {
+      errors.nid = "National ID already exists.";
+    }
+
+    if (!citizenshipStandard) {
+      errors.citizenship = "Citizenship number is required.";
+    } else if (
+      users.some(
+        (u) =>
+          u.citizenshipNumber &&
+          normalizeCitizenshipValue(u.citizenshipNumber) ===
+            citizenshipStandard,
+      ) ||
+      profiles.some(
+        (p) =>
+          p.citizenshipNumber &&
+          normalizeCitizenshipValue(p.citizenshipNumber) ===
+            citizenshipStandard,
+      )
+    ) {
+      errors.citizenship = "Citizenship number already exists.";
+    }
+
+    if (Object.keys(errors).length > 0) {
       return res.status(400).json({
-        error:
-          "Username is already registered. Please choose a unique user identifier.",
+        success: false,
+        error: Object.values(errors)[0],
+        errors,
       });
-    }
-    if (users.some((u) => u.email.toLowerCase() === emailStandard)) {
-      return res
-        .status(400)
-        .json({ error: "Email is already registered in the system." });
-    }
-    if (users.some((u) => areSameMobile(u.mobile, mobileStandard))) {
-      return res
-        .status(400)
-        .json({ error: "Mobile contact number is already registered." });
     }
 
     // 2. Validate OTP code completion
@@ -985,12 +1218,14 @@ app.post("/api/auth/register", (req, res) => {
 
     if (!isEmailOk) {
       return res.status(400).json({
+        success: false,
         error:
           "Please verify your email address via SMTP verification token first",
       });
     }
     if (!isMobileOk) {
       return res.status(400).json({
+        success: false,
         error: "Please verify your mobile number via SMS OTP code first",
       });
     }
@@ -1002,15 +1237,16 @@ app.post("/api/auth/register", (req, res) => {
       id: createId("usr"),
       fullName,
       username: usernameStandard,
-      nationalID: "", // To be completed during profile step
+      nationalID: nidStandard,
+      citizenshipNumber: citizenshipStandard,
       email: emailStandard,
       mobile: mobileStandard,
-      address: "", // To be completed during profile step
+      address: "",
       dob,
       gender,
       occupation: occupation.trim(),
       passwordHash: bcrypt.hashSync(password, 10),
-      faceImage: "", // To be completed during profile step
+      faceImage: "",
       role: targetRole,
       isVerified: false,
       isApproved: false,
@@ -1036,8 +1272,48 @@ app.post("/api/auth/register", (req, res) => {
       ],
     };
 
-    users.push(newUser);
-    Database.saveUsers(users);
+    try {
+      users.push(newUser);
+      Database.saveUsers(users);
+    } catch (dbErr: any) {
+      const errMsg = String(dbErr?.message || dbErr || "");
+      const dbErrors: Record<string, string> = {};
+
+      if (errMsg.includes("users_email_unique") || errMsg.includes("email")) {
+        dbErrors.email = "Email already registered.";
+      }
+      if (
+        errMsg.includes("users_username_unique") ||
+        errMsg.includes("username")
+      ) {
+        dbErrors.username = "Username already taken.";
+      }
+      if (errMsg.includes("users_mobile_unique") || errMsg.includes("mobile")) {
+        dbErrors.phone = "Phone number already registered.";
+      }
+      if (
+        errMsg.includes("users_national_id_unique") ||
+        errMsg.includes("nationalID")
+      ) {
+        dbErrors.nid = "National ID already exists.";
+      }
+      if (
+        errMsg.includes("users_citizenship_number_unique") ||
+        errMsg.includes("citizenshipNumber")
+      ) {
+        dbErrors.citizenship = "Citizenship number already exists.";
+      }
+      if (Object.keys(dbErrors).length === 0) {
+        dbErrors.general =
+          "Registration failed due to a database constraint conflict.";
+      }
+
+      return res.status(400).json({
+        success: false,
+        error: Object.values(dbErrors)[0],
+        errors: dbErrors,
+      });
+    }
 
     const ip =
       (req.headers["x-forwarded-for"] as string) ||
@@ -1082,7 +1358,7 @@ app.post("/api/auth/register", (req, res) => {
       success: true,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1255,7 +1531,7 @@ const preferenceSchema = z
   .object({
     language: z.enum(["en", "ne"]).optional(),
     nepaliTypingEnabled: z.boolean().optional(),
-    theme: z.enum(["light", "dark"]).optional(),
+    theme: z.enum(["light", "dark", "high-contrast"]).optional(),
   })
   .strict();
 
@@ -1315,103 +1591,7 @@ app.get("/api/profile/my-profile", authenticateToken, (req: any, res) => {
   }
 });
 
-app.get("/api/profile/draft", authenticateToken, (req: any, res) => {
-  try {
-    const userId = req.user.id;
-    const formId = req.query.formId || "profile-onboarding";
-    const drafts = Database.getProfileDrafts();
-    const draft =
-      drafts.find(
-        (d: any) =>
-          d.userId === userId &&
-          (!formId || d.formId === formId || (!d.formId && formId === "profile-onboarding")),
-      ) || null;
-    res.json({ draft });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post("/api/profile/draft", authenticateToken, (req: any, res) => {
-  try {
-    const userId = req.user.id;
-    const {
-      formId,
-      current_step,
-      draft_status,
-      verification_status,
-      citizenship_verified,
-      national_id_verified,
-      mismatch_count,
-      corrected_fields,
-      verification_logs,
-      formData,
-    } = req.body;
-
-    const drafts = Database.getProfileDrafts();
-    const targetFormId = formId || "profile-onboarding";
-    let draftIdx = drafts.findIndex(
-      (d: any) =>
-        d.userId === userId &&
-        (!targetFormId || d.formId === targetFormId || (!d.formId && targetFormId === "profile-onboarding")),
-    );
-    const now = new Date().toISOString();
-
-    let draft: any;
-    if (draftIdx !== -1) {
-      draft = drafts[draftIdx];
-      draft.formId = targetFormId;
-      draft.current_step =
-        current_step !== undefined ? current_step : draft.current_step;
-      draft.draft_status = draft_status || "Complete";
-      draft.verification_status =
-        verification_status || draft.verification_status;
-      draft.citizenship_verified =
-        citizenship_verified !== undefined
-          ? citizenship_verified
-          : draft.citizenship_verified;
-      draft.national_id_verified =
-        national_id_verified !== undefined
-          ? national_id_verified
-          : draft.national_id_verified;
-      draft.mismatch_count =
-        mismatch_count !== undefined ? mismatch_count : draft.mismatch_count;
-      draft.corrected_fields =
-        corrected_fields !== undefined
-          ? corrected_fields
-          : draft.corrected_fields;
-      draft.verification_logs = verification_logs || draft.verification_logs;
-      draft.formData = formData || draft.formData;
-      draft.last_saved_at = now;
-      draft.updated_at = now;
-      drafts[draftIdx] = draft;
-    } else {
-      draft = {
-        id: createId("draft"),
-        userId,
-        formId: targetFormId,
-        current_step: current_step || 1,
-        draft_status: draft_status || "Complete",
-        last_saved_at: now,
-        verification_status: verification_status || "Pending",
-        citizenship_verified: !!citizenship_verified,
-        national_id_verified: !!national_id_verified,
-        mismatch_count: mismatch_count || 0,
-        corrected_fields: corrected_fields || "{}",
-        verification_logs: verification_logs || [],
-        updated_at: now,
-        created_at: now,
-        formData: formData || "{}",
-      };
-      drafts.push(draft);
-    }
-
-    Database.saveProfileDrafts(drafts);
-    res.json({ success: true, draft });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Draft persistence routes have been removed. Application progress is no longer saved server-side.
 
 function createFingerprintHash(imageData: string): string {
   const normalized = (imageData || "").replace(

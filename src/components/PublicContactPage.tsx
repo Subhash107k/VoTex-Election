@@ -8,9 +8,11 @@ import {
   Calendar,
 } from "lucide-react";
 
+import type { ThemeMode } from "../types/auth.ts";
+
 interface PublicContactPageProps {
   handleNav: (path: string) => void;
-  theme: "light" | "dark";
+  theme: ThemeMode;
 }
 
 export default function PublicContactPage({

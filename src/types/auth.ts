@@ -2,7 +2,7 @@ import type React from "react";
 
 import type { User } from "../types.js";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "high-contrast";
 export type AuthTab = "login" | "register" | "forgot_password";
 
 export interface RegisterForm {
@@ -10,6 +10,8 @@ export interface RegisterForm {
   username: string;
   email: string;
   mobile: string;
+  nationalID: string;
+  citizenshipNumber: string;
   dob: string;
   gender: "Male" | "Female" | "Other" | string;
   occupation: string;

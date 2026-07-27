@@ -19,10 +19,15 @@ import {
   Users,
   BadgePlus,
   Fingerprint,
+  Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import BiometricScanner from "./BiometricScanner.tsx";
 import SearchableSelect from "./SearchableSelect.tsx";
+import ThemeToggle from "./ui/ThemeToggle.tsx";
+import Stepper from "./ui/Stepper.tsx";
+import { usePersistentTheme } from "../hooks/usePersistentTheme.ts";
+import type { ThemeMode } from "../types/auth.ts";
 import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../data/nepalAddressData.ts";
 
 interface CompleteProfileProps {
@@ -30,6 +35,8 @@ interface CompleteProfileProps {
   user: any;
   onLogout: () => void;
   onComplete: (updatedUser: any) => void;
+  theme?: ThemeMode;
+  setTheme?: (theme: ThemeMode) => void;
 }
 
 export default function CompleteProfile({
@@ -37,12 +44,16 @@ export default function CompleteProfile({
   user,
   onLogout,
   onComplete,
+  theme: propsTheme,
+  setTheme: propsSetTheme,
 }: CompleteProfileProps) {
+  const { theme: localTheme, setTheme: localSetTheme } = usePersistentTheme();
+  const currentTheme = propsTheme || localTheme;
+  const setCurrentTheme = propsSetTheme || localSetTheme;
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const profileDraftFormId = "profile-onboarding";
 
   const triggerToast = (msg: string, isError = false) => {
     if (isError) {
@@ -420,6 +431,65 @@ export default function CompleteProfile({
   const fingerprintVideoRef = useRef<HTMLVideoElement | null>(null);
   const fingerprintStreamRef = useRef<MediaStream | null>(null);
 
+  const FINGERPRINT_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+
+  const estimateBase64Size = (dataUrl: string) => {
+    try {
+      const base64 = dataUrl.split(",")[1] || "";
+      const padding = (base64.match(/=+$/) || [""])[0].length;
+      return Math.ceil((base64.length * 3) / 4) - padding;
+    } catch (e) {
+      return Infinity;
+    }
+  };
+
+  const compressDataUrl = async (
+    dataUrl: string,
+    maxBytes: number,
+  ): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let canvas = document.createElement("canvas");
+        let ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        let width = img.width;
+        let height = img.height;
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const tryCompress = () => {
+          // Try decreasing quality first
+          for (let q = 0.95; q >= 0.5; q -= 0.05) {
+            const attempt = canvas.toDataURL("image/jpeg", q);
+            if (estimateBase64Size(attempt) <= maxBytes)
+              return resolve(attempt);
+          }
+
+          // If still too big, scale down and retry
+          if (width > 400 && height > 300) {
+            width = Math.round(width * 0.9);
+            height = Math.round(height * 0.9);
+            canvas.width = width;
+            canvas.height = height;
+            ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+            ctx.drawImage(img, 0, 0, width, height);
+            return tryCompress();
+          }
+
+          // Give up
+          return resolve(null);
+        };
+
+        tryCompress();
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  };
+
   useEffect(() => {
     // 1. Detection of high-precision Windows / platform credential capability
     if (window.PublicKeyCredential) {
@@ -645,13 +715,42 @@ export default function CompleteProfile({
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        return triggerToast("Fingerprint image must be less than 2 MB.", true);
+      if (file.size > FINGERPRINT_MAX_BYTES) {
+        return triggerToast(
+          `Fingerprint image must be less than ${Math.round(
+            FINGERPRINT_MAX_BYTES / 1024 / 1024,
+          )} MB.`,
+          true,
+        );
       }
 
       const reader = new FileReader();
       reader.onload = async () => {
-        const imageData = reader.result as string;
+        let imageData = reader.result as string;
+
+        // If uploaded image is larger than allowed, try compressing
+        const estimated = estimateBase64Size(imageData);
+        if (estimated > FINGERPRINT_MAX_BYTES) {
+          const compressed = await compressDataUrl(
+            imageData,
+            FINGERPRINT_MAX_BYTES,
+          );
+          if (compressed) {
+            imageData = compressed;
+            setFingerprintLogs((prev) => [
+              ...prev,
+              "⚙️ Uploaded fingerprint image was large and was automatically compressed.",
+            ]);
+          } else {
+            return triggerToast(
+              `Uploaded fingerprint image exceeds ${Math.round(
+                FINGERPRINT_MAX_BYTES / 1024 / 1024,
+              )} MB and could not be compressed.`,
+              true,
+            );
+          }
+        }
+
         setFingerprintImage(imageData);
         setFingerprintCaptureMode("upload");
         setIsFingerprinting(false);
@@ -858,14 +957,6 @@ export default function CompleteProfile({
   const [faceImage, setFaceImage] = useState<string>("");
   const [faceTemplate, setFaceTemplate] = useState<number[] | null>(null);
 
-  // --- REAL-TIME DRAFTPERSISTENCE & RECOVERY HANDLERS ---
-  const [showResumeModal, setShowResumeModal] = useState(false);
-  const [foundDraft, setFoundDraft] = useState<any>(null);
-  const [draftSaveStatus, setDraftSaveStatus] = useState<
-    "saved" | "saving" | "failed" | null
-  >(null);
-  const [lastSavedTime, setLastSavedTime] = useState<string>("");
-
   const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
   const [activeMismatches, setActiveMismatches] = useState<any[]>([]);
   const [mismatchesResolved, setMismatchesResolved] = useState(false);
@@ -1036,160 +1127,7 @@ export default function CompleteProfile({
     if (data.faceTemplate !== undefined) setFaceTemplate(data.faceTemplate);
   };
 
-  const saveDraftOnServer = async (stepOverride?: number) => {
-    if (!token) return null;
-    try {
-      setDraftSaveStatus("saving");
-      const currentState = serializeStates();
-      const currentStepVal = stepOverride !== undefined ? stepOverride : step;
-
-      const payload = {
-        formId: profileDraftFormId,
-        current_step: currentStepVal,
-        draft_status: "Complete",
-        verification_status: "Pending",
-        citizenship_verified: false,
-        national_id_verified: false,
-        mismatch_count: activeMismatches.length,
-        corrected_fields: JSON.stringify(activeMismatches),
-        verification_logs: fingerprintLogs,
-        formData: JSON.stringify(currentState),
-      };
-
-      const res = await fetch("/api/profile/draft", {
-        method: "POST",
-        headers: {
-          "Content-type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Save failed");
-
-      const data = await res.json();
-      if (data?.draft) {
-        setFoundDraft(data.draft);
-      }
-
-      setDraftSaveStatus("saved");
-      setLastSavedTime(new Date().toLocaleTimeString());
-      return data?.draft || null;
-    } catch (e) {
-      console.error(e);
-      setDraftSaveStatus("failed");
-      return null;
-    }
-  };
-
-  const handleResumeSession = () => {
-    if (foundDraft && foundDraft.formData) {
-      try {
-        const parsed = JSON.parse(foundDraft.formData);
-        deserializeStates(parsed);
-        setStep(foundDraft.current_step || 1);
-        triggerToast("🚀 Resumed previous onboarding session successfully.");
-      } catch (e) {
-        console.error("Failed parsing resume draft", e);
-      }
-    }
-    setShowResumeModal(false);
-  };
-
-  const handleStartOver = async () => {
-    setStep(1);
-    setShowResumeModal(false);
-    triggerToast("Starting fresh application draft.");
-  };
-
-  // 1. Fetch Draft on Load / Mount
-  useEffect(() => {
-    if (!token) return;
-    const fetchDraft = async () => {
-      try {
-        const res = await fetch(
-          `/api/profile/draft?formId=${encodeURIComponent(profileDraftFormId)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.draft) {
-            setFoundDraft(data.draft);
-            setShowResumeModal(true);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load draft:", err);
-      }
-    };
-    fetchDraft();
-  }, [token]);
-
-  // 2. Debounced auto-save on field changes
-  useEffect(() => {
-    if (!token) return;
-
-    const delayDebounceFn = setTimeout(() => {
-      saveDraftOnServer();
-    }, 2500); // 2.5 seconds debounce
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [
-    personal,
-    permCountry,
-    permProvince,
-    permDistrict,
-    permMunicipality,
-    permWardNumber,
-    permTole,
-    permStreetAddress,
-    permPostalCode,
-    permCountryOther,
-    sameAsPermanent,
-    tempCountry,
-    tempProvince,
-    tempDistrict,
-    tempMunicipality,
-    tempWardNumber,
-    tempTole,
-    tempStreetAddress,
-    tempPostalCode,
-    tempCountryOther,
-    fullNameNepali,
-    maritalStatus,
-    educationStatus,
-    bloodGroup,
-    nationality,
-    fatherName,
-    fatherNameNepali,
-    motherName,
-    motherNameNepali,
-    grandfatherName,
-    grandfatherNameNepali,
-    spouseName,
-    spouseNameNepali,
-    spouseFatherName,
-    spouseFatherNameNepali,
-    spouseMotherName,
-    spouseMotherNameNepali,
-    profilePhoto,
-    citizenshipNumber,
-    signatureImage,
-    fingerprintImage,
-    faceImage,
-  ]);
-
-  // 3. Periodic Auto-Save Every 20 seconds
-  useEffect(() => {
-    if (!token) return;
-    const interval = setInterval(() => {
-      saveDraftOnServer();
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [token, step]);
+  // Draft persistence has been disabled entirely for this workflow.
 
   // 4. Real-time USB connect/disconnect event listener simulation
   useEffect(() => {
@@ -1434,21 +1372,12 @@ export default function CompleteProfile({
       }
     }
 
-    // Save & Continue Action:
-    try {
-      setIsSavingStep(true);
-      const nextStepVal = step + 1;
-      const savedDraft = await saveDraftOnServer(nextStepVal);
-      if (!savedDraft) {
-        throw new Error("Draft save failed");
-      }
-      triggerToast("✅ Profile progress saved successfully.");
-      setStep(nextStepVal);
-    } catch (e) {
-      triggerToast("❌ Unable to save your data. Please try again.", true);
-    } finally {
-      setIsSavingStep(false);
-    }
+    // Save & Continue Action: draft persistence removed, proceed directly.
+    setIsSavingStep(true);
+    const nextStepVal = step + 1;
+    setStep(nextStepVal);
+    triggerToast("✅ Profile progress advanced.");
+    setIsSavingStep(false);
   };
 
   const handlePrev = () => {
@@ -1577,7 +1506,7 @@ export default function CompleteProfile({
   };
 
   return (
-    <div className="flex-1 bg-slate-950 flex flex-col justify-center py-10 px-4 md:px-8 relative">
+    <div className="flex-1 bg-[var(--surface-page)] text-[var(--text-primary)] flex flex-col justify-center py-10 px-4 md:px-8 relative transition-colors">
       {/* Toast elements */}
       {successMsg && (
         <div className="fixed top-6 right-6 z-50 bg-emerald-600 border border-emerald-500 font-medium text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2">
@@ -1592,92 +1521,67 @@ export default function CompleteProfile({
         </div>
       )}
 
-      <div className="max-w-4xl w-full mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl text-left relative">
-        {/* Custom Header with Logout option */}
-        <div className="flex justify-between items-start border-b border-slate-800 pb-5">
+      <div className="max-w-4xl w-full mx-auto bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl text-left relative transition-colors">
+        {/* Custom Header with Theme Toggle & Logout option */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--border-subtle)] pb-5 gap-4">
           <div>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-400 uppercase">
+            <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-500 dark:text-emerald-400 uppercase">
               Republic Voter Portal Onboarding
             </span>
-            <h2 className="text-xl md:text-2xl font-black text-white mt-1 uppercase tracking-tight">
+            <h2 className="text-xl md:text-2xl font-black text-[var(--text-primary)] mt-1 uppercase tracking-tight">
               Complete Your Identity Profile
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Dear <strong className="text-slate-200">{user?.fullName}</strong>,
-              provide validated coordinates to secure your democratic profile.
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Dear{" "}
+              <strong className="text-[var(--text-primary)]">
+                {user?.fullName}
+              </strong>
+              , provide validated coordinates to secure your democratic profile.
             </p>
-            {token && (
-              <div className="flex items-center gap-1.5 mt-2.5">
-                {draftSaveStatus === "saving" && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                    Saving Draft...
-                  </span>
-                )}
-                {draftSaveStatus === "saved" && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Saved {lastSavedTime ? `at ${lastSavedTime}` : ""}
-                  </span>
-                )}
-                {draftSaveStatus === "failed" && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Unable to save draft
-                  </span>
-                )}
-              </div>
-            )}
+            </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={currentTheme} setTheme={setCurrentTheme} />
+            <button
+              onClick={onLogout}
+              className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
+            >
+              Sign Out
+            </button>
           </div>
-          <button
-            onClick={onLogout}
-            className="px-3 py-1.5 bg-red-550/10 hover:bg-red-500/20 text-red-400 text-[10px] uppercase font-bold tracking-wider rounded-lg border border-red-500/20 transition-colors cursor-pointer"
-          >
-            Sign Out
-          </button>
         </div>
 
         {/* ----------------- PROGRESS INDICATOR WIZARD ----------------- */}
         {step < 6 && (
-          <div className="flex items-center gap-2 md:gap-4 select-none mb-2">
-            {[
-              { id: 1, label: "Profile" },
-              { id: 2, label: "Picture" },
-              { id: 3, label: "Identity Documents" },
-              { id: 4, label: "Liveness Check" },
-              { id: 5, label: "Final Seal" },
-            ].map((s) => {
-              const active = step === s.id;
-              const completed = step > s.id;
-              return (
-                <React.Fragment key={s.id}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                        active
-                          ? "bg-emerald-500 text-slate-950 font-bold scale-110 shadow-[0_0_12px_#10b981]"
-                          : completed
-                            ? "bg-slate-800 text-emerald-400 border border-emerald-500/30"
-                            : "bg-slate-800/50 text-slate-500"
-                      }`}
-                    >
-                      {completed ? "✔" : s.id}
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold uppercase hidden md:inline shrink-0 ${active ? "text-white" : completed ? "text-emerald-400" : "text-slate-500"}`}
-                    >
-                      {s.label}
-                    </span>
-                  </div>
-                  {s.id !== 5 && (
-                    <div
-                      className={`h-0.5 flex-1 rounded-full transition-all ${completed ? "bg-emerald-500" : "bg-slate-800"}`}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
+          <Stepper
+            steps={[
+              {
+                id: 1,
+                label: "Profile",
+                description: "Demographics & Address",
+              },
+              { id: 2, label: "Picture", description: "Voter Photo" },
+              {
+                id: 3,
+                label: "Identity Documents",
+                description: "Citizenship & Signature",
+              },
+              {
+                id: 4,
+                label: "Liveness Check",
+                description: "Biometric Verification",
+              },
+              {
+                id: 5,
+                label: "Final Seal",
+                description: "Review & Confirmation",
+              },
+            ]}
+            currentStep={step}
+            onStepClick={(stepId) => {
+              if (stepId < step) setStep(stepId);
+            }}
+            className="mb-2"
+          />
         )}
 
         <AnimatePresence mode="wait">
@@ -1699,8 +1603,13 @@ export default function CompleteProfile({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
                 <div>
-                  <label className="block text-slate-400 font-bold uppercase mb-1">
-                    Gender Identification *
+                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                    <span>Gender Identification *</span>
+                    {isGenderLocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                        <Lock className="w-3 h-3" /> Registered
+                      </span>
+                    )}
                   </label>
                   <select
                     value={personal.gender}
@@ -1711,7 +1620,7 @@ export default function CompleteProfile({
                             setPersonal({ ...personal, gender: e.target.value })
                     }
                     disabled={isGenderLocked}
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px] disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] text-xs disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -1720,16 +1629,23 @@ export default function CompleteProfile({
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 font-bold uppercase mb-1">
-                    Date of Birth (registry) *
+                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                    <span>Date of Birth (registry) *</span>
+                    {isDobLocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                        <Lock className="w-3 h-3" /> Registered
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <Calendar className="absolute left-3 top-3 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
                     {isDobLocked ? (
-                      <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70 flex items-center">
-                        <span className="mr-2">{personal.dob}</span>
+                      <div className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text.xs text-[var(--text-primary)] font-bold min-h-[42px] flex items-center justify-between">
+                        <span>{personal.dob}</span>
                         {personal.dob && (
-                          <span className="text-slate-400">({calculateAge(personal.dob)} years)</span>
+                          <span className="text-[11px] font-normal text-emerald-500 dark:text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            {calculateAge(personal.dob)} Years Old
+                          </span>
                         )}
                       </div>
                     ) : (
@@ -1743,36 +1659,44 @@ export default function CompleteProfile({
                             dob: e.target.value,
                           })
                         }
-                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
                       />
                     )}
                   </div>
                   {isDobLocked && (
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      Date of Birth was provided during registration and cannot be edited here.
+                    <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+                      Date of Birth was verified during registration and locked
+                      for audit protection.
                     </p>
                   )}
                   {!isDobLocked && personal.dob && (
-                    <p className="mt-1 text-[10px] text-emerald-400">
+                    <p className="mt-1 text-[10px] text-emerald-500 font-mono font-bold">
                       Selected age: {calculateAge(personal.dob)} years.
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 font-bold uppercase mb-1">
-                    Occupation / Profession
+                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                    <span>Occupation / Profession</span>
+                    {isOccupationLocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                        <Lock className="w-3 h-3" /> Registered
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
-                    <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <Briefcase className="absolute left-3 top-3 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
                     {isOccupationLocked ? (
-                      <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70">
+                      <div className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] font-bold min-h-[42px] flex items-center">
                         {user?.occupation || "Not provided"}
                       </div>
                     ) : (
                       <input
                         type="text"
-                        placeholder={user?.occupation || "Not provided"}
+                        placeholder={
+                          user?.occupation || "e.g. Software Engineer"
+                        }
                         value={personal.occupation}
                         onChange={(e) =>
                           setPersonal({
@@ -1780,30 +1704,25 @@ export default function CompleteProfile({
                             occupation: e.target.value,
                           })
                         }
-                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-9 py-2 text-white outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
                       />
                     )}
                   </div>
-                  {user?.occupation && (
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      Occupation was provided during registration and cannot be
-                      edited here.
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Additional Demographics info block */}
-              <div className="bg-slate-950/20 p-4 rounded-xl border border-slate-800/50 space-y-3">
-                <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider border-b border-slate-800 pb-1.5 flex items-center gap-1.5">
-                  <BadgePlus className="w-3.5 h-3.5" />
+              {/* Extended Family & Lineage Profile section */}
+              <div className="bg-[var(--surface-muted)]/50 p-5 rounded-2xl border border-[var(--border-subtle)] space-y-4">
+                <div className="text-xs text-emerald-500 dark:text-emerald-400 font-extrabold uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2 flex items-center gap-2">
+                  <BadgePlus className="w-4 h-4" />
+                  <span>Extended Voter Demographics</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px]">
                       Full Name (English)
                     </label>
-                    <div className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 flex items-center">
+                    <div className="w-full min-h-[42px] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs text-[var(--text-primary)] font-bold flex items-center">
                       {user?.fullName || "Not provided"}
                     </div>
                   </div>
@@ -2648,24 +2567,24 @@ export default function CompleteProfile({
               exit={{ opacity: -20 }}
               className="space-y-4"
             >
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
+              <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
                 <Camera className="w-4 h-4" />
                 <span>2. Official Portrait Profile Photo</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 {/* Upload zone */}
-                <div className="border-2 border-dashed border-slate-800 rounded-3xl p-6 text-center hover:border-emerald-500/50 transition-colors flex flex-col justify-center items-center h-[260px] bg-slate-950">
-                  <Upload className="w-10 h-10 text-emerald-400 mb-3 animate-pulse" />
-                  <span className="text-xs text-white font-extrabold uppercase">
+                <div className="border-2 border-dashed border-[var(--border-subtle)] rounded-3xl p-6 text-center hover:border-emerald-500/60 transition-colors flex flex-col justify-center items-center h-[260px] bg-[var(--surface-muted)]">
+                  <Upload className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mb-3 animate-pulse" />
+                  <span className="text-xs text-[var(--text-primary)] font-extrabold uppercase">
                     Upload Profile Image
                   </span>
-                  <p className="text-[10px] text-slate-500 mt-1 max-w-[230px] mx-auto">
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 max-w-[230px] mx-auto">
                     Allowed formats: JPG or PNG. Maximum size constraint: 2 MB
                     limit.
                   </p>
 
-                  <label className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] uppercase font-bold cursor-pointer transition-colors border border-slate-700">
+                  <label className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] uppercase font-bold cursor-pointer transition-colors border border-slate-700 shadow-sm">
                     Browse Files
                     <input
                       type="file"
@@ -2675,17 +2594,17 @@ export default function CompleteProfile({
                     />
                   </label>
                   {profilePhotoName && (
-                    <span className="text-[10px] font-mono text-emerald-400 mt-2 block">
+                    <span className="text-[10px] font-mono text-emerald-500 dark:text-emerald-400 mt-2 block">
                       {profilePhotoName}
                     </span>
                   )}
                 </div>
 
                 {/* Preview and Cropper Simulator */}
-                <div className="bg-slate-950 rounded-3xl p-5 border border-slate-800 flex flex-col justify-center items-center h-[260px]">
+                <div className="bg-[var(--surface-muted)] rounded-3xl p-5 border border-[var(--border-subtle)] flex flex-col justify-center items-center h-[260px]">
                   {profilePhoto ? (
                     <div className="w-full flex flex-col items-center gap-3">
-                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl bg-slate-900 flex justify-center items-center">
+                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl bg-[var(--surface-card)] flex justify-center items-center">
                         <img
                           src={profilePhoto}
                           alt="Cropper preview"
@@ -2699,7 +2618,7 @@ export default function CompleteProfile({
 
                       {/* Interactive portrait controls */}
                       <div className="w-full max-w-[200px] text-xs font-mono space-y-1.5 pt-1.5">
-                        <div className="flex justify-between text-[9px] text-slate-400">
+                        <div className="flex justify-between text-[9px] text-[var(--text-secondary)]">
                           <span>Zoom: {cropConfig.zoom}x</span>
                           <input
                             type="range"
@@ -2716,7 +2635,7 @@ export default function CompleteProfile({
                             className="w-24 accent-emerald-500"
                           />
                         </div>
-                        <div className="flex justify-between text-[9px] text-slate-400">
+                        <div className="flex justify-between text-[9px] text-[var(--text-secondary)]">
                           <span>Rotate: {cropConfig.rotate}°</span>
                           <input
                             type="range"
@@ -2735,7 +2654,7 @@ export default function CompleteProfile({
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-slate-600 font-mono text-xs p-4">
+                    <div className="text-center text-[var(--text-secondary)] font-mono text-xs p-4">
                       Portrait Preview will be rendered on successfully
                       importing.
                     </div>
@@ -2881,14 +2800,15 @@ export default function CompleteProfile({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-col items-center text-center">
-                      <span className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wide">
+                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
                         Citizenship Front Image
                       </span>
                       {citizenshipFrontImage ? (
                         <img
                           src={citizenshipFrontImage}
                           alt="Citizenship front preview"
+                          loading="lazy"
                           className="w-full h-[110px] object-contain rounded-lg border border-slate-800 mb-2"
                         />
                       ) : (
@@ -2896,7 +2816,7 @@ export default function CompleteProfile({
                           Front side preview will appear here
                         </div>
                       )}
-                      <label className="w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded hover:text-white cursor-pointer select-none text-center">
+                      <label className="mt-auto w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
                         Upload Front
                         <input
                           type="file"
@@ -2907,14 +2827,15 @@ export default function CompleteProfile({
                       </label>
                     </div>
 
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-col items-center text-center">
-                      <span className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wide">
+                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
                         Citizenship Back Image
                       </span>
                       {citizenshipBackImage ? (
                         <img
                           src={citizenshipBackImage}
                           alt="Citizenship back preview"
+                          loading="lazy"
                           className="w-full h-[110px] object-contain rounded-lg border border-slate-800 mb-2"
                         />
                       ) : (
@@ -2922,7 +2843,7 @@ export default function CompleteProfile({
                           Back side preview will appear here
                         </div>
                       )}
-                      <label className="w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded hover:text-white cursor-pointer select-none text-center">
+                      <label className="mt-auto w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
                         Upload Back
                         <input
                           type="file"
@@ -3096,11 +3017,6 @@ export default function CompleteProfile({
                         Simulated WebAuthn Enclave
                       </span>
                     )}
-                    {externalSensorDetected && (
-                      <span className="bg-sky-500/10 border border-sky-500/30 text-[9px] text-sky-400 font-extrabold uppercase px-2 py-0.5 rounded font-mono">
-                        USB Driver Detected
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -3187,32 +3103,7 @@ export default function CompleteProfile({
                       <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest block mb-1">
                         Biometrics Enclave Handshake Logs:
                       </span>
-                      <div className="bg-slate-955/95 border border-slate-900 rounded-xl p-3 h-[95px] overflow-y-auto font-mono text-[9px] text-slate-400 flex flex-col gap-1">
-                        {fingerprintLogs.length === 0 ? (
-                          <span className="text-slate-600 italic">
-                            No biometric checks run. Awaiting sensor touch...
-                          </span>
-                        ) : (
-                          fingerprintLogs.map((log, i) => (
-                            <div key={i} className="flex items-start gap-1">
-                              <span className="text-slate-600 mr-0.5">
-                                [{i + 1}]
-                              </span>
-                              <span
-                                className={
-                                  log.includes("✔")
-                                    ? "text-emerald-400 font-bold"
-                                    : log.includes("⚠️") || log.includes("✖")
-                                      ? "text-amber-400"
-                                      : "text-blue-400"
-                                }
-                              >
-                                {log}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                      <></>
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
@@ -3555,71 +3446,6 @@ export default function CompleteProfile({
         </AnimatePresence>
       </div>
 
-      {/* ----------------- RETRIEVE / RESUME SESSION MODAL ----------------- */}
-      <AnimatePresence>
-        {showResumeModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative space-y-4 text-left"
-            >
-              <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white uppercase tracking-wider">
-                  Resume Profile Progress?
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  We identified an active, unsubmitted onboarding application
-                  associated with your account from{" "}
-                  <strong className="text-indigo-400 font-mono">
-                    {foundDraft?.last_saved_at
-                      ? new Date(foundDraft.last_saved_at).toLocaleDateString()
-                      : ""}{" "}
-                    (
-                    {foundDraft?.last_saved_at
-                      ? new Date(foundDraft.last_saved_at).toLocaleTimeString()
-                      : ""}
-                    )
-                  </strong>
-                  . Would you like to restore your progress and resume?
-                </p>
-              </div>
-              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-850 text-[10px] font-mono text-slate-400 space-y-1">
-                <div>
-                  • Draft Status:{" "}
-                  <span className="text-indigo-400 font-bold uppercase">
-                    {foundDraft?.draft_status}
-                  </span>
-                </div>
-                <div>
-                  • Last Step Completed:{" "}
-                  <span className="text-white font-bold">
-                    Step {foundDraft?.current_step}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleResumeSession}
-                  className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-slate-950 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider shadow-lg cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] transition-all"
-                >
-                  Resume Session
-                </button>
-                <button
-                  onClick={handleStartOver}
-                  className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-350 border border-slate-700 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider cursor-pointer active:scale-[0.99] transition-all"
-                >
-                  Start Over
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ----------------- DISCREPANCY & AUTO-CORRECTION CONTEXT MODAL ----------------- */}
       <AnimatePresence>

@@ -32,6 +32,37 @@ export function updateUserPreferences(
   );
 }
 
+export interface AvailabilityResult {
+  success: boolean;
+  available: {
+    email: boolean;
+    username: boolean;
+    phone: boolean;
+    nid: boolean;
+    citizenship: boolean;
+  };
+  message: Record<string, string>;
+}
+
+export function checkAvailability(params: {
+  email?: string;
+  username?: string;
+  phone?: string;
+  nid?: string;
+  citizenship?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params.email) query.set("email", params.email);
+  if (params.username) query.set("username", params.username);
+  if (params.phone) query.set("phone", params.phone);
+  if (params.nid) query.set("nid", params.nid);
+  if (params.citizenship) query.set("citizenship", params.citizenship);
+
+  return requestJson<AvailabilityResult>(
+    `/api/auth/check-availability?${query.toString()}`
+  );
+}
+
 export function registerAccount(form: RegisterForm) {
   return requestJson("/api/auth/register", jsonRequestOptions("POST", form));
 }

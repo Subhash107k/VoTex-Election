@@ -32,6 +32,19 @@
   --shadow-elevated: 0 24px 64px rgb(0 0 0 / 0.38);
 }
 
+.high-contrast {
+  color-scheme: dark;
+  --surface-page: #000000;
+  --surface-card: #050505;
+  --surface-muted: #121212;
+  --text-primary: #ffffff;
+  --text-secondary: #ffff00;
+  --border-subtle: #ffffff;
+  --focus-ring: #ffff00;
+  --shadow-card: 0 0 0 2px #ffffff;
+  --shadow-elevated: 0 0 0 4px #ffffff;
+}
+
 html {
   background: var(--surface-page);
   transition: background-color 180ms ease, color 180ms ease;
@@ -83,7 +96,7 @@ button, input, select, textarea {
   background: rgba(148, 163, 184, 0.5);
 }
 
-/* Eye-catching camera scan lines */
+/* Camera scan lines */
 @keyframes scan {
   0% { top: 0%; }
   50% { top: 100%; }

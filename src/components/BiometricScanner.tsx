@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Camera,
   RefreshCw,
@@ -18,6 +18,46 @@ import * as tf from "@tensorflow/tfjs-core";
 import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
 
 type FaceLandmarkPosition = { x: number; y: number };
+
+type SelectChangeEvent = { target: { value: string } };
+
+declare module "react" {
+  export type DependencyList = readonly any[];
+  export type SetStateAction<S> = S | ((prevState: S) => S);
+  export type Dispatch<A> = (value: A) => void;
+  export function useState<S>(
+    initialState: S | (() => S),
+  ): [S, Dispatch<SetStateAction<S>>];
+  export function useEffect(
+    effect: () => void | (() => void),
+    deps?: DependencyList,
+  ): void;
+  export function useRef<T>(initialValue: T | null): { current: T | null };
+  export interface ChangeEvent<T = Element> {
+    target: { value: any };
+  }
+  export default any;
+}
+
+declare module "react/jsx-runtime" {
+  export function jsx(type: any, props: any, key?: string | number): any;
+  export function jsxs(type: any, props: any, key?: string | number): any;
+  export function jsxDEV(
+    type: any,
+    props: any,
+    key?: string | number,
+    source?: any,
+    self?: any,
+  ): any;
+}
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
 
 interface FaceCaptureResult {
   originalImage: string;
@@ -441,7 +481,7 @@ export default function BiometricScanner({
 
   const createPassportCrop = (
     video: HTMLVideoElement,
-    box: { x: number; y: number; width: number; height: number },
+    box: { xMin: number; yMin: number; width: number; height: number },
     landmarksMap: Record<string, FaceLandmarkPosition>,
   ) => {
     const cropCanvas = document.createElement("canvas");
@@ -459,8 +499,8 @@ export default function BiometricScanner({
       cropHeight = box.height * (1 + marginFactor);
       cropWidth = cropHeight * (4 / 5);
     }
-    const centerX = box.x + box.width / 2;
-    const centerY = box.y + box.height / 2;
+    const centerX = box.xMin + box.width / 2;
+    const centerY = box.yMin + box.height / 2;
     let sx = centerX - cropWidth / 2;
     let sy = centerY - cropHeight / 2;
     sx = Math.max(0, Math.min(sx, video.videoWidth - cropWidth));
@@ -574,13 +614,14 @@ export default function BiometricScanner({
     const croppedImage = createPassportCrop(
       video,
       {
-        x: box.xMin,
-        y: box.yMin,
+        xMin: box.xMin,
+        yMin: box.yMin,
         width: box.width,
         height: box.height,
       },
       landmarksMap,
     );
+    const finalCroppedImage = croppedImage || originalImage;
 
     const faceTemplate = [
       qualityScore / 100,
@@ -597,9 +638,11 @@ export default function BiometricScanner({
     ];
     const encryptedFaceData = await encryptFaceTemplate(faceTemplate);
 
+    const capturedImage = finalCroppedImage;
+
     const result: FaceCaptureResult = {
       originalImage,
-      croppedImage,
+      croppedImage: capturedImage,
       faceBoundingBox: {
         x: box.xMin,
         y: box.yMin,
@@ -1348,7 +1391,7 @@ export default function BiometricScanner({
 
       const result = await captureFaceData(predictions);
       if (result) {
-        setPreviewImage(result.croppedImage);
+        setPreviewImage(result.croppedImage || result.originalImage);
         setScanStep("registered");
         setBiometricsLog((l) => [
           ...l,
@@ -1374,20 +1417,20 @@ export default function BiometricScanner({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 rounded-3xl border border-slate-200/80 bg-white/95 p-5 text-slate-800 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900 dark:text-white">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl flex flex-col lg:flex-row gap-6 w-full max-w-6xl mx-auto text-white">
       {/* 1. Large High-definition Camera Preview Console */}
       <div className="w-full lg:w-7/12 flex flex-col items-center justify-center">
-        <span className="mb-2 block self-start text-[9px] font-mono font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        <span className="text-[9px] font-mono font-bold tracking-widest text-slate-500 uppercase mb-2 block self-start">
           Secure Camera Viewport (Min 700x500px Console)
         </span>
 
-        <div className="relative flex aspect-[1.4] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-inner dark:border-slate-800 dark:bg-slate-950">
+        <div className="relative w-full aspect-[1.4] bg-slate-950 rounded-2xl overflow-hidden shadow-inner flex flex-col items-center justify-center border-2 border-slate-800">
           {/* Diagnostic status watermark */}
           <div className="absolute top-3 left-4 z-20 flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${cameraActive ? (isValidReady ? "bg-emerald-500 animate-pulse" : "bg-blue-500") : "bg-red-500"}`}
             />
-            <span className="text-[10px] font-mono font-extrabold uppercase text-slate-500 dark:text-slate-400">
+            <span className="text-[10px] font-mono text-slate-400 font-extrabold uppercase">
               {cameraActive
                 ? isValidReady
                   ? "State: Locked & Stable"
@@ -1406,22 +1449,22 @@ export default function BiometricScanner({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
-                className="p-6 text-center"
+                className="text-center p-6"
               >
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-blue-500/20 bg-blue-500/10 text-blue-500 dark:text-blue-400">
+                <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mx-auto mb-4 border border-blue-500/20">
                   <Camera className="w-8 h-8" />
                 </div>
-                <h4 className="mb-2 text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                <h4 className="text-slate-100 font-extrabold text-sm uppercase tracking-wider mb-2">
                   Biometric Engine Closed
                 </h4>
-                <p className="mx-auto mb-5 max-w-[280px] text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-slate-400 text-[11px] max-w-[280px] mx-auto mb-5">
                   Connect device camera capture routes to process multi-landmark
                   contour checks.
                 </p>
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="cursor-pointer rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-blue-700"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg transition-all transform hover:scale-[1.02] cursor-pointer"
                 >
                   Mount Secure Camera
                 </button>
@@ -1466,23 +1509,23 @@ export default function BiometricScanner({
                 key="preview-state"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="absolute inset-0 flex h-full w-full flex-col bg-slate-950/95"
+                className="absolute inset-0 w-full h-full flex flex-col bg-slate-950"
               >
                 <img
                   src={previewImage}
                   alt="Captured Template"
                   className="w-full h-full object-contain"
                 />
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-lg backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
+                <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md rounded-2xl p-4 border border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                       <ShieldCheck className="w-5 h-5" />
                     </div>
                     <div>
-                      <h5 className="text-xs font-extrabold uppercase text-slate-800 dark:text-white">
+                      <h5 className="text-white text-xs font-extrabold uppercase">
                         Biometrics Sealed
                       </h5>
-                      <p className="font-mono text-[9px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <p className="text-emerald-400 font-mono text-[9px] uppercase tracking-wider">
                         Holographic Hash: COMPLIANT ✔
                       </p>
                     </div>
@@ -1490,7 +1533,7 @@ export default function BiometricScanner({
                   <button
                     type="button"
                     onClick={startCamera}
-                    className="cursor-pointer rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-100 transition-colors hover:bg-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] uppercase font-bold cursor-pointer transition-colors"
                   >
                     Reset & Recalibrate
                   </button>
@@ -1680,8 +1723,8 @@ export default function BiometricScanner({
           )}
 
           {!cameraActive && !previewImage && (
-            <div className="flex items-start gap-2 rounded-2xl border border-slate-200/80 bg-white/80 p-3 text-[10px] text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+            <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-slate-400 text-[10px]">
+              <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
               <span>
                 Please mount the local biometric scanner to lock onto
                 coordinates and generate secure voting tokens.

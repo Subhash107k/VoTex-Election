@@ -3,7 +3,16 @@ export interface User {
   fullName: string;
   username?: string;
   email: string;
-  role: "Administrator" | "Election Officer" | "Voter" | "Super Administrator" | "Moderator" | "FAQ Manager" | "Verification Officer" | "Support Staff" | "Candidate";
+  role:
+    | "Administrator"
+    | "Election Officer"
+    | "Voter"
+    | "Super Administrator"
+    | "Moderator"
+    | "FAQ Manager"
+    | "Verification Officer"
+    | "Support Staff"
+    | "Candidate";
   nationalID: string;
   mobile: string;
   dob?: string;
@@ -14,7 +23,14 @@ export interface User {
   isApproved?: boolean;
   isSuspended?: boolean;
   isProfileComplete?: boolean;
-  accountStatus?: "Pending" | "Active" | "Rejected" | "Approved" | "Pending Verification" | "Changes Requested" | "Pending Onboarding";
+  accountStatus?:
+    | "Pending"
+    | "Active"
+    | "Rejected"
+    | "Approved"
+    | "Pending Verification"
+    | "Changes Requested"
+    | "Pending Onboarding";
   rejectionReason?: string;
   requestedChangesFields?: string[];
   verificationReport?: any;
@@ -31,7 +47,7 @@ export interface User {
 export interface UserPreferences {
   language: "en" | "ne";
   nepaliTypingEnabled: boolean;
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "high-contrast";
 }
 
 export interface Faq {
@@ -98,7 +114,12 @@ export interface Candidate {
   userId?: string;
   updatedAt?: string;
   verifiedAt?: string;
-  history?: { status: string; timestamp: string; note: string; actor: string }[];
+  history?: {
+    status: string;
+    timestamp: string;
+    note: string;
+    actor: string;
+  }[];
 }
 
 export interface Election {
@@ -106,7 +127,11 @@ export interface Election {
   title: string;
   description: string;
   status: "Draft" | "Active" | "Closed" | "Published";
-  type: "General Election" | "Provincial Election" | "Local Election" | "By-Election";
+  type:
+    | "General Election"
+    | "Provincial Election"
+    | "Local Election"
+    | "By-Election";
   startDate: string;
   endDate: string;
   resultsPublished: boolean;

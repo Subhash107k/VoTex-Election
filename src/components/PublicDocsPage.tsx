@@ -1,8 +1,10 @@
 import React from "react";
 
+import type { ThemeMode } from "../types/auth.ts";
+
 interface PublicDocsPageProps {
   handleNav: (path: string) => void;
-  theme: "light" | "dark";
+  theme: ThemeMode;
   type: "documentation" | "privacy" | "terms";
 }
 

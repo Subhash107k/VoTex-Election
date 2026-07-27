@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, ChevronDown, HelpCircle, RefreshCw } from "lucide-react";
 
+import type { ThemeMode } from "../types/auth.ts";
+
 interface FaqItem {
   id: string;
   question: string;
@@ -13,7 +15,7 @@ interface FaqItem {
 
 interface PublicFaqPageProps {
   handleNav: (path: string) => void;
-  theme: "light" | "dark";
+  theme: ThemeMode;
 }
 
 export default function PublicFaqPage({
