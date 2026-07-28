@@ -594,17 +594,15 @@ export class Database {
     // Keep System config in MongoDB only
     try {
       const configCollection = this.mongoDb.collection("config");
-      const configDoc = await configCollection.findOne({
-        type: "system_config",
-      });
-      if (!configDoc) {
-        const localConfig = this.getConfig();
-        await configCollection.insertOne({
-          _id: "system_config",
-          type: "system_config",
-          ...localConfig,
-        });
-      }
+      const localConfig = this.getConfig();
+      await configCollection.updateOne(
+        { _id: "system_config" },
+        {
+          $set: { type: "system_config" },
+          $setOnInsert: localConfig,
+        },
+        { upsert: true },
+      );
       // MongoDB-only mode: Do not write to local JSON files
     } catch (cfgErr) {
       console.error(

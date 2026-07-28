@@ -227,7 +227,9 @@ export default function DocumentUploadCenter({
 
               {/* Hidden File Input */}
               <input
-                ref={(el) => (fileInputRefs.current[doc.id] = el)}
+                ref={(el) => {
+                  fileInputRefs.current[doc.id] = el;
+                }}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,application/pdf"
                 className="hidden"

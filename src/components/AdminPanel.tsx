@@ -63,6 +63,7 @@ import {
   DashboardStats,
   Notification,
 } from "../types.js";
+import type { ThemeMode } from "../types/auth.ts";
 import { PartyManagementPanel } from "./PartyManagementPanel.js";
 
 const ELECTION_SYMBOL_OPTIONS = [
@@ -168,8 +169,8 @@ const DEFAULT_CANDIDATE_FORM = {
 interface AdminPanelProps {
   token: string;
   onLogout: () => void;
-  theme: "light" | "dark";
-  setTheme: (theme: "light" | "dark") => void;
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export default function AdminPanel({
@@ -5071,8 +5072,8 @@ export default function AdminPanel({
 
                           <div className="max-h-72 overflow-y-auto divide-y divide-slate-900 border border-slate-850 rounded-xl">
                             {candidates.length > 0 &&
-                            stats?.totalVotes &&
-                            stats.totalVotes > 0 ? (
+                            stats?.metrics.totalVotes &&
+                            stats.metrics.totalVotes > 0 ? (
                               secopsStatus?.voteCount ? (
                                 // Fetch custom extended votes from server status or falls back
                                 Array.from({

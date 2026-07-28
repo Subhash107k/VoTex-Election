@@ -21,44 +21,6 @@ type FaceLandmarkPosition = { x: number; y: number };
 
 type SelectChangeEvent = { target: { value: string } };
 
-declare module "react" {
-  export type DependencyList = readonly any[];
-  export type SetStateAction<S> = S | ((prevState: S) => S);
-  export type Dispatch<A> = (value: A) => void;
-  export function useState<S>(
-    initialState: S | (() => S),
-  ): [S, Dispatch<SetStateAction<S>>];
-  export function useEffect(
-    effect: () => void | (() => void),
-    deps?: DependencyList,
-  ): void;
-  export function useRef<T>(initialValue: T | null): { current: T | null };
-  export interface ChangeEvent<T = Element> {
-    target: { value: any };
-  }
-  export default any;
-}
-
-declare module "react/jsx-runtime" {
-  export function jsx(type: any, props: any, key?: string | number): any;
-  export function jsxs(type: any, props: any, key?: string | number): any;
-  export function jsxDEV(
-    type: any,
-    props: any,
-    key?: string | number,
-    source?: any,
-    self?: any,
-  ): any;
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-
 interface FaceCaptureResult {
   originalImage: string;
   croppedImage: string;
@@ -183,7 +145,7 @@ export default function BiometricScanner({
     "Stable" | "Uneven" | "Cluttered"
   >("Stable");
   const [facePlane, setFacePlane] = useState<
-    "Centered" | "Tilted" | "Profile" | "Unknown"
+    "Centered" | "Not Centered" | "Tilted" | "Profile" | "Unknown"
   >("Unknown");
   const [homeDetail, setHomeDetail] = useState<
     "Living Room" | "Office" | "Studio" | "Unknown"
@@ -195,7 +157,7 @@ export default function BiometricScanner({
 
   // Auto capture countdown state
   const [countdown, setCountdown] = useState<number | null>(null);
-  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -764,7 +726,7 @@ export default function BiometricScanner({
                   ? "Turned Left"
                   : "Turned Right",
             );
-            setConfidenceScore(Math.min(1, face.score ?? 1));
+            setConfidenceScore(1);
           }
 
           const faceCenter = {
@@ -988,7 +950,7 @@ export default function BiometricScanner({
         let localSec = 3;
         if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
 
-        countdownTimerRef.current = setInterval(() => {
+        countdownTimerRef.current = window.setInterval(() => {
           localSec -= 1;
           if (localSec > 0) {
             setCountdown(localSec);

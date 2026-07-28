@@ -564,7 +564,7 @@ export default function FaceVerification({
         sharpness,
         qualityScore,
         livenessScore,
-        confidenceScore: Math.min(1, face.score ?? 0.96),
+        confidenceScore: 0.96,
       };
       const livenessChecks = {
         blinkDetected: nextChecks.blinkDetected,

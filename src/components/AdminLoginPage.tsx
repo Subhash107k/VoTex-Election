@@ -9,12 +9,13 @@ import {
   ShieldCheck,
   Sun,
 } from "lucide-react";
+import type { ThemeMode } from "../types/auth.ts";
 
 interface AdminLoginPageProps {
   currentPath: string;
   setCurrentPath: (path: string) => void;
-  theme: "light" | "dark";
-  setTheme: (theme: "light" | "dark") => void;
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export default function AdminLoginPage({

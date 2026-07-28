@@ -4,13 +4,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { PoliticalParty, Candidate, Election } from "../types.js";
+import type { ThemeMode } from "../types/auth.ts";
 
 interface CandidateDashboardProps {
   token: string;
   user: any;
   onLogout: () => void;
-  theme: "light" | "dark";
-  setTheme: (theme: "light" | "dark") => void;
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({

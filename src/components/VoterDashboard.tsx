@@ -36,6 +36,7 @@ import {
   User as UserType,
   Notification,
 } from "../types.js";
+import type { ThemeMode } from "../types/auth.ts";
 
 const getSymbolGlyph = (name?: string) =>
   ({
@@ -65,8 +66,8 @@ interface VoterDashboardProps {
   token: string;
   user: UserType;
   onLogout: () => void;
-  theme: "light" | "dark";
-  setTheme: (theme: "light" | "dark") => void;
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export default function VoterDashboard({
