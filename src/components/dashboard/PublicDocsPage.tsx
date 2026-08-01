@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { ThemeMode } from "../types/auth.ts";
+import type { ThemeMode } from "../../types/auth.ts";
 
 interface PublicDocsPageProps {
   handleNav: (path: string) => void;

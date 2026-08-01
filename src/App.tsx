@@ -1,8 +1,8 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 
 import ErrorBoundary from "./components/common/ErrorBoundary.tsx";
-import NotificationConsole from "./components/NotificationConsole.tsx";
-import SessionManager from "./components/SessionManager.tsx";
+import NotificationConsole from "./components/dashboard/NotificationConsole.tsx";
+import SessionManager from "./components/dashboard/SessionManager.tsx";
 import Toast from "./components/common/Toast.tsx";
 import { useBrowserPath } from "./hooks/useBrowserPath.ts";
 import { usePersistentTheme } from "./hooks/usePersistentTheme.ts";
@@ -24,16 +24,26 @@ import type {
 } from "./types/auth.ts";
 import type { User } from "./types.js";
 
-const AdminLoginPage = lazy(() => import("./components/AdminLoginPage.tsx"));
-const AdminPanel = lazy(() => import("./components/AdminPanel.tsx"));
-const CompleteProfile = lazy(() => import("./components/CompleteProfile.tsx"));
-const PublicLanding = lazy(() => import("./components/PublicLanding.tsx"));
+const AdminLoginPage = lazy(
+  () => import("./components/Admin/AdminLoginPage.tsx"),
+);
+const AdminPanel = lazy(() => import("./components/Admin/AdminPanel.tsx"));
+const CompleteProfile = lazy(
+  () => import("./components/dashboard/CompleteProfile.tsx"),
+);
+const PublicLanding = lazy(
+  () => import("./components/dashboard/PublicLanding.tsx"),
+);
 const LoginPage = lazy(() => import("./components/auth/LoginPage.tsx"));
 const RegisterPage = lazy(() => import("./components/auth/RegisterPage.tsx"));
-const ForgotPasswordPage = lazy(() => import("./components/auth/ForgotPasswordPage.tsx"));
-const VoterDashboard = lazy(() => import("./components/VoterDashboard.tsx"));
+const ForgotPasswordPage = lazy(
+  () => import("./components/auth/ForgotPasswordPage.tsx"),
+);
+const VoterDashboard = lazy(
+  () => import("./components/dashboard/VoterDashboard.tsx"),
+);
 const CandidateDashboard = lazy(() =>
-  import("./components/CandidateDashboard.tsx").then((module) => ({
+  import("./components/dashboard/CandidateDashboard.tsx").then((module) => ({
     default: module.CandidateDashboard,
   })),
 );
@@ -180,14 +190,20 @@ export default function App() {
         "Verification Officer": "/admin",
         "Support Staff": "/admin",
       };
-      if (currentPath === "/" || currentPath === "/login" || currentPath === "/admin/login") {
+      if (
+        currentPath === "/" ||
+        currentPath === "/login" ||
+        currentPath === "/admin/login"
+      ) {
         setCurrentPath(homeByRole[currentUser.role]);
       }
       return;
     }
 
     if (!loading && /^(\/admin|\/voter|\/candidate)/.test(currentPath)) {
-      setCurrentPath(currentPath.startsWith("/admin") ? "/admin/login" : "/login");
+      setCurrentPath(
+        currentPath.startsWith("/admin") ? "/admin/login" : "/login",
+      );
     }
   }, [currentUser, currentPath, loading, setCurrentPath]);
 
@@ -315,118 +331,127 @@ export default function App() {
       <Toast toast={toast} />
 
       <ErrorBoundary>
-      <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] text-sm font-semibold text-[var(--text-secondary)]">Loading application…</main>}>
-      {loading && token && !currentUser ? (
-        <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] px-6 text-[var(--text-primary)]">
-          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-5 py-4 shadow-lg">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-            <span className="text-sm font-semibold">Restoring your secure session…</span>
-          </div>
-        </main>
-      ) : currentUser && token ? (
-        currentUser.role === "Voter" && !currentUser.isProfileComplete ? (
-          <CompleteProfile
-            token={token}
-            user={currentUser}
-            onLogout={handleLogout}
-            onComplete={setCurrentUser}
-            theme={theme}
-            setTheme={setTheme}
-          />
-        ) : currentUser.role === "Voter" ? (
-          <VoterDashboard
-            token={token}
-            user={currentUser}
-            onLogout={handleLogout}
-            theme={theme}
-            setTheme={setTheme}
-          />
-        ) : currentUser.role === "Candidate" ? (
-          <CandidateDashboard
-            token={token}
-            user={currentUser}
-            onLogout={handleLogout}
-            theme={theme}
-            setTheme={setTheme}
-          />
-        ) : (
-          <AdminPanel
-            token={token}
-            onLogout={handleLogout}
-            theme={theme}
-            setTheme={setTheme}
-          />
-        )
-      ) : currentPath === "/admin/login" ? (
-        <AdminLoginPage
-          currentPath={currentPath}
-          setCurrentPath={setCurrentPath}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      ) : currentPath === "/login" ? (
-        <LoginPage
-          setCurrentPath={setCurrentPath}
-          loading={loading}
-          loginForm={loginForm}
-          setLoginForm={setLoginForm}
-          handleLoginSubmit={handleLoginSubmit}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      ) : currentPath === "/register" ? (
-        <RegisterPage
-          setCurrentPath={setCurrentPath}
-          loading={loading}
-          regForm={regForm}
-          setRegForm={setRegForm}
-          regFaceImage={regFaceImage}
-          setRegFaceImage={setRegFaceImage}
-          regFaceTemplate={regFaceTemplate}
-          setRegFaceTemplate={setRegFaceTemplate}
-          handleRegisterSubmit={handleRegisterSubmit}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      ) : currentPath === "/forgot_password" || currentPath === "/forgot-password" ? (
-        <ForgotPasswordPage
-          setCurrentPath={setCurrentPath}
-          loading={loading}
-          forgotForm={forgotForm}
-          setForgotForm={setForgotForm}
-          forgotStep={forgotStep}
-          setForgotStep={setForgotStep}
-          handleForgotPasswordSubmit={handleForgotPasswordSubmit}
-          handleResetPasswordSubmit={handleResetPasswordSubmit}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      ) : (
-        <PublicLanding
-          currentPath={currentPath}
-          setCurrentPath={setCurrentPath}
-          loading={loading}
-          loginForm={loginForm}
-          setLoginForm={setLoginForm}
-          handleLoginSubmit={handleLoginSubmit}
-          regForm={regForm}
-          setRegForm={setRegForm}
-          regFaceImage={regFaceImage}
-          setRegFaceImage={setRegFaceImage}
-          regFaceTemplate={regFaceTemplate}
-          setRegFaceTemplate={setRegFaceTemplate}
-          handleRegisterSubmit={handleRegisterSubmit}
-          forgotForm={forgotForm}
-          setForgotForm={setForgotForm}
-          forgotStep={forgotStep}
-          setForgotStep={setForgotStep}
-          handleForgotPasswordSubmit={handleForgotPasswordSubmit}
-          handleResetPasswordSubmit={handleResetPasswordSubmit}
-          theme={theme}
-          setTheme={setTheme}
-        />
-      )}
-      </Suspense>
+        <Suspense
+          fallback={
+            <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] text-sm font-semibold text-[var(--text-secondary)]">
+              Loading application…
+            </main>
+          }
+        >
+          {loading && token && !currentUser ? (
+            <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] px-6 text-[var(--text-primary)]">
+              <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-5 py-4 shadow-lg">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                <span className="text-sm font-semibold">
+                  Restoring your secure session…
+                </span>
+              </div>
+            </main>
+          ) : currentUser && token ? (
+            currentUser.role === "Voter" && !currentUser.isProfileComplete ? (
+              <CompleteProfile
+                token={token}
+                user={currentUser}
+                onLogout={handleLogout}
+                onComplete={setCurrentUser}
+                theme={theme}
+                setTheme={setTheme}
+              />
+            ) : currentUser.role === "Voter" ? (
+              <VoterDashboard
+                token={token}
+                user={currentUser}
+                onLogout={handleLogout}
+                theme={theme}
+                setTheme={setTheme}
+              />
+            ) : currentUser.role === "Candidate" ? (
+              <CandidateDashboard
+                token={token}
+                user={currentUser}
+                onLogout={handleLogout}
+                theme={theme}
+                setTheme={setTheme}
+              />
+            ) : (
+              <AdminPanel
+                token={token}
+                onLogout={handleLogout}
+                theme={theme}
+                setTheme={setTheme}
+              />
+            )
+          ) : currentPath === "/admin/login" ? (
+            <AdminLoginPage
+              currentPath={currentPath}
+              setCurrentPath={setCurrentPath}
+              theme={theme}
+              setTheme={setTheme}
+            />
+          ) : currentPath === "/login" ? (
+            <LoginPage
+              setCurrentPath={setCurrentPath}
+              loading={loading}
+              loginForm={loginForm}
+              setLoginForm={setLoginForm}
+              handleLoginSubmit={handleLoginSubmit}
+              theme={theme}
+              setTheme={setTheme}
+            />
+          ) : currentPath === "/register" ? (
+            <RegisterPage
+              setCurrentPath={setCurrentPath}
+              loading={loading}
+              regForm={regForm}
+              setRegForm={setRegForm}
+              regFaceImage={regFaceImage}
+              setRegFaceImage={setRegFaceImage}
+              regFaceTemplate={regFaceTemplate}
+              setRegFaceTemplate={setRegFaceTemplate}
+              handleRegisterSubmit={handleRegisterSubmit}
+              theme={theme}
+              setTheme={setTheme}
+            />
+          ) : currentPath === "/forgot_password" ||
+            currentPath === "/forgot-password" ? (
+            <ForgotPasswordPage
+              setCurrentPath={setCurrentPath}
+              loading={loading}
+              forgotForm={forgotForm}
+              setForgotForm={setForgotForm}
+              forgotStep={forgotStep}
+              setForgotStep={setForgotStep}
+              handleForgotPasswordSubmit={handleForgotPasswordSubmit}
+              handleResetPasswordSubmit={handleResetPasswordSubmit}
+              theme={theme}
+              setTheme={setTheme}
+            />
+          ) : (
+            <PublicLanding
+              currentPath={currentPath}
+              setCurrentPath={setCurrentPath}
+              loading={loading}
+              loginForm={loginForm}
+              setLoginForm={setLoginForm}
+              handleLoginSubmit={handleLoginSubmit}
+              regForm={regForm}
+              setRegForm={setRegForm}
+              regFaceImage={regFaceImage}
+              setRegFaceImage={setRegFaceImage}
+              regFaceTemplate={regFaceTemplate}
+              setRegFaceTemplate={setRegFaceTemplate}
+              handleRegisterSubmit={handleRegisterSubmit}
+              forgotForm={forgotForm}
+              setForgotForm={setForgotForm}
+              forgotStep={forgotStep}
+              setForgotStep={setForgotStep}
+              handleForgotPasswordSubmit={handleForgotPasswordSubmit}
+              handleResetPasswordSubmit={handleResetPasswordSubmit}
+              theme={theme}
+              setTheme={setTheme}
+            />
+          )}
+        </Suspense>
       </ErrorBoundary>
 
       <SessionManager

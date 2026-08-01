@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, ChevronDown, HelpCircle, RefreshCw } from "lucide-react";
 
-import type { ThemeMode } from "../types/auth.ts";
+import type { ThemeMode } from "../../types/auth.ts";
 
 interface FaqItem {
   id: string;

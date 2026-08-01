@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Sun,
 } from "lucide-react";
-import type { ThemeMode } from "../types/auth.ts";
+import type { ThemeMode } from "../../types/auth.ts";
 
 interface AdminLoginPageProps {
   currentPath: string;

@@ -9,7 +9,7 @@ import {
   Check,
   Bell,
 } from "lucide-react";
-import { DispatchLog } from "../types.js";
+import { DispatchLog } from "../../types.js";
 
 export default function NotificationConsole() {
   const [logs, setLogs] = useState<DispatchLog[]>([]);

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import SearchableSelect from "../SearchableSelect.tsx";
+import SearchableSelect from "../dashboard/SearchableSelect.tsx";
 import { NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
 import { MapPin } from "lucide-react";
 
@@ -36,13 +36,13 @@ export default function NepalAddressPicker({
   // Available provinces
   const provinceOptions = useMemo(
     () => NEPAL_ADDRESS_DATA.map((p) => ({ value: p.name, label: p.name })),
-    []
+    [],
   );
 
   // Selected province object
   const selectedProvinceObj = useMemo(
     () => NEPAL_ADDRESS_DATA.find((p) => p.name === value.province),
-    [value.province]
+    [value.province],
   );
 
   // Available districts for selected province
@@ -105,12 +105,16 @@ export default function NepalAddressPicker({
             onChange={(e) => onToggleSameAsPermanent(e.target.checked)}
             className="w-4.5 h-4.5 rounded text-emerald-500 bg-slate-900 border-slate-700 outline-none focus:ring-emerald-500 cursor-pointer accent-emerald-500"
           />
-          <label htmlFor="sameAsPermanentCheck" className="select-none cursor-pointer">
+          <label
+            htmlFor="sameAsPermanentCheck"
+            className="select-none cursor-pointer"
+          >
             <span className="text-xs font-black text-white block uppercase tracking-wider">
               Same as Permanent Address
             </span>
             <span className="text-[10px] text-slate-500">
-              Automatically syncs and locks temporary address fields as identical to permanent coordinates.
+              Automatically syncs and locks temporary address fields as
+              identical to permanent coordinates.
             </span>
           </label>
         </div>
@@ -122,7 +126,9 @@ export default function NepalAddressPicker({
           <span className="text-[10px] uppercase tracking-wide font-semibold text-slate-400">
             Country *
           </span>
-          <span className="text-xs font-bold text-emerald-400">{value.country || "Nepal"}</span>
+          <span className="text-xs font-bold text-emerald-400">
+            {value.country || "Nepal"}
+          </span>
         </div>
       </div>
 
@@ -152,7 +158,9 @@ export default function NepalAddressPicker({
             options={districtOptions}
             value={value.district}
             onChange={handleDistrictChange}
-            placeholder={value.province ? "Select District" : "Select Province first"}
+            placeholder={
+              value.province ? "Select District" : "Select Province first"
+            }
             disabled={disabled || isSameAsPermanent || !value.province}
             error={errors.district}
           />
@@ -167,7 +175,9 @@ export default function NepalAddressPicker({
             options={municipalityOptions}
             value={value.municipality}
             onChange={handleMunicipalityChange}
-            placeholder={value.district ? "Select Municipality" : "Select District first"}
+            placeholder={
+              value.district ? "Select Municipality" : "Select District first"
+            }
             disabled={disabled || isSameAsPermanent || !value.district}
             error={errors.municipality}
           />
@@ -183,13 +193,22 @@ export default function NepalAddressPicker({
             maxLength={3}
             disabled={disabled || isSameAsPermanent}
             value={value.wardNumber}
-            onChange={(e) => onChange({ ...value, wardNumber: e.target.value.replace(/\D/g, "") })}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                wardNumber: e.target.value.replace(/\D/g, ""),
+              })
+            }
             className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] transition-colors ${
-              errors.wardNumber ? "border-rose-500" : "border-slate-800 focus:border-emerald-500"
+              errors.wardNumber
+                ? "border-rose-500"
+                : "border-slate-800 focus:border-emerald-500"
             } ${disabled || isSameAsPermanent ? "opacity-60 cursor-not-allowed" : ""}`}
           />
           {errors.wardNumber && (
-            <p className="text-[10px] text-rose-400 font-medium mt-1">{errors.wardNumber}</p>
+            <p className="text-[10px] text-rose-400 font-medium mt-1">
+              {errors.wardNumber}
+            </p>
           )}
         </div>
 
@@ -204,11 +223,15 @@ export default function NepalAddressPicker({
             value={value.tole}
             onChange={(e) => onChange({ ...value, tole: e.target.value })}
             className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] transition-colors ${
-              errors.tole ? "border-rose-500" : "border-slate-800 focus:border-emerald-500"
+              errors.tole
+                ? "border-rose-500"
+                : "border-slate-800 focus:border-emerald-500"
             } ${disabled || isSameAsPermanent ? "opacity-60 cursor-not-allowed" : ""}`}
           />
           {errors.tole && (
-            <p className="text-[10px] text-rose-400 font-medium mt-1">{errors.tole}</p>
+            <p className="text-[10px] text-rose-400 font-medium mt-1">
+              {errors.tole}
+            </p>
           )}
         </div>
       </div>
@@ -216,9 +239,12 @@ export default function NepalAddressPicker({
       {/* Address Summary Badge */}
       {value.province && value.district && value.municipality && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs font-mono">
-          <span className="text-slate-400 text-[10px] uppercase font-bold">Address Coordinates:</span>
+          <span className="text-slate-400 text-[10px] uppercase font-bold">
+            Address Coordinates:
+          </span>
           <span className="text-emerald-400 font-bold">
-            Ward {value.wardNumber || "?"}, {value.tole || "Tole"}, {value.municipality}, {value.district}, {value.province}
+            Ward {value.wardNumber || "?"}, {value.tole || "Tole"},{" "}
+            {value.municipality}, {value.district}, {value.province}
           </span>
         </div>
       )}

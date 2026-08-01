@@ -3,7 +3,7 @@ import {
   Plus, Edit2, Trash2, ShieldCheck, Flag, Upload, Image as ImageIcon, X, Sparkles, Building, Calendar, User, AlignLeft, Info, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { PoliticalParty, Candidate } from "../types.js";
+import { PoliticalParty, Candidate } from "../../types.js";
 
 interface PartyManagementPanelProps {
   parties: PoliticalParty[];

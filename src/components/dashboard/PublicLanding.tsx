@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Vote, RefreshCw, Calendar } from "lucide-react";
-import PublicNavbar from "./public/PublicNavbar.tsx";
-import Hero from "./public/Hero.tsx";
-import Features from "./public/Features.tsx";
-import StatsSection from "./public/StatsSection.tsx";
-import FaqSection from "./public/FaqSection.tsx";
-import CtaSection from "./public/CtaSection.tsx";
-import PublicFooter from "./public/PublicFooter.tsx";
+import PublicNavbar from "../public/PublicNavbar.tsx";
+import Hero from "../public/Hero.tsx";
+import Features from "../public/Features.tsx";
+import StatsSection from "../public/StatsSection.tsx";
+import FaqSection from "../public/FaqSection.tsx";
+import CtaSection from "../public/CtaSection.tsx";
+import PublicFooter from "../public/PublicFooter.tsx";
 import ElectionResults from "./ElectionResults.tsx";
 import PublicFaqPage from "./PublicFaqPage.tsx";
 import PublicContactPage from "./PublicContactPage.tsx";
 import PublicDocsPage from "./PublicDocsPage.tsx";
-import type { PublicLandingProps } from "../types/auth.ts";
+import type { PublicLandingProps } from "../../types/auth.ts";
 
 export default function PublicLanding({
   currentPath,

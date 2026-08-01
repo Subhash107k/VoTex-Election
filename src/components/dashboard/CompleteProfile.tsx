@@ -24,11 +24,11 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 const BiometricScanner = React.lazy(() => import("./BiometricScanner.tsx"));
 import SearchableSelect from "./SearchableSelect.tsx";
-import ThemeToggle from "./ui/ThemeToggle.tsx";
-import Stepper from "./ui/Stepper.tsx";
-import { usePersistentTheme } from "../hooks/usePersistentTheme.ts";
-import type { ThemeMode } from "../types/auth.ts";
-import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../data/nepalAddressData.ts";
+import ThemeToggle from "../ui/ThemeToggle.tsx";
+import Stepper from "../ui/Stepper.tsx";
+import { usePersistentTheme } from "../../hooks/usePersistentTheme.ts";
+import type { ThemeMode } from "../../types/auth.ts";
+import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
 
 interface CompleteProfileProps {
   token: string;

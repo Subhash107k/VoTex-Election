@@ -39,7 +39,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { Election, Candidate } from "../types";
+import { Election, Candidate } from "../../types";
 
 interface ElectionTally {
   candidate: Candidate;

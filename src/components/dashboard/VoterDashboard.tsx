@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import ComprehensiveProfile from "./ComprehensiveProfile.tsx";
 const FaceVerification = React.lazy(
-  () => import("../pages/FaceVerification.tsx"),
+  () => import("../../pages/FaceVerification.tsx"),
 );
 import {
   Election,
@@ -37,9 +37,8 @@ import {
   VoteStatus,
   User as UserType,
   Notification,
-} from "../types.js";
-import type { ThemeMode } from "../types/auth.ts";
-
+} from "../../types.js";
+import type { ThemeMode } from "../../types/auth.ts";
 const getSymbolGlyph = (name?: string) =>
   ({
     Tree: "🌳",
@@ -63,8 +62,6 @@ const getSymbolGlyph = (name?: string) =>
     Wheat: "🌾",
     Gear: "⚙️",
   })[name || ""] || "🗳️";
-
-import type { ThemeMode } from "../types/auth.ts";
 
 interface VoterDashboardProps {
   token: string;
@@ -2021,20 +2018,20 @@ export default function VoterDashboard({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                       <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl text-left">
                         <span className="text-[10px] uppercase font-mono font-bold text-red-600 block">
-                          ✖ Voting Permissions Restricted
+                          ✖ Voting Access Restricted
                         </span>
                         <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                          This verified login register does not hold active
-                          casting allowances within the ward campaigns.
+                          Your verified account is not currently authorized to
+                          cast ballots in the selected ward campaign.
                         </p>
                       </div>
                       <div className="p-3 bg-slate-500/5 border border-slate-500/10 rounded-xl text-left">
                         <span className="text-[10px] uppercase font-mono font-bold text-slate-600 block">
-                          🔒 Database Records Locked
+                          🔒Records Locked
                         </span>
                         <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                          No field corrections or synthetic document
-                          modifications are permitted. Profile logs are sealed.
+                          No profile edits or document changes are allowed while
+                          this verified status is active.
                         </p>
                       </div>
                     </div>

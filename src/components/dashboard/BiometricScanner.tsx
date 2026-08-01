@@ -15,7 +15,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import type * as tf from "@tensorflow/tfjs-core";
 import type * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
-import { loadTensorflowFaceModules } from "../services/tensorflow";
+import { loadTensorflowFaceModules } from "../../services/tensorflow";
 import {
   buildFallbackFaceBox,
   resolveCaptureDimensions,
@@ -289,7 +289,7 @@ export default function BiometricScanner({
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>(0);
-  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
   const previousCenterRef = useRef<FaceLandmarkPosition | null>(null);
   const stableFramesRef = useRef(0);

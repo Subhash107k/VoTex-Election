@@ -25,8 +25,8 @@ import {
   Moon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { PoliticalParty, Candidate, Election } from "../types.js";
-import type { ThemeMode } from "../types/auth.ts";
+import { PoliticalParty, Candidate, Election } from "../../types.js";
+import type { ThemeMode } from "../../types/auth.ts";
 
 interface CandidateDashboardProps {
   token: string;

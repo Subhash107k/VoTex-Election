@@ -366,6 +366,16 @@ export interface OTPRecord {
   expiresAt: string;
   isUsed: boolean;
   purpose: "Registration" | "Voting" | "PasswordReset";
+  createdAt?: string;
+}
+
+export interface DispatchLogEntry {
+  id: string;
+  type: "Email" | "SMS";
+  to: string;
+  title: string;
+  body: string;
+  timestamp: string;
 }
 
 export interface Notification {
@@ -1478,6 +1488,14 @@ export class Database {
 
   static saveOTPs(data: OTPRecord[]): void {
     this.save("otps", data);
+  }
+
+  static getDispatchLogs(): DispatchLogEntry[] {
+    return this.load<DispatchLogEntry>("dispatch_logs", []);
+  }
+
+  static saveDispatchLogs(data: DispatchLogEntry[]): void {
+    this.save("dispatch_logs", data);
   }
 
   static getNotifications(): Notification[] {

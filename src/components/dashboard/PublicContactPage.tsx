@@ -8,7 +8,7 @@ import {
   Calendar,
 } from "lucide-react";
 
-import type { ThemeMode } from "../types/auth.ts";
+import type { ThemeMode } from "../../types/auth.ts";
 
 interface PublicContactPageProps {
   handleNav: (path: string) => void;
@@ -85,27 +85,21 @@ export default function PublicContactPage({
                 <Mail className="mt-0.5 h-4 w-4 text-emerald-500" />
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Support email</p>
-                  <p className={`text-sm ${textMuted}`}>
-                    support@votex.gov.np
-                  </p>
+                  <p className={`text-sm ${textMuted}`}>support@votex.gov.np</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Phone className="mt-0.5 h-4 w-4 text-teal-500" />
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Help line</p>
-                  <p className={`text-sm ${textMuted}`}>
-                    +977 9807847253
-                  </p>
+                  <p className={`text-sm ${textMuted}`}>+977 9807847253</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 text-blue-500" />
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Office</p>
-                  <p className={`text-sm ${textMuted}`}>
-                    Kathmandu, Nepal
-                  </p>
+                  <p className={`text-sm ${textMuted}`}>Kathmandu, Nepal</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
