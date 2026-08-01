@@ -26,9 +26,11 @@ const BiometricScanner = React.lazy(() => import("./BiometricScanner.tsx"));
 import SearchableSelect from "./SearchableSelect.tsx";
 import ThemeToggle from "../ui/ThemeToggle.tsx";
 import Stepper from "../ui/Stepper.tsx";
+import CitizenshipUploadPreview from "../documents/CitizenshipUploadPreview.tsx";
 import { usePersistentTheme } from "../../hooks/usePersistentTheme.ts";
 import type { ThemeMode } from "../../types/auth.ts";
 import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
+import NepaliDate from "nepali-date-converter";
 
 interface CompleteProfileProps {
   token: string;
@@ -109,6 +111,8 @@ export default function CompleteProfile({
     citizenshipNumber,
     citizenshipType,
     citizenshipIssueDate,
+    citizenshipCalendar,
+    citizenshipBsDate,
     citizenshipIssueDistrict,
     citizenshipIssueAuthority,
     citizenshipFrontImage,
@@ -436,9 +440,12 @@ export default function CompleteProfile({
   // STEP 3 FIELDS: CITIZENSHIP CARD & DIGITAL SIGNATURE
   // ----------------------------------------------------
   const [citizenshipNumber, setCitizenshipNumber] = useState("");
-  const [citizenshipFrontImage, setCitizenshipFrontImage] =
-    useState<string>("");
+  const [citizenshipFrontImage, setCitizenshipFrontImage] = useState<string>("");
   const [citizenshipBackImage, setCitizenshipBackImage] = useState<string>("");
+  const [citizenshipFrontFileName, setCitizenshipFrontFileName] = useState<string>("");
+  const [citizenshipBackFileName, setCitizenshipBackFileName] = useState<string>("");
+  const [citizenshipFrontUploadedAt, setCitizenshipFrontUploadedAt] = useState<string>("");
+  const [citizenshipBackUploadedAt, setCitizenshipBackUploadedAt] = useState<string>("");
   const [signatureImage, setSignatureImage] = useState<string>("");
 
   // New Demographic Family and NID Fields State:
@@ -464,10 +471,65 @@ export default function CompleteProfile({
 
   const [citizenshipType, setCitizenshipType] = useState("By Descent");
   const [citizenshipIssueDate, setCitizenshipIssueDate] = useState("");
+  const [citizenshipCalendar, setCitizenshipCalendar] = useState<"AD" | "BS">(
+    "AD",
+  );
+  const [citizenshipBsDate, setCitizenshipBsDate] = useState("");
   const [citizenshipIssueDistrict, setCitizenshipIssueDistrict] = useState("");
   const [citizenshipIssueAuthority, setCitizenshipIssueAuthority] = useState(
     "District Administration Office",
   );
+
+  const formatDateParts = (date: {
+    year: number;
+    month: number;
+    date: number;
+  }) =>
+    `${String(date.year).padStart(4, "0")}-${String(date.month + 1).padStart(2, "0")}-${String(date.date).padStart(2, "0")}`;
+
+  const convertAdToBs = (value: string) => {
+    if (!value) return "";
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return "";
+    try {
+      const converted = NepaliDate.fromAD(date).getBS();
+      return formatDateParts(converted);
+    } catch {
+      return "";
+    }
+  };
+
+  const convertBsToAd = (value: string) => {
+    if (!value) return "";
+    try {
+      const converted = new NepaliDate(value).getAD();
+      return formatDateParts(converted);
+    } catch {
+      return "";
+    }
+  };
+
+  const handleCitizenshipCalendarChange = (calendar: "AD" | "BS") => {
+    if (calendar === citizenshipCalendar) return;
+
+    if (calendar === "BS") {
+      setCitizenshipBsDate(convertAdToBs(citizenshipIssueDate));
+    } else if (citizenshipBsDate) {
+      setCitizenshipIssueDate(convertBsToAd(citizenshipBsDate));
+    }
+
+    setCitizenshipCalendar(calendar);
+  };
+
+  const handleCitizenshipIssueDateChange = (value: string) => {
+    if (citizenshipCalendar === "AD") {
+      setCitizenshipIssueDate(value);
+      setCitizenshipBsDate(convertAdToBs(value));
+    } else {
+      setCitizenshipBsDate(value);
+      setCitizenshipIssueDate(convertBsToAd(value));
+    }
+  };
 
   const [nidNumber, setNidNumber] = useState("");
   const [nidIssueDate, setNidIssueDate] = useState("");
@@ -788,8 +850,8 @@ export default function CompleteProfile({
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: ((clientX - rect.left) / rect.width) * canvas.width,
+      y: ((clientY - rect.top) / rect.height) * canvas.height,
     };
   };
 
@@ -845,23 +907,28 @@ export default function CompleteProfile({
     }
   };
 
-  const handleDocumentChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
+  const handleCitizenshipFileUpload = (
+    file: File,
     side: "front" | "back",
   ) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        return triggerToast("Document file must be less than 2 MB.", true);
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (side === "front") setCitizenshipFrontImage(reader.result as string);
-        else setCitizenshipBackImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (file.size > 2 * 1024 * 1024) {
+      return triggerToast("Document file must be less than 2 MB.", true);
     }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      if (side === "front") {
+        setCitizenshipFrontImage(dataUrl);
+        setCitizenshipFrontFileName(file.name);
+        setCitizenshipFrontUploadedAt(new Date().toLocaleString());
+      } else {
+        setCitizenshipBackImage(dataUrl);
+        setCitizenshipBackFileName(file.name);
+        setCitizenshipBackUploadedAt(new Date().toLocaleString());
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // ----------------------------------------------------
@@ -1203,7 +1270,6 @@ export default function CompleteProfile({
                 if (draft.educationStatus)
                   setEducationStatus(draft.educationStatus);
                 if (draft.bloodGroup) setBloodGroup(draft.bloodGroup);
-                if (draft.nationality) setNationality(draft.nationality);
                 if (draft.fatherName) setFatherName(draft.fatherName);
                 if (draft.fatherNameNepali)
                   setFatherNameNepali(draft.fatherNameNepali);
@@ -1235,6 +1301,10 @@ export default function CompleteProfile({
                   setCitizenshipType(draft.citizenshipType);
                 if (draft.citizenshipIssueDate)
                   setCitizenshipIssueDate(draft.citizenshipIssueDate);
+                if (draft.citizenshipCalendar)
+                  setCitizenshipCalendar(draft.citizenshipCalendar);
+                if (draft.citizenshipBsDate)
+                  setCitizenshipBsDate(draft.citizenshipBsDate);
                 if (draft.citizenshipIssueDistrict)
                   setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
                 if (draft.citizenshipIssueAuthority)
@@ -1303,7 +1373,6 @@ export default function CompleteProfile({
             if (draft?.educationStatus)
               setEducationStatus(draft.educationStatus);
             if (draft?.bloodGroup) setBloodGroup(draft.bloodGroup);
-            if (draft?.nationality) setNationality(draft.nationality);
             if (draft?.fatherName) setFatherName(draft.fatherName);
             if (draft?.fatherNameNepali)
               setFatherNameNepali(draft.fatherNameNepali);
@@ -1335,6 +1404,10 @@ export default function CompleteProfile({
               setCitizenshipType(draft.citizenshipType);
             if (draft?.citizenshipIssueDate)
               setCitizenshipIssueDate(draft.citizenshipIssueDate);
+            if (draft?.citizenshipCalendar)
+              setCitizenshipCalendar(draft.citizenshipCalendar);
+            if (draft?.citizenshipBsDate)
+              setCitizenshipBsDate(draft.citizenshipBsDate);
             if (draft?.citizenshipIssueDistrict)
               setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
             if (draft?.citizenshipIssueAuthority)
@@ -1742,7 +1815,7 @@ export default function CompleteProfile({
                       onChange={(e) => setBloodGroup(e.target.value)}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
                     >
-                      <option value="">Select Blood Group (Optional)</option>
+                      <option value="">Select Blood Group</option>
                       <option value="A+">A+</option>
                       <option value="A-">A-</option>
                       <option value="B+">B+</option>
@@ -1760,10 +1833,10 @@ export default function CompleteProfile({
                     </label>
                     <input
                       type="text"
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      placeholder="e.g. Nepali"
-                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      value="Nepali"
+                      readOnly
+                      aria-readonly="true"
+                      className="w-full cursor-not-allowed rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 text-gray-300 outline-none"
                     />
                   </div>
                 </div>
@@ -2565,10 +2638,10 @@ export default function CompleteProfile({
                 </div>
 
                 {/* Preview and Cropper Simulator */}
-                <div className="bg-gray-950 rounded-3xl p-5 border border-gray-800 flex flex-col justify-center items-center h-[260px]">
+                <div className="bg-gray-950 rounded-3xl p-5 border border-gray-800 flex flex-col justify-center items-center h-[360px]">
                   {profilePhoto ? (
                     <div className="w-full flex flex-col items-center gap-3">
-                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl bg-gray-900 flex justify-center items-center">
+                      <div className="relative w-52 h-52 rounded-2xl overflow-hidden border-4 border-emerald-500 shadow-xl bg-gray-900 flex justify-center items-center">
                         <img
                           src={profilePhotoPreviewUrl || profilePhoto}
                           alt="Cropper preview"
@@ -2581,7 +2654,6 @@ export default function CompleteProfile({
                         />
                       </div>
 
-                      {/* Interactive portrait controls */}
                       <div className="w-full max-w-[200px] text-xs font-mono space-y-1.5 pt-1.5">
                         <div className="flex justify-between text-[9px] text-gray-400">
                           <span>Zoom: {cropConfig.zoom}x</span>
@@ -2680,8 +2752,8 @@ export default function CompleteProfile({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono mb-2">
                 {/* ID input */}
                 <div className="md:col-span-3">
-                  <label className="block text-gray-400 font-bold uppercase mb-1">
-                    Citizenship / National ID Card ID Number *
+                  <label className="block text-gray-4000 font-bold uppercase mb-1">
+                    Citizenship Number *
                   </label>
                   <input
                     type="text"
@@ -2713,12 +2785,42 @@ export default function CompleteProfile({
                     <label className="block text-gray-400 font-bold uppercase mb-1 text-[10px]">
                       Issue Date *
                     </label>
-                    <input
-                      type="date"
-                      value={citizenshipIssueDate}
-                      onChange={(e) => setCitizenshipIssueDate(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1 text-white outline-none focus:border-emerald-500 text-[11px]"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={citizenshipCalendar}
+                        onChange={(e) =>
+                          handleCitizenshipCalendarChange(e.target.value as "AD" | "BS")
+                        }
+                        className="w-16 shrink-0 rounded-lg border border-gray-800 bg-gray-950 px-1.5 py-1 text-[11px] text-white outline-none focus:border-emerald-500"
+                        aria-label="Issue date calendar"
+                      >
+                        <option value="AD">AD</option>
+                        <option value="BS">BS</option>
+                      </select>
+                      <input
+                        type={citizenshipCalendar === "AD" ? "date" : "text"}
+                        value={
+                          citizenshipCalendar === "AD"
+                            ? citizenshipIssueDate
+                            : citizenshipBsDate
+                        }
+                        onChange={(e) =>
+                          handleCitizenshipIssueDateChange(e.target.value)
+                        }
+                        placeholder="YYYY-MM-DD"
+                        pattern="\\d{4}-\\d{2}-\\d{2}"
+                        className="min-w-0 flex-1 rounded-lg border border-gray-800 bg-gray-950 px-2.5 py-1 text-[11px] text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <p className="mt-1 text-[9px] font-mono text-gray-500">
+                      {citizenshipCalendar === "AD"
+                        ? citizenshipBsDate
+                          ? `BS equivalent: ${citizenshipBsDate}`
+                          : "Enter Gregorian date"
+                        : citizenshipIssueDate
+                          ? `AD equivalent: ${citizenshipIssueDate}`
+                          : "Enter Bikram Sambat date"}
+                    </p>
                   </div>
 
                   <div>
@@ -2751,99 +2853,102 @@ export default function CompleteProfile({
                   </div>
                 </div>
 
-                <div className="bg-gray-950/40 border border-gray-800/80 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-amber-400" />
-                    <span className="text-white font-black text-xs uppercase tracking-wider">
-                      Citizenship Document Uploads *
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-                        Citizenship Front Image
-                      </span>
-                      {citizenshipFrontImage ? (
-                        <img
-                          src={citizenshipFrontImage}
-                          alt="Citizenship front preview"
-                          loading="lazy"
-                          className="w-full h-[110px] object-contain rounded-lg border border-gray-800 mb-2"
-                        />
-                      ) : (
-                        <div className="h-[110px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px] px-2">
-                          Front side preview will appear here
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-gray-950/40 border border-gray-800 rounded-2xl p-4 grid gap-4 md:grid-cols-[1.6fr_0.95fr]">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Upload className="w-4 h-4 text-amber-400" />
+                          <span className="text-white font-black text-xs uppercase tracking-wider">
+                            Citizenship Document Uploads *
+                          </span>
                         </div>
-                      )}
-                      <label className="mt-auto w-full px-3 py-2 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
-                        Upload Front
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleDocumentChange(e, "front")}
-                          className="hidden"
+                        <span className="text-[10px] text-gray-400 uppercase tracking-[0.24em] font-semibold">
+                          mobile · tablet · desktop ready
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CitizenshipUploadPreview
+                          label="Citizenship Front"
+                          subtitle="Front Side"
+                          description="Upload the front side of your citizenship card for verification."
+                          fileUrl={citizenshipFrontImage}
+                          fileName={citizenshipFrontFileName || (citizenshipFrontImage ? "Front Scan" : "Not uploaded")}
+                          uploadedAt={citizenshipFrontUploadedAt || "Not yet"}
+                          status={citizenshipFrontImage ? "verified" : "idle"}
+                          accept="image/jpeg,image/png,image/webp"
+                          maxSizeBytes={2 * 1024 * 1024}
+                          accent="emerald"
+                          onFileChange={(file) => handleCitizenshipFileUpload(file, "front")}
+                          onRemove={() => {
+                            setCitizenshipFrontImage("");
+                            setCitizenshipFrontFileName("");
+                            setCitizenshipFrontUploadedAt("");
+                          }}
+                          className="w-full min-h-[320px] lg:min-h-[380px] xl:min-h-[420px] 2xl:min-h-[480px]"
                         />
-                      </label>
+
+                        <CitizenshipUploadPreview
+                          label="Citizenship Back"
+                          subtitle="Back Side"
+                          description="Upload the back side of your citizenship card for verification."
+                          fileUrl={citizenshipBackImage}
+                          fileName={citizenshipBackFileName || (citizenshipBackImage ? "Back Scan" : "Not uploaded")}
+                          uploadedAt={citizenshipBackUploadedAt || "Not yet"}
+                          status={citizenshipBackImage ? "verified" : "idle"}
+                          accept="image/jpeg,image/png,image/webp"
+                          maxSizeBytes={2 * 1024 * 1024}
+                          accent="indigo"
+                          onFileChange={(file) => handleCitizenshipFileUpload(file, "back")}
+                          onRemove={() => {
+                            setCitizenshipBackImage("");
+                            setCitizenshipBackFileName("");
+                            setCitizenshipBackUploadedAt("");
+                          }}
+                          className="w-full min-h-[320px] lg:min-h-[380px] xl:min-h-[420px] 2xl:min-h-[480px]"
+                        />
+                      </div>
                     </div>
 
-                    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-                        Citizenship Back Image
+
+                  </div>
+
+                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
+                    <div className="flex justify-between items-center w-full mb-1">
+                      <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+                        <PenTool className="w-3 h-3 text-emerald-400" />
+                        Signature Pad
                       </span>
-                      {citizenshipBackImage ? (
-                        <img
-                          src={citizenshipBackImage}
-                          alt="Citizenship back preview"
-                          loading="lazy"
-                          className="w-full h-[110px] object-contain rounded-lg border border-gray-800 mb-2"
-                        />
-                      ) : (
-                        <div className="h-[110px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px] px-2">
-                          Back side preview will appear here
-                        </div>
-                      )}
-                      <label className="mt-auto w-full px-3 py-2 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
-                        Upload Back
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleDocumentChange(e, "back")}
-                          className="hidden"
-                        />
-                      </label>
+                      <button
+                        type="button"
+                        onClick={clearSignature}
+                        className="text-[9px] text-red-400 hover:underline uppercase font-bold"
+                      >
+                        Clear
+                      </button>
                     </div>
-                  </div>
-                </div>
 
-                <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                  <div className="flex justify-between items-center w-full mb-1">
-                    <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
-                      <PenTool className="w-3 h-3 text-emerald-400" />
-                      Signature Pad
+                    <div className="relative w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-900 shadow-inner">
+                    <canvas
+                      ref={sigCanvasRef}
+                      width={640}
+                      height={180}
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={stopDrawing}
+                      onMouseLeave={stopDrawing}
+                      onTouchStart={startDrawing}
+                      onTouchMove={draw}
+                      onTouchEnd={stopDrawing}
+                      className="block h-[150px] w-full cursor-crosshair touch-none sm:h-[170px]"
+                      aria-label="Digital signature drawing area"
+                    />
+                    <div className="pointer-events-none absolute bottom-8 left-6 right-6 border-b border-dashed border-gray-700/80" />
+                    <span className="pointer-events-none absolute bottom-2 left-6 text-[9px] font-mono uppercase tracking-[0.18em] text-gray-600">
+                      Sign here
                     </span>
-                    <button
-                      type="button"
-                      onClick={clearSignature}
-                      className="text-[9px] text-red-400 hover:underline uppercase font-bold"
-                    >
-                      Clear
-                    </button>
                   </div>
-
-                  <canvas
-                    ref={sigCanvasRef}
-                    width={220}
-                    height={90}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    onTouchStart={startDrawing}
-                    onTouchMove={draw}
-                    onTouchEnd={stopDrawing}
-                    className="bg-gray-900 border border-dashed border-gray-800 rounded-lg cursor-crosshair w-full h-[90px] mb-2"
-                  />
 
                   <div className="flex flex-col items-center gap-1.5">
                     <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-gray-500">
@@ -2861,6 +2966,7 @@ export default function CompleteProfile({
                   </div>
                 </div>
               </div>
+            </div>
 
               {/* ==================================================== */}
               {/* NATIONAL IDENTITY CARD (NID) ADDITIONAL PRODUCER    */}
@@ -2903,21 +3009,50 @@ export default function CompleteProfile({
                 {/* Upload NID photos */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* NID Front Upload */}
-                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                    <span className="text-[10px] text-gray-400 font-bold mb-2">
-                      NID Card FRONT Image
-                    </span>
+                  <div className="group relative overflow-hidden rounded-3xl border border-gray-800/80 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_18px_45px_-28px_rgba(0,0,0,0.8)]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_50%)]" />
+                    <div className="relative mb-3 flex items-start justify-between">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/90">
+                          Front Side
+                        </p>
+                        <h4 className="mt-1 text-sm font-semibold text-white">
+                          NID Card Front Image
+                        </h4>
+                      </div>
+                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-2 text-emerald-400">
+                        <Upload className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+
                     {nidFrontImage ? (
-                      <img
-                        src={nidFrontImage}
-                        className="max-h-[85px] border border-gray-800 rounded-lg object-contain mb-2"
-                      />
+                      <div className="relative h-[112px] w-full overflow-hidden rounded-2xl border border-gray-800/80 bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 shadow-inner">
+                        <img
+                          src={nidFrontImage}
+                          alt="NID front preview"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/85 via-black/35 to-transparent px-3 py-2 text-[9px] uppercase tracking-[0.25em] text-gray-200">
+                          <span>Preview</span>
+                          <span>Tap to replace</span>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="h-[85px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px]">
-                        NID Front Side Document
+                      <div className="relative flex h-[112px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700/80 bg-gradient-to-br from-gray-900/80 via-gray-950/70 to-gray-900/80 text-center text-[10px] text-gray-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                        <div className="mb-2 rounded-full border border-gray-700/70 bg-gray-800/70 p-2 text-gray-400">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <span className="font-medium text-gray-300">
+                          Front side of your NID
+                        </span>
+                        <span className="mt-1 text-[9px] uppercase tracking-[0.25em] text-gray-600">
+                          PNG / JPG / WEBP
+                        </span>
                       </div>
                     )}
-                    <label className="px-3 py-1 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none">
+
+                    <label className="relative mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700/80 bg-gray-900/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-200 transition duration-200 hover:border-emerald-400/50 hover:bg-emerald-500/10 hover:text-white">
+                      <Upload className="h-3.5 w-3.5" />
                       Upload NID Front
                       <input
                         type="file"
@@ -2929,21 +3064,50 @@ export default function CompleteProfile({
                   </div>
 
                   {/* NID Back Upload */}
-                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                    <span className="text-[10px] text-gray-400 font-bold mb-2">
-                      NID Card BACK Image
-                    </span>
+                  <div className="group relative overflow-hidden rounded-3xl border border-gray-800/80 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_18px_45px_-28px_rgba(0,0,0,0.8)]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_50%)]" />
+                    <div className="relative mb-3 flex items-start justify-between">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-indigo-400/90">
+                          Back Side
+                        </p>
+                        <h4 className="mt-1 text-sm font-semibold text-white">
+                          NID Card Back Image
+                        </h4>
+                      </div>
+                      <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-2 text-indigo-400">
+                        <Upload className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+
                     {nidBackImage ? (
-                      <img
-                        src={nidBackImage}
-                        className="max-h-[85px] border border-gray-800 rounded-lg object-contain mb-2"
-                      />
+                      <div className="relative h-[112px] w-full overflow-hidden rounded-2xl border border-gray-800/80 bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 shadow-inner">
+                        <img
+                          src={nidBackImage}
+                          alt="NID back preview"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/85 via-black/35 to-transparent px-3 py-2 text-[9px] uppercase tracking-[0.25em] text-gray-200">
+                          <span>Preview</span>
+                          <span>Tap to replace</span>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="h-[85px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px]">
-                        NID Back Side Document
+                      <div className="relative flex h-[112px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700/80 bg-gradient-to-br from-gray-900/80 via-gray-950/70 to-gray-900/80 text-center text-[10px] text-gray-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                        <div className="mb-2 rounded-full border border-gray-700/70 bg-gray-800/70 p-2 text-gray-400">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <span className="font-medium text-gray-300">
+                          Back side of your NID
+                        </span>
+                        <span className="mt-1 text-[9px] uppercase tracking-[0.25em] text-gray-600">
+                          PNG / JPG / WEBP
+                        </span>
                       </div>
                     )}
-                    <label className="px-3 py-1 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none">
+
+                    <label className="relative mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700/80 bg-gray-900/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-200 transition duration-200 hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-white">
+                      <Upload className="h-3.5 w-3.5" />
                       Upload NID Back
                       <input
                         type="file"

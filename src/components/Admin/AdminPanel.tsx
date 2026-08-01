@@ -14,6 +14,7 @@ import VerificationPage from "../../pages/Admin/Verification/VerificationPage.ts
 import DocumentsPage from "../../pages/Admin/Documents/DocumentsPage.tsx";
 import NotificationsPage from "../../pages/Admin/Notifications/NotificationsPage.tsx";
 import AnalyticsPage from "../../pages/Admin/Analytics/AnalyticsPage.tsx";
+import NewsletterPage from "../../pages/Admin/Newsletter/NewsletterPage.tsx";
 import { useAdmin } from "../../hooks/useAdmin.ts";
 
 interface AdminPanelProps {
@@ -60,6 +61,7 @@ export default function AdminPanel({
     elections,
     candidates,
     notifications,
+    newsletterSubscribers,
     voters,
     loading,
     sidebarCollapsed,
@@ -77,6 +79,8 @@ export default function AdminPanel({
     handleCreateOrUpdateCandidate,
     handleDeleteCandidate,
     handleVerifyCandidate,
+    handleUpdateNewsletterStatus,
+    handleDeleteNewsletterSubscriber,
     handleUpdateVoterStatus,
     handleSaveSystemConfig,
     successMsg,
@@ -100,7 +104,7 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-(--surface-page) text-(--text-primary)">
       {successMsg ? (
         <div className="fixed right-4 top-4 z-50 rounded-2xl border border-emerald-200 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">
           {successMsg}
@@ -175,7 +179,12 @@ export default function AdminPanel({
               ) : null}
 
               {activeTab === "parties" ? (
-                <PartiesPage parties={parties} />
+                <PartiesPage
+                  parties={parties}
+                  candidates={candidates}
+                  token={token}
+                  onRefresh={() => window.location.reload()}
+                />
               ) : null}
               {activeTab === "votes" ? (
                 <PlaceholderPage
@@ -187,6 +196,13 @@ export default function AdminPanel({
               {activeTab === "documents" ? <DocumentsPage /> : null}
               {activeTab === "reports" ? <ReportsPage /> : null}
               {activeTab === "notifications" ? <NotificationsPage /> : null}
+              {activeTab === "newsletter" ? (
+                <NewsletterPage
+                  subscribers={newsletterSubscribers}
+                  onUpdateStatus={handleUpdateNewsletterStatus}
+                  onDeleteSubscriber={handleDeleteNewsletterSubscriber}
+                />
+              ) : null}
               {activeTab === "settings" ? (
                 <SettingsPage
                   smtpForm={smtpForm}
@@ -206,6 +222,7 @@ export default function AdminPanel({
                 "documents",
                 "reports",
                 "notifications",
+                "newsletter",
                 "settings",
                 "analytics",
               ].includes(activeTab) ? (

@@ -11,19 +11,22 @@ import {
   Menu,
   ShieldCheck,
   Settings,
+  Mail,
   Users,
   Vote,
   WalletCards,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import type { ThemeMode } from "../../../types/auth.ts";
+import type { AdminTab } from "../../../hooks/useAdmin.ts";
 
 interface AdminSidebarProps {
-  activeTab: string;
-  onSelectTab: (tab: string) => void;
+  activeTab: AdminTab;
+  onSelectTab: (tab: AdminTab) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onLogout: () => void;
-  theme: "light" | "dark";
+  theme: ThemeMode;
 }
 
 const items: Array<{ id: string; label: string; icon: ReactNode }> = [
@@ -42,6 +45,11 @@ const items: Array<{ id: string; label: string; icon: ReactNode }> = [
     label: "Candidates",
     icon: <WalletCards className="h-4 w-4" />,
   },
+  {
+    id: "parties",
+    label: "Political Parties",
+    icon: <Flag className="h-4 w-4" />,
+  },
   { id: "voters", label: "Voters", icon: <Users className="h-4 w-4" /> },
   { id: "votes", label: "Votes", icon: <Vote className="h-4 w-4" /> },
   {
@@ -59,6 +67,11 @@ const items: Array<{ id: string; label: string; icon: ReactNode }> = [
     id: "notifications",
     label: "Notifications",
     icon: <BellRing className="h-4 w-4" />,
+  },
+  {
+    id: "newsletter",
+    label: "Election Bulletins",
+    icon: <Mail className="h-4 w-4" />,
   },
   { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
 ];
@@ -79,7 +92,7 @@ export default function AdminSidebar({
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-emerald-500 p-2.5 text-sm font-black text-white shadow-lg">
+          <div className="rounded-2xl bg-linear-to-br from-blue-600 to-emerald-500 p-2.5 text-sm font-black text-white shadow-lg">
             NP
           </div>
           {!collapsed ? (

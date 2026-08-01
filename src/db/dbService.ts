@@ -109,6 +109,11 @@ export interface User {
   isProfileComplete?: boolean;
   /** Increments on password resets and logout to revoke all issued access tokens. */
   tokenVersion?: number;
+  newsletterNotificationsEnabled?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterVerifiedAt?: string;
+  newsletterUnsubscribeToken?: string;
+  newsletterStatus?: "Active" | "Inactive" | "Pending";
 }
 
 export interface UserProfile {
@@ -241,6 +246,22 @@ export interface SystemConfig {
   twilioSid: string;
   twilioToken: string;
   twilioFrom: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  subscribedAt: string;
+  status: "Active" | "Inactive" | "Pending";
+  verified: boolean;
+  source: string;
+  ipAddress?: string;
+  userAgent?: string;
+  lastNotification?: string;
+  unsubscribeToken: string;
+  verificationToken?: string;
+  verifiedAt?: string;
+  updatedAt?: string;
 }
 
 export interface Candidate {
@@ -582,6 +603,7 @@ export class Database {
       "audit_logs",
       "otps",
       "notifications",
+      "newsletter_subscribers",
       "profile_drafts",
       "user_preferences",
     ];
@@ -1524,6 +1546,14 @@ export class Database {
     this.save("notifications", data);
   }
 
+  static getNewsletterSubscribers(): NewsletterSubscriber[] {
+    return this.load<NewsletterSubscriber>("newsletter_subscribers", []);
+  }
+
+  static saveNewsletterSubscribers(data: NewsletterSubscriber[]): void {
+    this.save("newsletter_subscribers", data);
+  }
+
   static getProfileDrafts(): ProfileDraft[] {
     return this.load<ProfileDraft>("profile_drafts", []);
   }
@@ -1693,6 +1723,18 @@ export class Database {
         .createIndex(
           { userId: 1, timestamp: -1 },
           { name: "notifications_user_time" },
+        ),
+      this.mongoDb
+        .collection("newsletter_subscribers")
+        .createIndex(
+          { email: 1 },
+          { unique: true, name: "newsletter_email_unique" },
+        ),
+      this.mongoDb
+        .collection("newsletter_subscribers")
+        .createIndex(
+          { status: 1, subscribedAt: -1 },
+          { name: "newsletter_status_subscribed_at" },
         ),
       this.mongoDb
         .collection("otps")

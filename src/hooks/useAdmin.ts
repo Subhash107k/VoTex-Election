@@ -5,6 +5,7 @@ import type {
   DashboardStats,
   Election,
   Faq,
+  NewsletterSubscriber,
   Notification,
   PoliticalParty,
   User,
@@ -15,12 +16,15 @@ export type AdminTab =
   | "elections"
   | "candidates"
   | "voters"
+  | "parties"
   | "votes"
   | "verification"
   | "documents"
   | "reports"
   | "notifications"
-  | "settings";
+  | "newsletter"
+  | "settings"
+  | "analytics";
 
 interface UseAdminOptions {
   token: string;
@@ -50,6 +54,7 @@ interface UseAdminResult {
   elections: Election[];
   candidates: Candidate[];
   notifications: Notification[];
+  newsletterSubscribers: NewsletterSubscriber[];
   auditLogs: AuditLog[];
   voters: User[];
   loading: boolean;
@@ -103,6 +108,11 @@ interface UseAdminResult {
     message: string;
     type: "info" | "success" | "warning" | "alert";
   }) => Promise<void>;
+  handleUpdateNewsletterStatus: (
+    subscriberId: string,
+    status: "Active" | "Inactive" | "Pending",
+  ) => Promise<void>;
+  handleDeleteNewsletterSubscriber: (subscriberId: string) => Promise<void>;
   handleUpdateVoterStatus: (
     voterId: string,
     payload: {
@@ -163,6 +173,9 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
   const [parties, setParties] = useState<PoliticalParty[]>([]);
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [team, setTeam] = useState<User[]>([]);
+  const [newsletterSubscribers, setNewsletterSubscribers] = useState<
+    NewsletterSubscriber[]
+  >([]);
 
   const triggerToast = useCallback((message: string, isError = false) => {
     if (isError) {
@@ -187,6 +200,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
         electRes,
         candRes,
         notifRes,
+        newsletterRes,
         auditRes,
         votersRes,
         configRes,
@@ -198,6 +212,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
         fetch("/api/elections", { headers }),
         fetch("/api/candidates?includePending=true", { headers }),
         fetch("/api/notifications", { headers }),
+        fetch("/api/admin/newsletter", { headers }),
         fetch("/api/audit-logs", { headers }),
         fetch("/api/voters", { headers }),
         fetch("/api/system/config", { headers }),
@@ -222,6 +237,10 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       if (notifRes.ok) {
         const notifData = await notifRes.json();
         setNotifications(notifData.notifications || []);
+      }
+      if (newsletterRes.ok) {
+        const newsletterData = await newsletterRes.json();
+        setNewsletterSubscribers(newsletterData.subscribers || []);
       }
       if (auditRes.ok) {
         const auditData = await auditRes.json();
@@ -487,6 +506,59 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
     [fetchData, token, triggerToast],
   );
 
+  const handleUpdateNewsletterStatus = useCallback(
+    async (subscriberId: string, status: "Active" | "Inactive" | "Pending") => {
+      try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+        const res = await fetch(
+          `/api/admin/newsletter/${subscriberId}/status`,
+          {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({ status }),
+          },
+        );
+        if (!res.ok) throw new Error("Unable to update newsletter status");
+        triggerToast(`Newsletter subscriber marked as ${status}.`);
+        await fetchData();
+      } catch (error) {
+        triggerToast(
+          error instanceof Error
+            ? error.message
+            : "Unable to update newsletter status.",
+          true,
+        );
+      }
+    },
+    [fetchData, token, triggerToast],
+  );
+
+  const handleDeleteNewsletterSubscriber = useCallback(
+    async (subscriberId: string) => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await fetch(`/api/admin/newsletter/${subscriberId}`, {
+          method: "DELETE",
+          headers,
+        });
+        if (!res.ok) throw new Error("Unable to delete subscriber");
+        triggerToast("Newsletter subscriber removed.");
+        await fetchData();
+      } catch (error) {
+        triggerToast(
+          error instanceof Error
+            ? error.message
+            : "Unable to delete subscriber.",
+          true,
+        );
+      }
+    },
+    [fetchData, token, triggerToast],
+  );
+
   const handleUpdateVoterStatus = useCallback(
     async (
       voterId: string,
@@ -571,6 +643,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       elections,
       candidates,
       notifications,
+      newsletterSubscribers,
       auditLogs,
       voters,
       loading,
@@ -594,6 +667,8 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleDeleteCandidate,
       handleVerifyCandidate,
       handlePublishAnnouncement,
+      handleUpdateNewsletterStatus,
+      handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
       handleSaveSystemConfig,
       parties,
@@ -605,6 +680,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       elections,
       candidates,
       notifications,
+      newsletterSubscribers,
       auditLogs,
       voters,
       loading,
@@ -623,6 +699,8 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleDeleteCandidate,
       handleVerifyCandidate,
       handlePublishAnnouncement,
+      handleUpdateNewsletterStatus,
+      handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
       handleSaveSystemConfig,
       parties,

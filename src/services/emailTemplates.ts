@@ -18,68 +18,77 @@ const themes = {
     primary: "#6C5CE7",
     gradient: "linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%)",
     accent: "#DFE6FF",
-    icon: "🔐"
+    icon: "🔐",
   },
   security: {
     primary: "#E17055",
     gradient: "linear-gradient(135deg, #E17055 0%, #FDCB6E 100%)",
     accent: "#FFF3E0",
-    icon: "🔒"
+    icon: "🔒",
   },
   success: {
     primary: "#00B894",
     gradient: "linear-gradient(135deg, #00B894 0%, #55EFC4 100%)",
     accent: "#E6FFF8",
-    icon: "✅"
+    icon: "✅",
   },
   confirmation: {
     primary: "#0984E3",
     gradient: "linear-gradient(135deg, #0984E3 0%, #74B9FF 100%)",
     accent: "#E8F4FD",
-    icon: "🗳️"
+    icon: "🗳️",
   },
   warning: {
     primary: "#FDCB6E",
     gradient: "linear-gradient(135deg, #F39C12 0%, #FDCB6E 100%)",
     accent: "#FFF8E1",
-    icon: "⚠️"
+    icon: "⚠️",
   },
   danger: {
     primary: "#D63031",
     gradient: "linear-gradient(135deg, #D63031 0%, #FF7675 100%)",
     accent: "#FFE8E8",
-    icon: "🚨"
-  }
+    icon: "🚨",
+  },
 };
 
-const htmlWrapper = (subject: string, body: string, theme: typeof themes.verification, iconEmoji: string, actionUrl: string) => {
+const htmlWrapper = (
+  subject: string,
+  body: string,
+  theme: typeof themes.verification,
+  iconEmoji: string,
+  actionUrl: string,
+) => {
   // Convert plain text to styled HTML
   const htmlBody = body
     .split("\n")
-    .map(line => {
+    .map((line) => {
       const trimmed = line.trim();
-      if (trimmed === "") return '<br/>';
-      
+      if (trimmed === "") return "<br/>";
+
       // Style code blocks (indented text)
       if (trimmed.match(/^\s{4,}/)) {
         const code = trimmed.trim();
         return `<div style="background: ${theme.accent}; border-left: 4px solid ${theme.primary}; padding: 16px 20px; margin: 16px 0; border-radius: 0 8px 8px 0; font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; letter-spacing: 3px; text-align: center; color: ${theme.primary};">${code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
       }
-      
+
       // Style section headers
       if (trimmed.match(/^(Election|Ballot Receipt|Reason):/)) {
         const [label, ...value] = trimmed.split(":");
         return `<p style="margin: 12px 0 4px; font-weight: 600; color: ${theme.primary}; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">${label}:</p><p style="margin: 0 0 12px; font-size: 15px; color: #2d3436;">${value.join(":").trim()}</p>`;
       }
-      
+
       // Style numbered lists
       if (trimmed.match(/^\d+\.\s/)) {
         return `<div style="display: flex; align-items: flex-start; margin: 8px 0; gap: 12px;">
           <span style="background: ${theme.primary}; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;">${trimmed.match(/^\d+/)?.[0]}</span>
-          <span style="font-size: 15px; color: #2d3436;">${trimmed.replace(/^\d+\.\s/, "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>
+          <span style="font-size: 15px; color: #2d3436;">${trimmed
+            .replace(/^\d+\.\s/, "")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</span>
         </div>`;
       }
-      
+
       return `<p style="margin: 8px 0; font-size: 15px; color: #2d3436; line-height: 1.7;">${line.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`;
     })
     .join("");
@@ -306,31 +315,44 @@ const htmlWrapper = (subject: string, body: string, theme: typeof themes.verific
 </html>`;
 };
 
-const createTemplate = (subject: string, message: string, theme: typeof themes.verification, iconEmoji: string, actionUrl: string = defaultLoginUrl): EmailTemplate => {
+const createTemplate = (
+  subject: string,
+  message: string,
+  theme: typeof themes.verification,
+  iconEmoji: string,
+  actionUrl: string = defaultLoginUrl,
+): EmailTemplate => {
   const text = appendFooter(message);
   return {
     subject,
     text,
-    html: htmlWrapper(subject, text, theme, iconEmoji, actionUrl)
+    html: htmlWrapper(subject, text, theme, iconEmoji, actionUrl),
   };
 };
 
-export const getRegistrationVerificationEmail = (code: string, actionUrl: string = defaultLoginUrl): EmailTemplate =>
+export const getRegistrationVerificationEmail = (
+  code: string,
+  actionUrl: string = defaultLoginUrl,
+): EmailTemplate =>
   createTemplate(
     "Verify Your Email for VoTex Registration",
     `Dear Citizen,\n\nWelcome to VoTex! We're excited to have you join our secure voting platform.\n\nTo complete your email verification, please use this one-time security code:\n\n    ${code}\n\n⏰ This code expires in 10 minutes\n🔐 Never share this code with anyone\n\nIf you didn't request this, you can safely ignore this email.\n\nReady to make your voice heard? Let's get started!`,
     themes.verification,
     "🔐",
-    actionUrl
+    actionUrl,
   );
 
-export const getWelcomeEmail = (fullName: string, username: string, actionUrl: string = defaultLoginUrl): EmailTemplate =>
+export const getWelcomeEmail = (
+  fullName: string,
+  username: string,
+  actionUrl: string = defaultLoginUrl,
+): EmailTemplate =>
   createTemplate(
     "Welcome to VoTex platform - Account Created",
     `Dear ${fullName},\n\nYour voter account has been successfully created with username [ ${username} ].\n\nClick the login button below to sign in securely and continue with profile completion, identity verification, and ballot access.\n\nIf you did not create this account, please contact support immediately.\n\nThank you for taking this civic duty seriously.`,
     themes.verification,
     "🚀",
-    actionUrl
+    actionUrl,
   );
 
 export const getPasswordResetRequestEmail = (code: string): EmailTemplate =>
@@ -338,7 +360,7 @@ export const getPasswordResetRequestEmail = (code: string): EmailTemplate =>
     "Reset Your VoTex Password",
     `Hello,\n\nWe received a request to reset your VoTex account password.\n\nUse this secure verification code to proceed:\n\n    ${code}\n\n⏰ Expires in 10 minutes\n🛡️ If you didn't request this, your account remains secure\n\nSecurity Tip: VoTex will never ask for your password via email.`,
     themes.security,
-    "🔒"
+    "🔒",
   );
 
 export const getPasswordChangedEmail = (fullName: string): EmailTemplate =>
@@ -346,15 +368,19 @@ export const getPasswordChangedEmail = (fullName: string): EmailTemplate =>
     "Password Successfully Changed",
     `Dear ${fullName},\n\nYour VoTex account password has been updated successfully.\n\n✅ If this was you, no further action is needed\n🚨 If this wasn't you, secure your account immediately:\n\n    1. Reset your password\n    2. Contact our security team\n    3. Review recent account activity\n\nYour security is our top priority.`,
     themes.success,
-    "✅"
+    "✅",
   );
 
-export const getVoteConfirmationEmail = (fullName: string, electionTitle: string, ballotId: string): EmailTemplate =>
+export const getVoteConfirmationEmail = (
+  fullName: string,
+  electionTitle: string,
+  ballotId: string,
+): EmailTemplate =>
   createTemplate(
     "Your Vote Has Been Counted! 🎉",
     `Dear ${fullName},\n\nCongratulations! Your voice has been heard. Your vote has been securely recorded and counted.\n\nElection: ${electionTitle}\nBallot Receipt: ${ballotId}\n\n📋 Save your receipt ID for verification\n🔍 Use it to confirm your vote in the final tally\n🗳️ Thank you for strengthening democracy!\n\nEvery vote matters. You made a difference today.`,
     themes.confirmation,
-    "🗳️"
+    "🗳️",
   );
 
 export const getApprovalNotificationEmail = (fullName: string): EmailTemplate =>
@@ -362,13 +388,36 @@ export const getApprovalNotificationEmail = (fullName: string): EmailTemplate =>
     "Welcome Aboard! Registration Approved 🎊",
     `Dear ${fullName},\n\nGreat news! Your VoTex voter registration has been approved.\n\nYou're now ready to:\n\n    1. Complete biometric verification\n    2. Explore available elections\n    3. Cast your secure vote\n\nWe're thrilled to have you as part of our growing community of verified voters.\n\nYour journey in secure digital voting starts now!`,
     themes.success,
-    "🎉"
+    "🎉",
   );
 
-export const getRejectionNotificationEmail = (fullName: string, rejectionReason: string): EmailTemplate =>
+export const getRejectionNotificationEmail = (
+  fullName: string,
+  rejectionReason: string,
+): EmailTemplate =>
   createTemplate(
     "Registration Update — Action Required",
     `Dear ${fullName},\n\nWe've reviewed your registration and some additional steps are needed.\n\nReason: ${rejectionReason}\n\nDon't worry — this is often a quick fix! Here's what to do:\n\n    1. Sign in to your VoTex portal\n    2. Review the detailed feedback\n    3. Follow the guided steps to update your information\n    4. Resubmit for approval\n\nNeed help? Our support team is standing by to assist you.`,
     themes.warning,
-    "📋"
+    "📋",
+  );
+
+export const getNewsletterSubscriptionEmail = (
+  email: string,
+  unsubscribeUrl: string,
+): EmailTemplate =>
+  createTemplate(
+    "You are subscribed to VoTex Election Bulletins",
+    `Dear subscriber,\n\nYour email address ${email} has been successfully subscribed to VoTex Election Bulletins.\n\nYou will now receive official election announcements, ballot reminders, verification notices, and important system updates.\n\nIf you did not request this subscription, you can remove it immediately using the unsubscribe link below.\n\nUnsubscribe link:\n    ${unsubscribeUrl}\n\nThank you for staying informed about the democratic process.`,
+    themes.success,
+    "📬",
+    unsubscribeUrl,
+  );
+
+export const getNewsletterUnsubscribeEmail = (email: string): EmailTemplate =>
+  createTemplate(
+    "You have been unsubscribed from VoTex Election Bulletins",
+    `Dear subscriber,\n\nThe email address ${email} has been removed from VoTex Election Bulletins.\n\nYou will no longer receive bulletin updates or election notices from this subscription list.\n\nIf this was a mistake, you may subscribe again at any time from the public site footer.`,
+    themes.warning,
+    "🛑",
   );

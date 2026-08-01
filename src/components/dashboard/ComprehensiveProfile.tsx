@@ -24,6 +24,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import CitizenshipUploadPreview from "../documents/CitizenshipUploadPreview.tsx";
 
 interface ComprehensiveProfileProps {
   token: string;
@@ -1126,35 +1127,25 @@ export default function ComprehensiveProfile({
                               </span>
                             </div>
 
-                            <div className="aspect-[4/3] bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col overflow-hidden relative group">
-                              {document?.citizenshipFrontImage ? (
-                                <>
-                                  <div className="flex-1 overflow-hidden">
-                                    <img
-                                      src={document.citizenshipFrontImage}
-                                      alt="Citizenship Front Scan"
-                                      className="object-contain w-full h-full"
-                                    />
-                                  </div>
-                                  <div className="p-3 border-t border-slate-800/60 bg-slate-950/90">
-                                    <a
-                                      href={document.citizenshipFrontImage}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block w-full text-center px-3 py-2 bg-slate-900 border border-slate-700 text-[10px] rounded hover:bg-slate-800 font-mono font-bold text-white uppercase"
-                                    >
-                                      Open Original Image
-                                    </a>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center gap-1.5 text-slate-600 p-6">
-                                  <FileImage className="w-8 h-8" />
-                                  <span className="text-[10px] font-mono">
-                                    Preview Not Found
-                                  </span>
-                                </div>
-                              )}
+                            <div className="aspect-[5/3] lg:aspect-[13/7] xl:aspect-[16/7] bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col overflow-hidden relative group">
+                              <CitizenshipUploadPreview
+                                label="Citizenship Front Scan"
+                                subtitle="Official citizenship document"
+                                description="Front side of the registered citizenship card."
+                                fileUrl={document?.citizenshipFrontImage || ""}
+                                fileName={
+                                  document?.citizenshipFrontImage
+                                    ? "Front Scan"
+                                    : "Not available"
+                                }
+                                status={
+                                  document?.citizenshipFrontImage
+                                    ? "verified"
+                                    : "idle"
+                                }
+                                accept="image/jpeg,image/png,image/webp"
+                                className="bg-slate-950/80 rounded-xl border-slate-800"
+                              />
                             </div>
                           </div>
 
@@ -1170,35 +1161,25 @@ export default function ComprehensiveProfile({
                               </span>
                             </div>
 
-                            <div className="aspect-[4/3] bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col overflow-hidden relative group">
-                              {document?.citizenshipBackImage ? (
-                                <>
-                                  <div className="flex-1 overflow-hidden">
-                                    <img
-                                      src={document.citizenshipBackImage}
-                                      alt="Citizenship Back Scan"
-                                      className="object-contain w-full h-full"
-                                    />
-                                  </div>
-                                  <div className="p-3 border-t border-slate-800/60 bg-slate-950/90">
-                                    <a
-                                      href={document.citizenshipBackImage}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block w-full text-center px-3 py-2 bg-slate-900 border border-slate-700 text-[10px] rounded hover:bg-slate-800 font-mono font-bold text-white uppercase"
-                                    >
-                                      Open Original Image
-                                    </a>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center gap-1.5 text-slate-600 p-6">
-                                  <FileImage className="w-8 h-8" />
-                                  <span className="text-[10px] font-mono">
-                                    Preview Not Found
-                                  </span>
-                                </div>
-                              )}
+                            <div className="aspect-[5/3] lg:aspect-[13/7] xl:aspect-[16/7] bg-slate-950/80 rounded-xl border border-slate-800 flex flex-col overflow-hidden relative group">
+                              <CitizenshipUploadPreview
+                                label="Citizenship Back Scan"
+                                subtitle="Official citizenship document"
+                                description="Back side of the registered citizenship card."
+                                fileUrl={document?.citizenshipBackImage || ""}
+                                fileName={
+                                  document?.citizenshipBackImage
+                                    ? "Back Scan"
+                                    : "Not available"
+                                }
+                                status={
+                                  document?.citizenshipBackImage
+                                    ? "verified"
+                                    : "idle"
+                                }
+                                accept="image/jpeg,image/png,image/webp"
+                                className="bg-slate-950/80 rounded-xl border-slate-800"
+                              />
                             </div>
                           </div>
                         </div>

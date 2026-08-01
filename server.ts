@@ -20,6 +20,7 @@ import {
   AuditLog,
   OTPRecord,
   Notification,
+  NewsletterSubscriber,
 } from "./src/db/dbService.js";
 import { verifyFace } from "./middleware/verifyFace.js";
 import { createFaceVerificationRouter } from "./routes/faceVerification.routes.js";
@@ -31,6 +32,8 @@ import {
   getPasswordResetRequestEmail,
   getPasswordChangedEmail,
   getVoteConfirmationEmail,
+  getNewsletterSubscriptionEmail,
+  getNewsletterUnsubscribeEmail,
 } from "./src/services/emailTemplates.js";
 import bcrypt from "bcryptjs";
 
@@ -257,6 +260,34 @@ interface DispatchLog {
 let dispatchLogs: DispatchLog[] = [];
 
 const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+const validateDocumentImage = (value: unknown, fieldName: string) => {
+  if (value === undefined || value === null || value === "") return;
+  if (
+    typeof value !== "string" ||
+    !/^data:image\/(png|jpe?g|webp);base64,/i.test(value)
+  ) {
+    throw new Error(`${fieldName} must be a PNG, JPG, or WebP image.`);
+  }
+
+  const base64 = value.substring(value.indexOf(",") + 1);
+  const sizeInBytes =
+    Math.ceil((base64.length * 3) / 4) -
+    (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0);
+  if (sizeInBytes > 5 * 1024 * 1024) {
+    throw new Error(`${fieldName} must be smaller than 5 MB.`);
+  }
+};
+const normalizeNewsletterEmail = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+const getNewsletterBaseUrl = () =>
+  (env.APP_URL || env.FRONTEND_URL || "http://localhost:3000").replace(
+    /\/$/,
+    "",
+  );
+const getNewsletterUnsubscribeUrl = (token: string) =>
+  `${getNewsletterBaseUrl()}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
 const createOtpCode = () => crypto.randomInt(100000, 1000000).toString();
 const createFingerprintHash = (imageData: string): string => {
   const normalized = (imageData || "").replace(
@@ -2013,6 +2044,326 @@ app.post(
   },
 );
 
+const syncNewsletterUserState = (
+  email: string,
+  state: {
+    enabled: boolean;
+    status: "Active" | "Inactive" | "Pending";
+    subscribedAt?: string;
+    verifiedAt?: string;
+    unsubscribeToken?: string;
+  },
+) => {
+  const users = Database.getUsers();
+  const user = users.find(
+    (candidate) => normalizeNewsletterEmail(candidate.email) === email,
+  );
+
+  if (!user) {
+    return null;
+  }
+
+  user.newsletterNotificationsEnabled = state.enabled;
+  user.newsletterStatus = state.status;
+  if (state.subscribedAt) user.newsletterSubscribedAt = state.subscribedAt;
+  if (state.verifiedAt) user.newsletterVerifiedAt = state.verifiedAt;
+  if (state.unsubscribeToken) {
+    user.newsletterUnsubscribeToken = state.unsubscribeToken;
+  }
+
+  Database.saveUsers(users);
+  return user;
+};
+
+app.get("/api/newsletter/status", (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  const payload = token ? Database.verifyToken(token) : null;
+  const email = normalizeNewsletterEmail(
+    payload?.email || req.query.email || req.body?.email,
+  );
+
+  if (!email) {
+    return res.status(400).json({ error: "Email address is required." });
+  }
+
+  const subscribers = Database.getNewsletterSubscribers();
+  const subscriber = subscribers.find(
+    (entry) => normalizeNewsletterEmail(entry.email) === email,
+  );
+
+  const status = subscriber?.status || "Inactive";
+  return res.json({
+    subscribed: status === "Active",
+    email,
+    status,
+    subscriber: subscriber || null,
+  });
+});
+
+app.post("/api/newsletter/subscribe", (req: any, res) => {
+  try {
+    const rawEmail = req.body?.email || req.user?.email || req.query?.email;
+    const email = normalizeNewsletterEmail(rawEmail);
+
+    if (!email) {
+      return res.status(400).json({ error: "Email address is required." });
+    }
+
+    const emailCheck = z.string().email().safeParse(email);
+    if (!emailCheck.success) {
+      return res
+        .status(400)
+        .json({ error: "A valid email address is required." });
+    }
+
+    const now = new Date().toISOString();
+    const subscribers = Database.getNewsletterSubscribers();
+    const existingIndex = subscribers.findIndex(
+      (entry) => normalizeNewsletterEmail(entry.email) === email,
+    );
+    const unsubscribeToken = createId("news_unsub");
+    const existing = existingIndex >= 0 ? subscribers[existingIndex] : null;
+    const wasInactive = existing ? existing.status !== "Active" : true;
+
+    const subscriber: NewsletterSubscriber = {
+      id: existing?.id || createId("news_sub"),
+      email,
+      subscribedAt: existing?.subscribedAt || now,
+      status: "Active",
+      verified: true,
+      source: req.user?.id ? "authenticated-user" : "public-footer",
+      ipAddress:
+        (req.headers["x-forwarded-for"] as string) ||
+        req.socket.remoteAddress ||
+        "127.0.0.1",
+      userAgent: req.headers["user-agent"] || "",
+      lastNotification:
+        existing?.lastNotification || "subscription-confirmation",
+      unsubscribeToken,
+      verificationToken: undefined,
+      verifiedAt: existing?.verifiedAt || now,
+      updatedAt: now,
+    };
+
+    if (existingIndex >= 0) {
+      subscribers[existingIndex] = subscriber;
+    } else {
+      subscribers.unshift(subscriber);
+    }
+
+    Database.saveNewsletterSubscribers(subscribers);
+    syncNewsletterUserState(email, {
+      enabled: true,
+      status: "Active",
+      subscribedAt: subscriber.subscribedAt,
+      verifiedAt: subscriber.verifiedAt,
+      unsubscribeToken,
+    });
+
+    if (wasInactive || !existing) {
+      const unsubscribeUrl = getNewsletterUnsubscribeUrl(unsubscribeToken);
+      const template = getNewsletterSubscriptionEmail(email, unsubscribeUrl);
+      logDispatch("Email", email, template.subject, template.text);
+    }
+
+    return res.status(existing ? 200 : 201).json({
+      success: true,
+      subscriber,
+      message: existing
+        ? "Newsletter subscription updated successfully."
+        : "Newsletter subscription created successfully.",
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+const processNewsletterUnsubscribe = (req: any, res: any) => {
+  try {
+    const rawToken = req.body?.token || req.query?.token;
+    const rawEmail = req.body?.email || req.user?.email || req.query?.email;
+    const email = normalizeNewsletterEmail(rawEmail);
+    const token = String(rawToken || "").trim();
+
+    const subscribers = Database.getNewsletterSubscribers();
+    const targetIndex = subscribers.findIndex((entry) => {
+      if (token && entry.unsubscribeToken === token) return true;
+      if (email && normalizeNewsletterEmail(entry.email) === email) return true;
+      return false;
+    });
+
+    if (targetIndex < 0) {
+      if (req.method === "GET") {
+        return res
+          .status(404)
+          .send(
+            `<!doctype html><html><head><meta charset="utf-8"><title>Unsubscribe Failed</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#020617;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}main{padding:2rem;border-radius:1rem;background:#0f172a;border:1px solid rgba(148,163,184,.16);max-width:32rem}h1{margin:0 0 .75rem;font-size:1.5rem;color:#7dd3fc}p{margin:0;color:#cbd5e1}</style></head><body><main><h1>Unsubscribe Failed</h1><p>The unsubscribe link is invalid or the subscription could not be found.</p></main></body></html>`,
+          );
+      }
+      return res.status(404).json({ error: "Subscription not found." });
+    }
+
+    const subscriber = subscribers[targetIndex];
+    const now = new Date().toISOString();
+    const updatedSubscriber: NewsletterSubscriber = {
+      ...subscriber,
+      status: "Inactive",
+      verified: subscriber.verified,
+      updatedAt: now,
+      lastNotification: "unsubscribed",
+    };
+
+    subscribers[targetIndex] = updatedSubscriber;
+    Database.saveNewsletterSubscribers(subscribers);
+    syncNewsletterUserState(updatedSubscriber.email, {
+      enabled: false,
+      status: "Inactive",
+      subscribedAt: updatedSubscriber.subscribedAt,
+      verifiedAt: updatedSubscriber.verifiedAt,
+      unsubscribeToken: updatedSubscriber.unsubscribeToken,
+    });
+
+    const template = getNewsletterUnsubscribeEmail(updatedSubscriber.email);
+    logDispatch(
+      "Email",
+      updatedSubscriber.email,
+      template.subject,
+      template.text,
+    );
+
+    if (req.method === "GET") {
+      return res.send(
+        `<!doctype html><html><head><meta charset="utf-8"><title>Unsubscribed</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#020617;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}main{padding:2rem;border-radius:1rem;background:#0f172a;border:1px solid rgba(34,197,94,.16);max-width:32rem}h1{margin:0 0 .75rem;font-size:1.5rem;color:#34d399}p{margin:0;color:#cbd5e1}</style></head><body><main><h1>Unsubscribed</h1><p>${updatedSubscriber.email} has been removed from VoTex Election Bulletins.</p></main></body></html>`,
+      );
+    }
+
+    return res.json({
+      success: true,
+      subscriber: updatedSubscriber,
+      message: "Newsletter subscription cancelled successfully.",
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+app.post("/api/newsletter/unsubscribe", (req: any, res: any) => {
+  return processNewsletterUnsubscribe(req, res);
+});
+app.get("/api/newsletter/unsubscribe", (req: any, res: any) => {
+  return processNewsletterUnsubscribe(req, res);
+});
+
+app.get(
+  "/api/admin/newsletter",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator"),
+  (req, res) => {
+    const statusFilter = String(req.query.status || "").trim();
+    const searchTerm = normalizeNewsletterEmail(req.query.search || "");
+    const subscribers = Database.getNewsletterSubscribers()
+      .filter((entry) => (statusFilter ? entry.status === statusFilter : true))
+      .filter((entry) =>
+        searchTerm
+          ? normalizeNewsletterEmail(entry.email).includes(searchTerm)
+          : true,
+      )
+      .sort(
+        (left, right) =>
+          new Date(right.subscribedAt).getTime() -
+          new Date(left.subscribedAt).getTime(),
+      );
+
+    return res.json({
+      subscribers,
+      totals: {
+        all: Database.getNewsletterSubscribers().length,
+        active: Database.getNewsletterSubscribers().filter(
+          (entry) => entry.status === "Active",
+        ).length,
+        inactive: Database.getNewsletterSubscribers().filter(
+          (entry) => entry.status === "Inactive",
+        ).length,
+        pending: Database.getNewsletterSubscribers().filter(
+          (entry) => entry.status === "Pending",
+        ).length,
+      },
+    });
+  },
+);
+
+app.patch(
+  "/api/admin/newsletter/:id/status",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator"),
+  (req: any, res) => {
+    const { id } = req.params;
+    const status = req.body?.status;
+
+    if (!["Active", "Inactive", "Pending"].includes(status)) {
+      return res.status(400).json({
+        error: "Status must be Active, Inactive, or Pending.",
+      });
+    }
+
+    const subscribers = Database.getNewsletterSubscribers();
+    const subscriber = subscribers.find((entry) => entry.id === id);
+    if (!subscriber) {
+      return res.status(404).json({ error: "Subscriber not found." });
+    }
+
+    const now = new Date().toISOString();
+    subscriber.status = status;
+    subscriber.verified = status === "Active" ? true : subscriber.verified;
+    subscriber.updatedAt = now;
+    if (status === "Active") {
+      subscriber.verifiedAt = subscriber.verifiedAt || now;
+    }
+
+    Database.saveNewsletterSubscribers(subscribers);
+    syncNewsletterUserState(subscriber.email, {
+      enabled: status === "Active",
+      status,
+      subscribedAt: subscriber.subscribedAt,
+      verifiedAt: subscriber.verifiedAt,
+      unsubscribeToken: subscriber.unsubscribeToken,
+    });
+
+    return res.json({ subscriber });
+  },
+);
+
+app.delete(
+  "/api/admin/newsletter/:id",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator"),
+  (req: any, res) => {
+    const { id } = req.params;
+    const subscribers = Database.getNewsletterSubscribers();
+    const subscriber = subscribers.find((entry) => entry.id === id);
+
+    if (!subscriber) {
+      return res.status(404).json({ error: "Subscriber not found." });
+    }
+
+    const filtered = subscribers.filter((entry) => entry.id !== id);
+    Database.saveNewsletterSubscribers(filtered);
+    syncNewsletterUserState(subscriber.email, {
+      enabled: false,
+      status: "Inactive",
+      subscribedAt: subscriber.subscribedAt,
+      verifiedAt: subscriber.verifiedAt,
+      unsubscribeToken: subscriber.unsubscribeToken,
+    });
+
+    return res.json({
+      success: true,
+      message: "Subscriber deleted successfully.",
+    });
+  },
+);
+
 app.get(
   "/api/audit-logs",
   authenticateToken,
@@ -2680,6 +3031,9 @@ app.post("/api/voters/resubmit", authenticateToken, (req: any, res) => {
       grandfatherName,
     } = req.body;
 
+    validateDocumentImage(citizenshipFrontImage, "Citizenship front image");
+    validateDocumentImage(citizenshipBackImage, "Citizenship back image");
+
     // Update profile
     const profiles = Database.getUserProfiles();
     const prof = profiles.find((p) => p.userId === userId);
@@ -2795,6 +3149,50 @@ app.post("/api/voters/resubmit", authenticateToken, (req: any, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Persist and restore the in-progress profile wizard for the authenticated user.
+app.post("/api/profile/save-draft", authenticateToken, (req: any, res) => {
+  try {
+    const now = new Date().toISOString();
+    const drafts = Database.getProfileDrafts() as any[];
+    const existingIndex = drafts.findIndex(
+      (draft) => draft.userId === req.user.id,
+    );
+    const existingDraft =
+      existingIndex >= 0 ? drafts[existingIndex] : undefined;
+    const draft = {
+      ...(existingDraft || {}),
+      ...req.body,
+      id: existingDraft?.id || createId("profile_draft"),
+      userId: req.user.id,
+      draft_status: "Draft",
+      updated_at: now,
+      created_at: existingDraft?.created_at || now,
+      last_saved_at: now,
+    };
+
+    if (existingIndex >= 0) {
+      drafts[existingIndex] = draft;
+    } else {
+      drafts.push(draft);
+    }
+
+    Database.saveProfileDrafts(drafts);
+    return res.json({ success: true, draft });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/profile/load-draft", authenticateToken, (req: any, res) => {
+  try {
+    const drafts = Database.getProfileDrafts() as any[];
+    const draft = drafts.find((entry) => entry.userId === req.user.id) || null;
+    return res.json({ success: true, draft });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 

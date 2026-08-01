@@ -42,6 +42,11 @@ export interface User {
   lastLoginAt?: string;
   failedLoginAttempts?: number;
   lockoutUntil?: number;
+  newsletterNotificationsEnabled?: boolean;
+  newsletterSubscribedAt?: string;
+  newsletterVerifiedAt?: string;
+  newsletterUnsubscribeToken?: string;
+  newsletterStatus?: "Active" | "Inactive" | "Pending";
 }
 
 export interface UserPreferences {
@@ -175,6 +180,22 @@ export interface Notification {
   message: string;
   type: "info" | "success" | "warning" | "alert";
   timestamp: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  subscribedAt: string;
+  status: "Active" | "Inactive" | "Pending";
+  verified: boolean;
+  source: string;
+  ipAddress?: string;
+  userAgent?: string;
+  lastNotification?: string;
+  unsubscribeToken: string;
+  verificationToken?: string;
+  verifiedAt?: string;
+  updatedAt?: string;
 }
 
 export interface DispatchLog {

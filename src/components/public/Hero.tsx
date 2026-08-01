@@ -79,9 +79,10 @@ export default function Hero({
               <button
                 type="button"
                 onClick={onResultsClick}
-                className="w-full sm:w-auto px-5 py-3.5 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-7 py-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold text-sm shadow-sm hover:shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5 cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>View Live Results</span>
+                <ArrowRight className="h-4 w-4 stroke-[3]" />
               </button>
             </div>
 
