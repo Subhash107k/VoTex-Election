@@ -1,4 +1,4 @@
-import tailwindcss from "@tailwindcss/vite";
+﻿import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
@@ -40,13 +40,7 @@ export default defineConfig(() => {
         process.env.DISABLE_HMR === "true"
           ? null
           : {
-              ignored: [
-                "**/node_modules/**",
-                "**/.vs/**",
-                "**/.git/**",
-                "**/src/db/data/**",
-                "**/src/db/data/*.json",
-              ],
+              ignored: ["**/src/db/data/**", "**/src/db/data/*.json"],
             },
     },
   };

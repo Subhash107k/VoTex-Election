@@ -1,6 +1,10 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\src",
+    "\\src\\components",
+    "\\src\\components\\dashboard"
   ],
+  "SelectedNode": "\\src\\components\\dashboard\\BiometricScanner.tsx",
   "PreviewInSolutionExplorer": false
 }
