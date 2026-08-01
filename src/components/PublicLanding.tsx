@@ -33,7 +33,7 @@ export default function PublicLanding({
   useEffect(() => {
     const fetchPublicData = async () => {
       try {
-        const statsRes = await fetch("/api/stats/public");
+        const statsRes = await fetch("/api/public/stats");
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
           setStats(statsJson);
