@@ -1,8 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import "@tensorflow/tfjs-backend-webgl";
-import * as tf from "@tensorflow/tfjs-core";
-import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
+import type * as tf from "@tensorflow/tfjs-core";
+import type * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
+import { loadTensorflowFaceModules } from "../services/tensorflow.ts";
 import CameraPermissionDialog from "../components/face-verification/CameraPermissionDialog.tsx";
 import CameraView from "../components/face-verification/CameraView.tsx";
 import CaptureOverlay from "../components/face-verification/CaptureOverlay.tsx";
@@ -199,7 +205,11 @@ export default function FaceVerification({
       },
       {
         label: "Detect Face",
-        status: checks.faceDetected ? "complete" : cameraActive ? "processing" : "waiting",
+        status: checks.faceDetected
+          ? "complete"
+          : cameraActive
+            ? "processing"
+            : "waiting",
       },
       {
         label: "Detect Landmarks",
@@ -304,7 +314,10 @@ export default function FaceVerification({
         );
       }
 
-      updateStage("success", "Verification successful. You can cast your vote.");
+      updateStage(
+        "success",
+        "Verification successful. You can cast your vote.",
+      );
       setMatchResult({
         status: "success",
         score: matchData.similarityScore,
@@ -322,12 +335,19 @@ export default function FaceVerification({
   );
 
   const captureAndSubmit = useCallback(async () => {
-    if (captureStartedRef.current || !videoRef.current || !latestPayloadRef.current) {
+    if (
+      captureStartedRef.current ||
+      !videoRef.current ||
+      !latestPayloadRef.current
+    ) {
       return;
     }
 
     captureStartedRef.current = true;
-    updateStage("capturing", "Hold still. Capturing the best frame automatically.");
+    updateStage(
+      "capturing",
+      "Hold still. Capturing the best frame automatically.",
+    );
 
     const video = videoRef.current;
     const canvas = captureCanvasRef.current || document.createElement("canvas");
@@ -355,7 +375,12 @@ export default function FaceVerification({
   const runDetection = useCallback(async () => {
     const detector = detectorRef.current;
     const video = videoRef.current;
-    if (!detector || !video || stageRef.current === "success" || stageRef.current === "failed") {
+    if (
+      !detector ||
+      !video ||
+      stageRef.current === "success" ||
+      stageRef.current === "failed"
+    ) {
       return;
     }
 
@@ -365,7 +390,9 @@ export default function FaceVerification({
     }
 
     try {
-      const faces = await detector.estimateFaces(video, { flipHorizontal: true });
+      const faces = await detector.estimateFaces(video, {
+        flipHorizontal: true,
+      });
       if (faces.length !== 1) {
         stableFramesRef.current = 0;
         lastCenterRef.current = null;
@@ -419,10 +446,13 @@ export default function FaceVerification({
         rightEyeBottom
       );
       const eyeDistance =
-        leftEyeOuter && rightEyeOuter ? distance(leftEyeOuter, rightEyeOuter) : 1;
+        leftEyeOuter && rightEyeOuter
+          ? distance(leftEyeOuter, rightEyeOuter)
+          : 1;
       const leftEarRatio =
         leftEyeTop && leftEyeBottom && leftEyeOuter && leftEyeInner
-          ? distance(leftEyeTop, leftEyeBottom) / distance(leftEyeOuter, leftEyeInner)
+          ? distance(leftEyeTop, leftEyeBottom) /
+            distance(leftEyeOuter, leftEyeInner)
           : 1;
       const rightEarRatio =
         rightEyeTop && rightEyeBottom && rightEyeOuter && rightEyeInner
@@ -489,14 +519,16 @@ export default function FaceVerification({
       };
 
       if (stageRef.current === "center") {
-        if (!faceCentered) setInstruction("Center your face inside the guide frame.");
+        if (!faceCentered)
+          setInstruction("Center your face inside the guide frame.");
         else if (!distanceGood)
           setInstruction(
             faceWidthRatio < 0.24
               ? "Move closer to the camera."
               : "Move slightly farther from the camera.",
           );
-        else if (!lightingGood) setInstruction("Adjust lighting so your face is clear.");
+        else if (!lightingGood)
+          setInstruction("Adjust lighting so your face is clear.");
         else if (stable) updateStage("blink", "Please blink once.");
       }
 
@@ -559,12 +591,13 @@ export default function FaceVerification({
             (nextChecks.imageQualityGood ? 10 : 0),
         ),
       );
+      const faceScore = (face as unknown as { score?: number }).score ?? 0.96;
       const qualityPayload = {
         brightness,
         sharpness,
         qualityScore,
         livenessScore,
-        confidenceScore: 0.96,
+        confidenceScore: Math.min(1, faceScore),
       };
       const livenessChecks = {
         blinkDetected: nextChecks.blinkDetected,
@@ -664,6 +697,7 @@ export default function FaceVerification({
       verificationIdRef.current = startData.verificationId;
 
       setLoadingLabel("Loading face landmark model...");
+      const { tf, faceLandmarksDetection } = await loadTensorflowFaceModules();
       await tf.setBackend("webgl");
       await tf.ready();
       detectorRef.current = await faceLandmarksDetection.createDetector(
@@ -752,7 +786,8 @@ export default function FaceVerification({
             Verify before casting your ballot
           </h3>
           <p className="text-xs text-slate-500">
-            Selected nominee: <span className="font-bold">{candidateLabel}</span>
+            Selected nominee:{" "}
+            <span className="font-bold">{candidateLabel}</span>
           </p>
         </div>
         <button
@@ -774,7 +809,9 @@ export default function FaceVerification({
             videoRef={videoRef}
             cameraActive={cameraActive}
             centered={checks.faceCentered}
-            distanceGood={latestPayloadRef.current?.livenessChecks?.distanceGood || false}
+            distanceGood={
+              latestPayloadRef.current?.livenessChecks?.distanceGood || false
+            }
             qualityLabel={qualityLabel}
             brightnessLabel={brightnessLabel}
             distanceLabel={distanceLabel}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import {
   Vote,
   Calendar,
@@ -28,7 +28,9 @@ import {
   Moon,
 } from "lucide-react";
 import ComprehensiveProfile from "./ComprehensiveProfile.tsx";
-import FaceVerification from "../pages/FaceVerification.tsx";
+const FaceVerification = React.lazy(
+  () => import("../pages/FaceVerification.tsx"),
+);
 import {
   Election,
   Candidate,
@@ -61,6 +63,8 @@ const getSymbolGlyph = (name?: string) =>
     Wheat: "🌾",
     Gear: "⚙️",
   })[name || ""] || "🗳️";
+
+import type { ThemeMode } from "../types/auth.ts";
 
 interface VoterDashboardProps {
   token: string;
@@ -1800,21 +1804,31 @@ export default function VoterDashboard({
                           </div>
 
                           <div className="space-y-4">
-                            <FaceVerification
-                              token={token}
-                              electionId={selectedElection.id}
-                              candidateLabel={`${selectedCandidate.name} (${selectedCandidate.party})`}
-                              onBack={() => setVoteStep("view_candidates")}
-                              onVerified={(result) => {
-                                setFaceVerificationId(result.verificationId);
-                                setFaceVerificationStatus("matched");
-                                setFaceVerificationScore(
-                                  Math.round(result.similarityScore * 100),
-                                );
-                                setFaceVerificationMessage(result.message);
-                                setScanImage("server-face-verification-passed");
-                              }}
-                            />
+                            <Suspense
+                              fallback={
+                                <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+                                  Loading face verification...
+                                </div>
+                              }
+                            >
+                              <FaceVerification
+                                token={token}
+                                electionId={selectedElection.id}
+                                candidateLabel={`${selectedCandidate.name} (${selectedCandidate.party})`}
+                                onBack={() => setVoteStep("view_candidates")}
+                                onVerified={(result) => {
+                                  setFaceVerificationId(result.verificationId);
+                                  setFaceVerificationStatus("matched");
+                                  setFaceVerificationScore(
+                                    Math.round(result.similarityScore * 100),
+                                  );
+                                  setFaceVerificationMessage(result.message);
+                                  setScanImage(
+                                    "server-face-verification-passed",
+                                  );
+                                }}
+                              />
+                            </Suspense>
 
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                               <div className="flex items-center justify-between mb-2">

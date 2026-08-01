@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import {
   User,
   Calendar,
@@ -22,7 +22,7 @@ import {
   Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import BiometricScanner from "./BiometricScanner.tsx";
+const BiometricScanner = React.lazy(() => import("./BiometricScanner.tsx"));
 import SearchableSelect from "./SearchableSelect.tsx";
 import ThemeToggle from "./ui/ThemeToggle.tsx";
 import Stepper from "./ui/Stepper.tsx";
@@ -64,6 +64,66 @@ export default function CompleteProfile({
       setTimeout(() => setSuccessMsg(""), 4500);
     }
   };
+
+  const DRAFT_STORAGE_KEY = "volex-complete-profile-draft";
+
+  const buildDraftPayload = () => ({
+    personal,
+    permCountry,
+    permProvince,
+    permDistrict,
+    permMunicipality,
+    permWardNumber,
+    permTole,
+    permStreetAddress,
+    permPostalCode,
+    permCountryOther,
+    sameAsPermanent,
+    tempCountry,
+    tempProvince,
+    tempDistrict,
+    tempMunicipality,
+    tempWardNumber,
+    tempTole,
+    tempStreetAddress,
+    tempPostalCode,
+    tempCountryOther,
+    fullNameNepali,
+    maritalStatus,
+    educationStatus,
+    bloodGroup,
+    nationality,
+    fatherName,
+    fatherNameNepali,
+    motherName,
+    motherNameNepali,
+    grandfatherName,
+    grandfatherNameNepali,
+    spouseName,
+    spouseNameNepali,
+    spouseFatherName,
+    spouseFatherNameNepali,
+    spouseMotherName,
+    spouseMotherNameNepali,
+    profilePhoto,
+    citizenshipNumber,
+    citizenshipType,
+    citizenshipIssueDate,
+    citizenshipIssueDistrict,
+    citizenshipIssueAuthority,
+    citizenshipFrontImage,
+    citizenshipBackImage,
+    nidNumber,
+    nidIssueDate,
+    nidStatus,
+    nidFrontImage,
+    nidBackImage,
+    signatureImage,
+    fingerprintImage,
+    faceImage,
+    faceTemplate,
+    currentStep: step,
+  });
 
   // ----------------------------------------------------
   // STEP 1 FIELDS: PERSONAL INFORMATION & EXTENDED ADDRESS SEPARATIONS
@@ -146,13 +206,6 @@ export default function CompleteProfile({
     }
   }, [user]);
 
-  const profileDobAge = personal.dob ? calculateAge(personal.dob) : null;
-  const profileDobAgeMessage = personal.dob
-    ? profileDobAge !== null && profileDobAge >= 18
-      ? `Selected age: ${profileDobAge}. You may continue.`
-      : `Underage: ${profileDobAge}. You must be at least 18 years old.`
-    : "Must be at least 18 years old.";
-
   // Reset temporary address when SameAsPermanent goes from checked to unchecked
   const prevSameAsPermanent = useRef(sameAsPermanent);
   useEffect(() => {
@@ -211,9 +264,9 @@ export default function CompleteProfile({
     let permStr = "";
     if (permCountry === "Nepal") {
       const parts = [
-        permProvince ? `${permProvince}` : "",
+        permProvince ? `${permProvince} Province` : "",
         permDistrict ? `${permDistrict} District` : "",
-        permMunicipality ? `${permMunicipality}` : "",
+        permMunicipality ? `${permMunicipality} Municipality` : "",
         permWardNumber ? `Ward No. ${permWardNumber}` : "",
         permTole ? `${permTole}` : "",
         "Nepal",
@@ -233,9 +286,9 @@ export default function CompleteProfile({
     let tempStr = "";
     if (tempCountry === "Nepal") {
       const parts = [
-        tempProvince ? `${tempProvince}` : "",
+        tempProvince ? `${tempProvince} Province` : "",
         tempDistrict ? `${tempDistrict} District` : "",
-        tempMunicipality ? `${tempMunicipality}` : "",
+        tempMunicipality ? `${tempMunicipality} Municipality` : "",
         tempWardNumber ? `Ward No. ${tempWardNumber}` : "",
         tempTole ? `${tempTole}` : "",
         "Nepal",
@@ -341,8 +394,18 @@ export default function CompleteProfile({
   // STEP 2 FIELDS: PROFILE PICTURE
   // ----------------------------------------------------
   const [profilePhoto, setProfilePhoto] = useState<string>("");
+  const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] =
+    useState<string>("");
   const [cropConfig, setCropConfig] = useState({ zoom: 1, rotate: 0 });
   const [profilePhotoName, setProfilePhotoName] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(profilePhotoPreviewUrl);
+      }
+    };
+  }, [profilePhotoPreviewUrl]);
 
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -356,7 +419,14 @@ export default function CompleteProfile({
       setProfilePhotoName(file.name);
       const reader = new FileReader();
       reader.onload = () => {
-        setProfilePhoto(reader.result as string);
+        const dataUrl = reader.result as string;
+        setProfilePhoto(dataUrl);
+        setProfilePhotoPreviewUrl((prev) => {
+          if (prev.startsWith("blob:")) {
+            URL.revokeObjectURL(prev);
+          }
+          return URL.createObjectURL(file);
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -366,8 +436,6 @@ export default function CompleteProfile({
   // STEP 3 FIELDS: CITIZENSHIP CARD & DIGITAL SIGNATURE
   // ----------------------------------------------------
   const [citizenshipNumber, setCitizenshipNumber] = useState("");
-  const [citizenshipNumberAutoFilled, setCitizenshipNumberAutoFilled] =
-    useState(false);
   const [citizenshipFrontImage, setCitizenshipFrontImage] =
     useState<string>("");
   const [citizenshipBackImage, setCitizenshipBackImage] = useState<string>("");
@@ -396,8 +464,6 @@ export default function CompleteProfile({
 
   const [citizenshipType, setCitizenshipType] = useState("By Descent");
   const [citizenshipIssueDate, setCitizenshipIssueDate] = useState("");
-  const [citizenshipIssueDateAutoFilled, setCitizenshipIssueDateAutoFilled] =
-    useState(false);
   const [citizenshipIssueDistrict, setCitizenshipIssueDistrict] = useState("");
   const [citizenshipIssueAuthority, setCitizenshipIssueAuthority] = useState(
     "District Administration Office",
@@ -412,22 +478,11 @@ export default function CompleteProfile({
   // Fingerprint Registration states and simulator
   const [fingerprintImage, setFingerprintImage] = useState<string>("");
   const [isFingerprinting, setIsFingerprinting] = useState<boolean>(false);
-  const [fingerprintProgress, setFingerprintProgress] = useState<number>(0);
-  const [fingerprintLogs, setFingerprintLogs] = useState<string[]>([]);
   const [fingerprintStatus, setFingerprintStatus] = useState<
     "idle" | "checking" | "clear" | "duplicate"
   >("idle");
   const [fingerprintMatchUser, setFingerprintMatchUser] = useState<string>("");
-  const [fingerprintCaptureMode, setFingerprintCaptureMode] = useState<
-    "camera" | "upload" | "hardware"
-  >("camera");
-  const [platformBiometricsAvailable, setPlatformBiometricsAvailable] =
-    useState<boolean | null>(null);
-  const [externalSensorDetected, setExternalSensorDetected] =
-    useState<boolean>(false);
   const [fingerprintCameraActive, setFingerprintCameraActive] = useState(false);
-  const fingerprintIntervalRef = useRef<any>(null);
-  const fingerprintInputRef = useRef<HTMLInputElement | null>(null);
   const fingerprintVideoRef = useRef<HTMLVideoElement | null>(null);
   const fingerprintStreamRef = useRef<MediaStream | null>(null);
 
@@ -491,50 +546,7 @@ export default function CompleteProfile({
   };
 
   useEffect(() => {
-    // 1. Detection of high-precision Windows / platform credential capability
-    if (window.PublicKeyCredential) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then((available) => {
-          setPlatformBiometricsAvailable(available);
-          if (available) {
-            setFingerprintLogs((prev) => [
-              ...prev,
-              "✔ Platform Biometric Authenticator is verified & active (Windows Hello/Touch ID/FaceID).",
-            ]);
-          } else {
-            setFingerprintLogs((prev) => [
-              ...prev,
-              "ℹ platform security key/biometric module returned idle status.",
-            ]);
-          }
-        })
-        .catch(() => {
-          setPlatformBiometricsAvailable(false);
-          setFingerprintLogs((prev) => [
-            ...prev,
-            "ℹ Local host platform biometrics module restricted.",
-          ]);
-        });
-    } else {
-      setPlatformBiometricsAvailable(false);
-      setFingerprintLogs((prev) => [
-        ...prev,
-        "ℹ WebAuthn Biometrics API unsupported in current iframe sandbox.",
-      ]);
-    }
-
-    // 2. Detection of external USB or FIDO security keys
-    if (navigator.credentials) {
-      setExternalSensorDetected(true);
-      setFingerprintLogs((prev) => [
-        ...prev,
-        "✔ Multi-device FIDO/WebAuthn USB keys and external biometrics drivers identified.",
-      ]);
-    }
-
     return () => {
-      if (fingerprintIntervalRef.current)
-        clearInterval(fingerprintIntervalRef.current);
       if (fingerprintStreamRef.current) {
         fingerprintStreamRef.current
           .getTracks()
@@ -571,10 +583,6 @@ export default function CompleteProfile({
   const validateFingerprintImage = async (imageData: string) => {
     if (!imageData) return;
     setFingerprintStatus("checking");
-    setFingerprintLogs((prev) => [
-      ...prev,
-      "🔎 Comparing the fresh fingerprint capture with existing voter records...",
-    ]);
 
     try {
       const response = await fetch("/api/fingerprint/validate", {
@@ -591,10 +599,6 @@ export default function CompleteProfile({
         setFingerprintMatchUser(
           data.matchedUser?.fullName || "another registered voter",
         );
-        setFingerprintLogs((prev) => [
-          ...prev,
-          `⚠️ Duplicate biometric match detected for ${data.matchedUser?.fullName || "an existing voter"}.`,
-        ]);
         triggerToast(
           `Fingerprint already linked to ${data.matchedUser?.fullName || "an existing voter"}. Please use another finger or contact support.`,
           true,
@@ -602,17 +606,13 @@ export default function CompleteProfile({
       } else {
         setFingerprintStatus("clear");
         setFingerprintMatchUser("");
-        setFingerprintLogs((prev) => [
-          ...prev,
-          "✔ Fingerprint image is unique and clear for voter registration.",
-        ]);
       }
     } catch (error) {
+      // If API fails, allow user to proceed with manual review
       setFingerprintStatus("clear");
-      setFingerprintLogs((prev) => [
-        ...prev,
-        "⚠️ Duplicate fingerprint check could not be completed. Proceeding with manual review.",
-      ]);
+      console.warn(
+        "Fingerprint validation API unavailable, proceeding with manual review",
+      );
     }
   };
 
@@ -620,11 +620,6 @@ export default function CompleteProfile({
     if (fingerprintImage || isFingerprinting) return;
 
     setIsFingerprinting(true);
-    setFingerprintProgress(0);
-    setFingerprintLogs((prev) => [
-      ...prev,
-      "[CAMERA READY]: Opening a live camera preview for a clean dual-finger capture...",
-    ]);
 
     if (
       typeof window === "undefined" ||
@@ -653,17 +648,8 @@ export default function CompleteProfile({
         await fingerprintVideoRef.current.play();
       }
       setFingerprintCameraActive(true);
-      setFingerprintCaptureMode("camera");
-      setFingerprintLogs((prev) => [
-        ...prev,
-        "📹 Live camera preview is active. Align both fingers in the frame for a clear capture.",
-      ]);
     } catch (error: any) {
       setIsFingerprinting(false);
-      setFingerprintLogs((prev) => [
-        ...prev,
-        `⚠️ Camera preview could not open (${error.message || "permission denied"}). Please use upload instead.`,
-      ]);
       triggerToast(
         "Camera access was blocked. You can still upload a fingerprint image manually.",
         true,
@@ -688,26 +674,8 @@ export default function CompleteProfile({
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = canvas.toDataURL("image/jpeg", 0.95);
     setFingerprintImage(imageData);
-    setFingerprintProgress(100);
-    setFingerprintLogs((prev) => [
-      ...prev,
-      "📸 Fingerprint image captured from the live camera view and queued for verification.",
-    ]);
     stopFingerprintCamera();
     await validateFingerprintImage(imageData);
-  };
-
-  const cancelFingerprintScan = () => {
-    if (fingerprintIntervalRef.current) {
-      clearInterval(fingerprintIntervalRef.current);
-      fingerprintIntervalRef.current = null;
-    }
-    stopFingerprintCamera();
-    setFingerprintProgress(0);
-    setFingerprintLogs((prev) => [
-      ...prev,
-      "✖ Scan cancelled by user. Biometric verification resets.",
-    ]);
   };
 
   const handleFingerprintImageUpload = async (
@@ -737,10 +705,6 @@ export default function CompleteProfile({
           );
           if (compressed) {
             imageData = compressed;
-            setFingerprintLogs((prev) => [
-              ...prev,
-              "⚙️ Uploaded fingerprint image was large and was automatically compressed.",
-            ]);
           } else {
             return triggerToast(
               `Uploaded fingerprint image exceeds ${Math.round(
@@ -752,13 +716,7 @@ export default function CompleteProfile({
         }
 
         setFingerprintImage(imageData);
-        setFingerprintCaptureMode("upload");
         setIsFingerprinting(false);
-        setFingerprintProgress(100);
-        setFingerprintLogs((prev) => [
-          ...prev,
-          "📷 Fingerprint image uploaded from the device camera or gallery and queued for verification.",
-        ]);
         await validateFingerprintImage(imageData);
       };
       reader.readAsDataURL(file);
@@ -793,7 +751,6 @@ export default function CompleteProfile({
               const nh = img.height * ratio;
               const x = (canvas.width - nw) / 2;
               const y = (canvas.height - nh) / 2;
-              // Make canvas background dark and draw white signature image, or draw directly
               ctx.drawImage(img, x, y, nw, nh);
             };
             img.src = base64;
@@ -820,6 +777,22 @@ export default function CompleteProfile({
     }
   }, [step]);
 
+  const getCanvasCoordinates = (
+    e:
+      | React.MouseEvent<HTMLCanvasElement>
+      | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  };
+
   const startDrawing = (
     e:
       | React.MouseEvent<HTMLCanvasElement>
@@ -831,10 +804,8 @@ export default function CompleteProfile({
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.beginPath();
-      const rect = canvas.getBoundingClientRect();
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      ctx.moveTo(clientX - rect.left, clientY - rect.top);
+      const { x, y } = getCanvasCoordinates(e);
+      ctx.moveTo(x, y);
     }
   };
 
@@ -848,10 +819,8 @@ export default function CompleteProfile({
     const canvas = sigCanvasRef.current;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      ctx.lineTo(clientX - rect.left, clientY - rect.top);
+      const { x, y } = getCanvasCoordinates(e);
+      ctx.lineTo(x, y);
       ctx.stroke();
     }
   };
@@ -876,49 +845,6 @@ export default function CompleteProfile({
     }
   };
 
-  const normalizeCitizenshipNumber = (value: string) => {
-    const match = value.match(/[A-Za-z]{1,3}-\d{2,6}-\d{2,6}/);
-    return match ? match[0].toUpperCase() : value.trim();
-  };
-
-  const normalizeIssueDate = (value: string) => {
-    const dateMatch = value.match(
-      /\b(\d{4}[-\/]\d{2}[-\/]\d{2}|\d{2}[-\/]\d{2}[-\/]\d{4})\b/,
-    );
-    if (!dateMatch) return "";
-    const raw = dateMatch[0];
-    if (/^\d{4}[-\/]/.test(raw)) {
-      return raw.replace(/\//g, "-");
-    }
-    const [day, month, year] = raw.split(/[-\/]/);
-    if (!day || !month || !year) return "";
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  };
-
-  const parseCitizenshipFileHints = (fileName: string) => {
-    const normalized = fileName.replace(/[_\s]+/g, " ");
-    return {
-      number: normalizeCitizenshipNumber(normalized),
-      issueDate: normalizeIssueDate(normalized),
-    };
-  };
-
-  const handleCitizenshipNumberChange = (value: string) => {
-    const parsedNumber = normalizeCitizenshipNumber(value);
-    const parsedDate = normalizeIssueDate(value);
-    setCitizenshipNumber(parsedNumber);
-    if (
-      parsedDate &&
-      (!citizenshipIssueDate || citizenshipIssueDateAutoFilled)
-    ) {
-      setCitizenshipIssueDate(parsedDate);
-      setCitizenshipIssueDateAutoFilled(true);
-    }
-    if (!parsedDate && citizenshipIssueDateAutoFilled) {
-      setCitizenshipIssueDateAutoFilled(false);
-    }
-  };
-
   const handleDocumentChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     side: "front" | "back",
@@ -927,19 +853,6 @@ export default function CompleteProfile({
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
         return triggerToast("Document file must be less than 2 MB.", true);
-      }
-
-      const hints = parseCitizenshipFileHints(file.name);
-      if (hints.number && !citizenshipNumber) {
-        setCitizenshipNumber(hints.number);
-        setCitizenshipNumberAutoFilled(true);
-      }
-      if (
-        hints.issueDate &&
-        (!citizenshipIssueDate || citizenshipIssueDateAutoFilled)
-      ) {
-        setCitizenshipIssueDate(hints.issueDate);
-        setCitizenshipIssueDateAutoFilled(true);
       }
 
       const reader = new FileReader();
@@ -960,204 +873,6 @@ export default function CompleteProfile({
   const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
   const [activeMismatches, setActiveMismatches] = useState<any[]>([]);
   const [mismatchesResolved, setMismatchesResolved] = useState(false);
-  const [mismatchResolvingOption, setMismatchResolvingOption] =
-    useState<string>("");
-
-  const serializeStates = () => {
-    return {
-      personal,
-      permCountry,
-      permProvince,
-      permDistrict,
-      permMunicipality,
-      permWardNumber,
-      permTole,
-      permStreetAddress,
-      permPostalCode,
-      permCountryOther,
-      sameAsPermanent,
-      tempCountry,
-      tempProvince,
-      tempDistrict,
-      tempMunicipality,
-      tempWardNumber,
-      tempTole,
-      tempStreetAddress,
-      tempPostalCode,
-      tempCountryOther,
-      fullNameNepali,
-      maritalStatus,
-      educationStatus,
-      bloodGroup,
-      nationality,
-      fatherName,
-      fatherNameNepali,
-      motherName,
-      motherNameNepali,
-      grandfatherName,
-      grandfatherNameNepali,
-      spouseName,
-      spouseNameNepali,
-      spouseFatherName,
-      spouseFatherNameNepali,
-      spouseMotherName,
-      spouseMotherNameNepali,
-      profilePhoto,
-      profilePhotoName,
-      cropConfig,
-      citizenshipNumber,
-      citizenshipNumberAutoFilled,
-      citizenshipType,
-      citizenshipIssueDate,
-      citizenshipIssueDateAutoFilled,
-      citizenshipIssueDistrict,
-      citizenshipIssueAuthority,
-      citizenshipFrontImage,
-      citizenshipBackImage,
-      nidNumber,
-      nidIssueDate,
-      nidStatus,
-      nidFrontImage,
-      nidBackImage,
-      signatureImage,
-      fingerprintImage,
-      faceImage,
-      faceTemplate,
-    };
-  };
-
-  const deserializeStates = (data: any) => {
-    if (!data) return;
-    if (data.personal) setPersonal(data.personal);
-    if (data.permCountry !== undefined) setPermCountry(data.permCountry);
-    if (data.permProvince !== undefined) setPermProvince(data.permProvince);
-    if (data.permDistrict !== undefined) setPermDistrict(data.permDistrict);
-    if (data.permMunicipality !== undefined)
-      setPermMunicipality(data.permMunicipality);
-    if (data.permWardNumber !== undefined)
-      setPermWardNumber(data.permWardNumber);
-    if (data.permTole !== undefined) setPermTole(data.permTole);
-    if (data.permStreetAddress !== undefined)
-      setPermStreetAddress(data.permStreetAddress);
-    if (data.permPostalCode !== undefined)
-      setPermPostalCode(data.permPostalCode);
-    if (data.permCountryOther !== undefined)
-      setPermCountryOther(data.permCountryOther);
-    if (data.sameAsPermanent !== undefined)
-      setSameAsPermanent(data.sameAsPermanent);
-    if (data.tempCountry !== undefined) setTempCountry(data.tempCountry);
-    if (data.tempProvince !== undefined) setTempProvince(data.tempProvince);
-    if (data.tempDistrict !== undefined) setTempDistrict(data.tempDistrict);
-    if (data.tempMunicipality !== undefined)
-      setTempMunicipality(data.tempMunicipality);
-    if (data.tempWardNumber !== undefined)
-      setTempWardNumber(data.tempWardNumber);
-    if (data.tempTole !== undefined) setTempTole(data.tempTole);
-    if (data.tempStreetAddress !== undefined)
-      setTempStreetAddress(data.tempStreetAddress);
-    if (data.tempPostalCode !== undefined)
-      setTempPostalCode(data.tempPostalCode);
-    if (data.tempCountryOther !== undefined)
-      setTempCountryOther(data.tempCountryOther);
-
-    if (data.fullNameNepali !== undefined)
-      setFullNameNepali(data.fullNameNepali);
-    if (data.maritalStatus !== undefined) setMaritalStatus(data.maritalStatus);
-    if (data.educationStatus !== undefined)
-      setEducationStatus(data.educationStatus);
-    if (data.bloodGroup !== undefined) setBloodGroup(data.bloodGroup);
-    if (data.nationality !== undefined) setNationality(data.nationality);
-    if (data.fatherName !== undefined) setFatherName(data.fatherName);
-    if (data.fatherNameNepali !== undefined)
-      setFatherNameNepali(data.fatherNameNepali);
-    if (data.motherName !== undefined) setMotherName(data.motherName);
-    if (data.motherNameNepali !== undefined)
-      setMotherNameNepali(data.motherNameNepali);
-    if (data.grandfatherName !== undefined)
-      setGrandfatherName(data.grandfatherName);
-    if (data.grandfatherNameNepali !== undefined)
-      setGrandfatherNameNepali(data.grandfatherNameNepali);
-    if (data.spouseName !== undefined) setSpouseName(data.spouseName);
-    if (data.spouseNameNepali !== undefined)
-      setSpouseNameNepali(data.spouseNameNepali);
-    if (data.spouseFatherName !== undefined)
-      setSpouseFatherName(data.spouseFatherName);
-    if (data.spouseFatherNameNepali !== undefined)
-      setSpouseFatherNameNepali(data.spouseFatherNameNepali);
-    if (data.spouseMotherName !== undefined)
-      setSpouseMotherName(data.spouseMotherName);
-    if (data.spouseMotherNameNepali !== undefined)
-      setSpouseMotherNameNepali(data.spouseMotherNameNepali);
-
-    if (data.profilePhoto !== undefined) setProfilePhoto(data.profilePhoto);
-    if (data.profilePhotoName !== undefined)
-      setProfilePhotoName(data.profilePhotoName);
-    if (data.cropConfig !== undefined) setCropConfig(data.cropConfig);
-
-    if (data.citizenshipNumber !== undefined) {
-      setCitizenshipNumber(data.citizenshipNumber);
-      setCitizenshipNumberAutoFilled(false);
-    }
-    if (data.citizenshipType !== undefined)
-      setCitizenshipType(data.citizenshipType);
-    if (data.citizenshipIssueDate !== undefined) {
-      setCitizenshipIssueDate(data.citizenshipIssueDate);
-      setCitizenshipIssueDateAutoFilled(false);
-    }
-    if (data.citizenshipIssueDistrict !== undefined)
-      setCitizenshipIssueDistrict(data.citizenshipIssueDistrict);
-    if (data.citizenshipIssueAuthority !== undefined)
-      setCitizenshipIssueAuthority(data.citizenshipIssueAuthority);
-    if (data.citizenshipFrontImage !== undefined)
-      setCitizenshipFrontImage(data.citizenshipFrontImage);
-    if (data.citizenshipBackImage !== undefined)
-      setCitizenshipBackImage(data.citizenshipBackImage);
-
-    if (data.nidNumber !== undefined) setNidNumber(data.nidNumber);
-    if (data.nidIssueDate !== undefined) setNidIssueDate(data.nidIssueDate);
-    if (data.nidStatus !== undefined) setNidStatus(data.nidStatus);
-    if (data.nidFrontImage !== undefined) setNidFrontImage(data.nidFrontImage);
-    if (data.nidBackImage !== undefined) setNidBackImage(data.nidBackImage);
-
-    if (data.signatureImage !== undefined)
-      setSignatureImage(data.signatureImage);
-    if (data.fingerprintImage !== undefined)
-      setFingerprintImage(data.fingerprintImage);
-    if (data.faceImage !== undefined) setFaceImage(data.faceImage);
-    if (data.faceTemplate !== undefined) setFaceTemplate(data.faceTemplate);
-  };
-
-  // Draft persistence has been disabled entirely for this workflow.
-
-  // 4. Real-time USB connect/disconnect event listener simulation
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && "usb" in navigator) {
-      const handleConnect = (e: any) => {
-        setExternalSensorDetected(true);
-        setFingerprintLogs((prev) => [
-          ...prev,
-          `🔌 External Fingerprint Sensor connected: ${e?.device?.productName || "SecuGen Hamster Pro 20"}`,
-        ]);
-      };
-      const handleDisconnect = () => {
-        setExternalSensorDetected(false);
-        setFingerprintLogs((prev) => [
-          ...prev,
-          "❌ External USB Fingerprint Sensor disconnected.",
-        ]);
-      };
-      (navigator as any).usb.addEventListener("connect", handleConnect);
-      (navigator as any).usb.addEventListener("disconnect", handleDisconnect);
-
-      return () => {
-        (navigator as any).usb.removeEventListener("connect", handleConnect);
-        (navigator as any).usb.removeEventListener(
-          "disconnect",
-          handleDisconnect,
-        );
-      };
-    }
-  }, []);
 
   const checkMismatches = () => {
     const list = [];
@@ -1372,20 +1087,285 @@ export default function CompleteProfile({
       }
     }
 
-    // Save & Continue Action: draft persistence removed, proceed directly.
+    // Save & Continue Action: persist draft to backend
     setIsSavingStep(true);
-    const nextStepVal = step + 1;
-    setStep(nextStepVal);
-    triggerToast("✅ Profile progress advanced.");
-    setIsSavingStep(false);
+    try {
+      // Save draft to backend
+      await saveDraft();
+      const nextStepVal = step + 1;
+      setStep(nextStepVal);
+      triggerToast("✅ Profile progress advanced and saved.");
+    } catch (error: any) {
+      triggerToast(error.message || "Failed to save progress", true);
+    } finally {
+      setIsSavingStep(false);
+    }
   };
 
   const handlePrev = () => {
     setStep((s) => s - 1);
   };
 
+  // Save draft function
+  const saveDraft = async () => {
+    const payload = buildDraftPayload();
+
+    try {
+      const response = await fetch("/api/profile/save-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          try {
+            return await response.json();
+          } catch {
+            // Ignore malformed JSON and fall back to local persistence.
+          }
+        }
+      }
+    } catch {
+      // Ignore network or route errors and fall back to local persistence.
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          DRAFT_STORAGE_KEY,
+          JSON.stringify({ draft: payload }),
+        );
+      } catch {
+        // Ignore storage errors.
+      }
+    }
+
+    return { success: true, storedLocally: true };
+  };
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      try {
+        const response = await fetch("/api/profile/load-draft", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            try {
+              const data = await response.json();
+              if (data?.draft) {
+                // Restore draft data
+                const draft = data.draft;
+                if (draft.personal) setPersonal(draft.personal);
+                if (draft.permCountry) setPermCountry(draft.permCountry);
+                if (draft.permProvince) setPermProvince(draft.permProvince);
+                if (draft.permDistrict) setPermDistrict(draft.permDistrict);
+                if (draft.permMunicipality)
+                  setPermMunicipality(draft.permMunicipality);
+                if (draft.permWardNumber)
+                  setPermWardNumber(draft.permWardNumber);
+                if (draft.permTole) setPermTole(draft.permTole);
+                if (draft.permStreetAddress)
+                  setPermStreetAddress(draft.permStreetAddress);
+                if (draft.permPostalCode)
+                  setPermPostalCode(draft.permPostalCode);
+                if (draft.permCountryOther)
+                  setPermCountryOther(draft.permCountryOther);
+                if (draft.sameAsPermanent !== undefined)
+                  setSameAsPermanent(draft.sameAsPermanent);
+                if (draft.tempCountry) setTempCountry(draft.tempCountry);
+                if (draft.tempProvince) setTempProvince(draft.tempProvince);
+                if (draft.tempDistrict) setTempDistrict(draft.tempDistrict);
+                if (draft.tempMunicipality)
+                  setTempMunicipality(draft.tempMunicipality);
+                if (draft.tempWardNumber)
+                  setTempWardNumber(draft.tempWardNumber);
+                if (draft.tempTole) setTempTole(draft.tempTole);
+                if (draft.tempStreetAddress)
+                  setTempStreetAddress(draft.tempStreetAddress);
+                if (draft.tempPostalCode)
+                  setTempPostalCode(draft.tempPostalCode);
+                if (draft.tempCountryOther)
+                  setTempCountryOther(draft.tempCountryOther);
+                if (draft.fullNameNepali)
+                  setFullNameNepali(draft.fullNameNepali);
+                if (draft.maritalStatus) setMaritalStatus(draft.maritalStatus);
+                if (draft.educationStatus)
+                  setEducationStatus(draft.educationStatus);
+                if (draft.bloodGroup) setBloodGroup(draft.bloodGroup);
+                if (draft.nationality) setNationality(draft.nationality);
+                if (draft.fatherName) setFatherName(draft.fatherName);
+                if (draft.fatherNameNepali)
+                  setFatherNameNepali(draft.fatherNameNepali);
+                if (draft.motherName) setMotherName(draft.motherName);
+                if (draft.motherNameNepali)
+                  setMotherNameNepali(draft.motherNameNepali);
+                if (draft.grandfatherName)
+                  setGrandfatherName(draft.grandfatherName);
+                if (draft.grandfatherNameNepali)
+                  setGrandfatherNameNepali(draft.grandfatherNameNepali);
+                if (draft.spouseName) setSpouseName(draft.spouseName);
+                if (draft.spouseNameNepali)
+                  setSpouseNameNepali(draft.spouseNameNepali);
+                if (draft.spouseFatherName)
+                  setSpouseFatherName(draft.spouseFatherName);
+                if (draft.spouseFatherNameNepali)
+                  setSpouseFatherNameNepali(draft.spouseFatherNameNepali);
+                if (draft.spouseMotherName)
+                  setSpouseMotherName(draft.spouseMotherName);
+                if (draft.spouseMotherNameNepali)
+                  setSpouseMotherNameNepali(draft.spouseMotherNameNepali);
+                if (draft.profilePhoto) {
+                  setProfilePhoto(draft.profilePhoto);
+                  setProfilePhotoPreviewUrl(draft.profilePhoto);
+                }
+                if (draft.citizenshipNumber)
+                  setCitizenshipNumber(draft.citizenshipNumber);
+                if (draft.citizenshipType)
+                  setCitizenshipType(draft.citizenshipType);
+                if (draft.citizenshipIssueDate)
+                  setCitizenshipIssueDate(draft.citizenshipIssueDate);
+                if (draft.citizenshipIssueDistrict)
+                  setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
+                if (draft.citizenshipIssueAuthority)
+                  setCitizenshipIssueAuthority(draft.citizenshipIssueAuthority);
+                if (draft.citizenshipFrontImage)
+                  setCitizenshipFrontImage(draft.citizenshipFrontImage);
+                if (draft.citizenshipBackImage)
+                  setCitizenshipBackImage(draft.citizenshipBackImage);
+                if (draft.nidNumber) setNidNumber(draft.nidNumber);
+                if (draft.nidIssueDate) setNidIssueDate(draft.nidIssueDate);
+                if (draft.nidStatus) setNidStatus(draft.nidStatus);
+                if (draft.nidFrontImage) setNidFrontImage(draft.nidFrontImage);
+                if (draft.nidBackImage) setNidBackImage(draft.nidBackImage);
+                if (draft.signatureImage)
+                  setSignatureImage(draft.signatureImage);
+                if (draft.fingerprintImage)
+                  setFingerprintImage(draft.fingerprintImage);
+                if (draft.faceImage) setFaceImage(draft.faceImage);
+                if (draft.faceTemplate) setFaceTemplate(draft.faceTemplate);
+                if (draft.currentStep) setStep(draft.currentStep);
+              }
+            } catch {
+              // Ignore malformed server responses and try local storage.
+            }
+          }
+        }
+      } catch {
+        // Ignore draft restoration errors and proceed with the form.
+      }
+
+      if (typeof window !== "undefined") {
+        try {
+          const storedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+          if (storedDraft) {
+            const parsed = JSON.parse(storedDraft);
+            const draft = parsed?.draft;
+            if (draft?.personal) setPersonal(draft.personal);
+            if (draft?.permCountry) setPermCountry(draft.permCountry);
+            if (draft?.permProvince) setPermProvince(draft.permProvince);
+            if (draft?.permDistrict) setPermDistrict(draft.permDistrict);
+            if (draft?.permMunicipality)
+              setPermMunicipality(draft.permMunicipality);
+            if (draft?.permWardNumber) setPermWardNumber(draft.permWardNumber);
+            if (draft?.permTole) setPermTole(draft.permTole);
+            if (draft?.permStreetAddress)
+              setPermStreetAddress(draft.permStreetAddress);
+            if (draft?.permPostalCode) setPermPostalCode(draft.permPostalCode);
+            if (draft?.permCountryOther)
+              setPermCountryOther(draft.permCountryOther);
+            if (draft?.sameAsPermanent !== undefined)
+              setSameAsPermanent(draft.sameAsPermanent);
+            if (draft?.tempCountry) setTempCountry(draft.tempCountry);
+            if (draft?.tempProvince) setTempProvince(draft.tempProvince);
+            if (draft?.tempDistrict) setTempDistrict(draft.tempDistrict);
+            if (draft?.tempMunicipality)
+              setTempMunicipality(draft.tempMunicipality);
+            if (draft?.tempWardNumber) setTempWardNumber(draft.tempWardNumber);
+            if (draft?.tempTole) setTempTole(draft.tempTole);
+            if (draft?.tempStreetAddress)
+              setTempStreetAddress(draft.tempStreetAddress);
+            if (draft?.tempPostalCode) setTempPostalCode(draft.tempPostalCode);
+            if (draft?.tempCountryOther)
+              setTempCountryOther(draft.tempCountryOther);
+            if (draft?.fullNameNepali) setFullNameNepali(draft.fullNameNepali);
+            if (draft?.maritalStatus) setMaritalStatus(draft.maritalStatus);
+            if (draft?.educationStatus)
+              setEducationStatus(draft.educationStatus);
+            if (draft?.bloodGroup) setBloodGroup(draft.bloodGroup);
+            if (draft?.nationality) setNationality(draft.nationality);
+            if (draft?.fatherName) setFatherName(draft.fatherName);
+            if (draft?.fatherNameNepali)
+              setFatherNameNepali(draft.fatherNameNepali);
+            if (draft?.motherName) setMotherName(draft.motherName);
+            if (draft?.motherNameNepali)
+              setMotherNameNepali(draft.motherNameNepali);
+            if (draft?.grandfatherName)
+              setGrandfatherName(draft.grandfatherName);
+            if (draft?.grandfatherNameNepali)
+              setGrandfatherNameNepali(draft.grandfatherNameNepali);
+            if (draft?.spouseName) setSpouseName(draft.spouseName);
+            if (draft?.spouseNameNepali)
+              setSpouseNameNepali(draft.spouseNameNepali);
+            if (draft?.spouseFatherName)
+              setSpouseFatherName(draft.spouseFatherName);
+            if (draft?.spouseFatherNameNepali)
+              setSpouseFatherNameNepali(draft.spouseFatherNameNepali);
+            if (draft?.spouseMotherName)
+              setSpouseMotherName(draft.spouseMotherName);
+            if (draft?.spouseMotherNameNepali)
+              setSpouseMotherNameNepali(draft.spouseMotherNameNepali);
+            if (draft?.profilePhoto) {
+              setProfilePhoto(draft.profilePhoto);
+              setProfilePhotoPreviewUrl(draft.profilePhoto);
+            }
+            if (draft?.citizenshipNumber)
+              setCitizenshipNumber(draft.citizenshipNumber);
+            if (draft?.citizenshipType)
+              setCitizenshipType(draft.citizenshipType);
+            if (draft?.citizenshipIssueDate)
+              setCitizenshipIssueDate(draft.citizenshipIssueDate);
+            if (draft?.citizenshipIssueDistrict)
+              setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
+            if (draft?.citizenshipIssueAuthority)
+              setCitizenshipIssueAuthority(draft.citizenshipIssueAuthority);
+            if (draft?.citizenshipFrontImage)
+              setCitizenshipFrontImage(draft.citizenshipFrontImage);
+            if (draft?.citizenshipBackImage)
+              setCitizenshipBackImage(draft.citizenshipBackImage);
+            if (draft?.nidNumber) setNidNumber(draft.nidNumber);
+            if (draft?.nidIssueDate) setNidIssueDate(draft.nidIssueDate);
+            if (draft?.nidStatus) setNidStatus(draft.nidStatus);
+            if (draft?.nidFrontImage) setNidFrontImage(draft.nidFrontImage);
+            if (draft?.nidBackImage) setNidBackImage(draft.nidBackImage);
+            if (draft?.signatureImage) setSignatureImage(draft.signatureImage);
+            if (draft?.fingerprintImage)
+              setFingerprintImage(draft.fingerprintImage);
+            if (draft?.faceImage) setFaceImage(draft.faceImage);
+            if (draft?.faceTemplate) setFaceTemplate(draft.faceTemplate);
+            if (draft?.currentStep) setStep(draft.currentStep);
+          }
+        } catch {
+          // Ignore storage errors.
+        }
+      }
+    };
+
+    loadDraft();
+  }, [token]);
+
   // ----------------------------------------------------
-  // SUBMIT HANDLER: TRANSMITS COMBINED DOCUMENTS TO SIMULATED MONGO
+  // SUBMIT HANDLER: TRANSMITS COMBINED DOCUMENTS TO BACKEND
   // ----------------------------------------------------
   const handleSubmit = async () => {
     try {
@@ -1396,14 +1376,6 @@ export default function CompleteProfile({
         dob: personal.dob,
         gender: personal.gender,
         fingerprintImage,
-        fingerprintCaptureMethod:
-          platformBiometricsAvailable &&
-          typeof window !== "undefined" &&
-          !!window.PublicKeyCredential
-            ? "platform-authenticator"
-            : externalSensorDetected
-              ? "external-sensor"
-              : "mobile-fallback",
         permanentAddress: personal.permanentAddress,
         temporaryAddress: personal.temporaryAddress,
         province: personal.province,
@@ -1448,7 +1420,7 @@ export default function CompleteProfile({
         nidFrontImage,
         nidBackImage,
 
-        // Separate location subfield entries saved in DB securely
+        // Separate location subfield entries
         permCountry:
           permCountry === "Other Country" || permCountry === "Outside Nepal"
             ? permCountryOther
@@ -1506,7 +1478,7 @@ export default function CompleteProfile({
   };
 
   return (
-    <div className="flex-1 bg-[var(--surface-page)] text-[var(--text-primary)] flex flex-col justify-center py-10 px-4 md:px-8 relative transition-colors">
+    <div className="flex-1 bg-gray-950 text-white flex flex-col justify-center py-10 px-4 md:px-8 relative transition-colors">
       {/* Toast elements */}
       {successMsg && (
         <div className="fixed top-6 right-6 z-50 bg-emerald-600 border border-emerald-500 font-medium text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2">
@@ -1521,29 +1493,26 @@ export default function CompleteProfile({
         </div>
       )}
 
-      <div className="max-w-4xl w-full mx-auto bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl text-left relative transition-colors">
+      <div className="max-w-4xl w-full mx-auto bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl text-left relative transition-colors">
         {/* Custom Header with Theme Toggle & Logout option */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--border-subtle)] pb-5 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-800 pb-5 gap-4">
           <div>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-500 dark:text-emerald-400 uppercase">
+            <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-400 uppercase">
               Republic Voter Portal Onboarding
             </span>
-            <h2 className="text-xl md:text-2xl font-black text-[var(--text-primary)] mt-1 uppercase tracking-tight">
+            <h2 className="text-xl md:text-2xl font-black text-white mt-1 uppercase tracking-tight">
               Complete Your Identity Profile
             </h2>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Dear{" "}
-              <strong className="text-[var(--text-primary)]">
-                {user?.fullName}
-              </strong>
-              , provide validated coordinates to secure your democratic profile.
+            <p className="text-xs text-gray-400 mt-1">
+              Dear <strong className="text-white">{user?.fullName}</strong>,
+              provide validated coordinates to secure your democratic profile.
             </p>
-            </div>
+          </div>
           <div className="flex items-center gap-2">
             <ThemeToggle theme={currentTheme} setTheme={setCurrentTheme} />
             <button
               onClick={onLogout}
-              className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
+              className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
             >
               Sign Out
             </button>
@@ -1593,7 +1562,7 @@ export default function CompleteProfile({
               key="step1"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: -20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
@@ -1603,10 +1572,10 @@ export default function CompleteProfile({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
                 <div>
-                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                  <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
                     <span>Gender Identification *</span>
                     {isGenderLocked && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
                         <Lock className="w-3 h-3" /> Registered
                       </span>
                     )}
@@ -1620,7 +1589,7 @@ export default function CompleteProfile({
                             setPersonal({ ...personal, gender: e.target.value })
                     }
                     disabled={isGenderLocked}
-                    className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] text-xs disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 min-h-[42px] text-xs disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -1629,21 +1598,21 @@ export default function CompleteProfile({
                 </div>
 
                 <div>
-                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                  <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
                     <span>Date of Birth (registry) *</span>
                     {isDobLocked && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
                         <Lock className="w-3 h-3" /> Registered
                       </span>
                     )}
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-3 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
+                    <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
                     {isDobLocked ? (
-                      <div className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text.xs text-[var(--text-primary)] font-bold min-h-[42px] flex items-center justify-between">
+                      <div className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white font-bold min-h-[42px] flex items-center justify-between">
                         <span>{personal.dob}</span>
                         {personal.dob && (
-                          <span className="text-[11px] font-normal text-emerald-500 dark:text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          <span className="text-[11px] font-normal text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                             {calculateAge(personal.dob)} Years Old
                           </span>
                         )}
@@ -1659,36 +1628,31 @@ export default function CompleteProfile({
                             dob: e.target.value,
                           })
                         }
-                        className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
                       />
                     )}
                   </div>
                   {isDobLocked && (
-                    <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
+                    <p className="mt-1 text-[10px] text-gray-400">
                       Date of Birth was verified during registration and locked
                       for audit protection.
-                    </p>
-                  )}
-                  {!isDobLocked && personal.dob && (
-                    <p className="mt-1 text-[10px] text-emerald-500 font-mono font-bold">
-                      Selected age: {calculateAge(personal.dob)} years.
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
+                  <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide flex items-center justify-between">
                     <span>Occupation / Profession</span>
                     {isOccupationLocked && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 dark:text-emerald-400 font-mono">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
                         <Lock className="w-3 h-3" /> Registered
                       </span>
                     )}
                   </label>
                   <div className="relative">
-                    <Briefcase className="absolute left-3 top-3 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
+                    <Briefcase className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
                     {isOccupationLocked ? (
-                      <div className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] font-bold min-h-[42px] flex items-center">
+                      <div className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white font-bold min-h-[42px] flex items-center">
                         {user?.occupation || "Not provided"}
                       </div>
                     ) : (
@@ -1704,7 +1668,7 @@ export default function CompleteProfile({
                             occupation: e.target.value,
                           })
                         }
-                        className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] rounded-xl px-9 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-[42px] transition-colors"
                       />
                     )}
                   </div>
@@ -1712,23 +1676,23 @@ export default function CompleteProfile({
               </div>
 
               {/* Extended Family & Lineage Profile section */}
-              <div className="bg-[var(--surface-muted)]/50 p-5 rounded-2xl border border-[var(--border-subtle)] space-y-4">
-                <div className="text-xs text-emerald-500 dark:text-emerald-400 font-extrabold uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2 flex items-center gap-2">
+              <div className="bg-gray-950/50 p-5 rounded-2xl border border-gray-800 space-y-4">
+                <div className="text-xs text-emerald-400 font-extrabold uppercase tracking-wider border-b border-gray-800 pb-2 flex items-center gap-2">
                   <BadgePlus className="w-4 h-4" />
                   <span>Extended Voter Demographics</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
                   <div>
-                    <label className="block text-[var(--text-secondary)] font-bold uppercase mb-1 text-[11px]">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px]">
                       Full Name (English)
                     </label>
-                    <div className="w-full min-h-[42px] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs text-[var(--text-primary)] font-bold flex items-center">
+                    <div className="w-full min-h-[42px] rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-white font-bold flex items-center">
                       {user?.fullName || "Not provided"}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       Full Name (Nepali - unicode) *
                     </label>
                     <input
@@ -1736,18 +1700,18 @@ export default function CompleteProfile({
                       placeholder="उदाहारण: थोमस एन्डरसन"
                       value={fullNameNepali}
                       onChange={(e) => setFullNameNepali(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       Marital Status *
                     </label>
                     <select
                       value={maritalStatus}
                       onChange={(e) => setMaritalStatus(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
                     >
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
@@ -1757,7 +1721,7 @@ export default function CompleteProfile({
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       Highest Educational Qualification
                     </label>
                     <input
@@ -1765,18 +1729,18 @@ export default function CompleteProfile({
                       placeholder="e.g. Bachelor in Science"
                       value={educationStatus}
                       onChange={(e) => setEducationStatus(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       Blood Group
                     </label>
                     <select
                       value={bloodGroup}
                       onChange={(e) => setBloodGroup(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-[34px]"
                     >
                       <option value="">Select Blood Group (Optional)</option>
                       <option value="A+">A+</option>
@@ -1791,7 +1755,7 @@ export default function CompleteProfile({
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       Nationality *
                     </label>
                     <input
@@ -1799,7 +1763,7 @@ export default function CompleteProfile({
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
                       placeholder="e.g. Nepali"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -1808,8 +1772,8 @@ export default function CompleteProfile({
               {/* ========================================== */}
               {/* PERMANENT ADDRESS SECTION                  */}
               {/* ========================================== */}
-              <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-800/60 pb-2.5">
+              <div className="bg-gray-950/40 p-5 rounded-2xl border border-gray-800/80 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-800/60 pb-2.5">
                   <MapPin className="w-4 h-4 text-emerald-400" />
                   <span className="text-white font-black text-xs uppercase tracking-wider">
                     Permanent Residential Address *
@@ -1817,8 +1781,8 @@ export default function CompleteProfile({
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="w-full bg-slate-950 border rounded-xl px-3 py-3 text-white flex items-center justify-between min-h-[38px] border-slate-800">
-                    <span className="text-[10px] uppercase tracking-wide font-semibold text-slate-300">
+                  <div className="w-full bg-gray-950 border rounded-xl px-3 py-3 text-white flex items-center justify-between min-h-[38px] border-gray-800">
+                    <span className="text-[10px] uppercase tracking-wide font-semibold text-gray-300">
                       Country
                     </span>
                     <span className="text-sm font-bold">Nepal</span>
@@ -1894,7 +1858,7 @@ export default function CompleteProfile({
                     </div>
 
                     <div className="md:col-span-1">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Ward Number *
                       </label>
                       <input
@@ -1903,21 +1867,21 @@ export default function CompleteProfile({
                         maxLength={3}
                         value={permWardNumber}
                         onChange={(e) => setPermWardNumber(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permWardNumber
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permWardNumber && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permWardNumber}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Tole / Street Name *
                       </label>
                       <input
@@ -1925,14 +1889,14 @@ export default function CompleteProfile({
                         placeholder="e.g. New Baneshwor"
                         value={permTole}
                         onChange={(e) => setPermTole(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permTole
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permTole && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permTole}
                         </span>
                       )}
@@ -1942,7 +1906,7 @@ export default function CompleteProfile({
                   /* If selected Permanent Country in Onboarding is outside Nepal */
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
                     <div>
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         State / Province / Region *
                       </label>
                       <input
@@ -1950,21 +1914,21 @@ export default function CompleteProfile({
                         placeholder="e.g. California"
                         value={permProvince}
                         onChange={(e) => setPermProvince(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permProvince
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permProvince && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permProvince}
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         City *
                       </label>
                       <input
@@ -1972,21 +1936,21 @@ export default function CompleteProfile({
                         placeholder="e.g. Los Angeles"
                         value={permMunicipality}
                         onChange={(e) => setPermMunicipality(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permMunicipality
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permMunicipality && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permMunicipality}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Street Address *
                       </label>
                       <input
@@ -1994,21 +1958,21 @@ export default function CompleteProfile({
                         placeholder="e.g. 104 Pine Street, Apt 4"
                         value={permStreetAddress}
                         onChange={(e) => setPermStreetAddress(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permStreetAddress
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permStreetAddress && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permStreetAddress}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         ZIP / Postal Code *
                       </label>
                       <input
@@ -2016,14 +1980,14 @@ export default function CompleteProfile({
                         placeholder="e.g. 90210"
                         value={permPostalCode}
                         onChange={(e) => setPermPostalCode(e.target.value)}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.permPostalCode
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.permPostalCode && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.permPostalCode}
                         </span>
                       )}
@@ -2035,13 +1999,13 @@ export default function CompleteProfile({
               {/* ========================================== */}
               {/* SYNCHRONIZER CHECKBOX                      */}
               {/* ========================================== */}
-              <div className="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl flex items-center gap-3 hover:border-emerald-500/40 transition-colors">
+              <div className="bg-gray-950 border border-gray-800/80 p-4 rounded-2xl flex items-center gap-3 hover:border-emerald-500/40 transition-colors">
                 <input
                   type="checkbox"
                   id="sameAsPermanent"
                   checked={sameAsPermanent}
                   onChange={(e) => setSameAsPermanent(e.target.checked)}
-                  className="w-4.5 h-4.5 rounded text-emerald-500 bg-slate-900 border-slate-700 outline-none focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                  className="w-4.5 h-4.5 rounded text-emerald-500 bg-gray-900 border-gray-700 outline-none focus:ring-emerald-500 cursor-pointer accent-emerald-500"
                 />
                 <div
                   className="select-none cursor-pointer"
@@ -2050,7 +2014,7 @@ export default function CompleteProfile({
                   <span className="text-xs font-black text-white block uppercase tracking-wider">
                     Same as Permanent Address
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-gray-500">
                     Automatically syncs and locks temporary address fields as
                     identical to permanent coordinates.
                   </span>
@@ -2063,11 +2027,11 @@ export default function CompleteProfile({
               <div
                 className={`p-5 rounded-2xl border transition-all space-y-4 ${
                   sameAsPermanent
-                    ? "bg-slate-900/30 border-dashed border-slate-800/60 opacity-60 relative"
-                    : "bg-slate-950/40 border-slate-800/80"
+                    ? "bg-gray-900/30 border-dashed border-gray-800/60 opacity-60 relative"
+                    : "bg-gray-950/40 border-gray-800/80"
                 }`}
               >
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
+                <div className="flex items-center justify-between border-b border-gray-800/60 pb-2.5">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-emerald-400" />
                     <span className="text-white font-black text-xs uppercase tracking-wider">
@@ -2108,7 +2072,7 @@ export default function CompleteProfile({
                   {(tempCountry === "Other Country" ||
                     tempCountry === "Outside Nepal") && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Specify Country Name *
                       </label>
                       <input
@@ -2117,14 +2081,14 @@ export default function CompleteProfile({
                         value={tempCountryOther}
                         onChange={(e) => setTempCountryOther(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempCountryOther
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempCountryOther && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempCountryOther}
                         </span>
                       )}
@@ -2201,7 +2165,7 @@ export default function CompleteProfile({
                     </div>
 
                     <div className="md:col-span-1">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Ward Number *
                       </label>
                       <input
@@ -2211,21 +2175,21 @@ export default function CompleteProfile({
                         value={tempWardNumber}
                         onChange={(e) => setTempWardNumber(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempWardNumber
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempWardNumber && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempWardNumber}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Tole / Street Name *
                       </label>
                       <input
@@ -2234,14 +2198,14 @@ export default function CompleteProfile({
                         value={tempTole}
                         onChange={(e) => setTempTole(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempTole
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempTole && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempTole}
                         </span>
                       )}
@@ -2251,7 +2215,7 @@ export default function CompleteProfile({
                   /* If selected Temporary Country in Onboarding is outside Nepal */
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
                     <div>
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         State / Province / Region *
                       </label>
                       <input
@@ -2260,21 +2224,21 @@ export default function CompleteProfile({
                         value={tempProvince}
                         onChange={(e) => setTempProvince(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempProvince
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempProvince && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempProvince}
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         City *
                       </label>
                       <input
@@ -2283,21 +2247,21 @@ export default function CompleteProfile({
                         value={tempMunicipality}
                         onChange={(e) => setTempMunicipality(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempMunicipality
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempMunicipality && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempMunicipality}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         Street Address *
                       </label>
                       <input
@@ -2306,21 +2270,21 @@ export default function CompleteProfile({
                         value={tempStreetAddress}
                         onChange={(e) => setTempStreetAddress(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempStreetAddress
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempStreetAddress && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempStreetAddress}
                         </span>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-slate-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
                         ZIP / Postal Code *
                       </label>
                       <input
@@ -2329,14 +2293,14 @@ export default function CompleteProfile({
                         value={tempPostalCode}
                         onChange={(e) => setTempPostalCode(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-[38px] ${
                           validationErrors.tempPostalCode
                             ? "border-rose-500"
-                            : "border-slate-800 focus:border-emerald-500"
+                            : "border-gray-800 focus:border-emerald-500"
                         }`}
                       />
                       {validationErrors.tempPostalCode && (
-                        <span className="text-[10px] text-rose-450 mt-1 font-semibold block">
+                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
                           {validationErrors.tempPostalCode}
                         </span>
                       )}
@@ -2348,8 +2312,8 @@ export default function CompleteProfile({
               {/* ========================================== */}
               {/* FAMILY IDENTITY RECORD SECTION             */}
               {/* ========================================== */}
-              <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-800/60 pb-2.5">
+              <div className="bg-gray-950/40 p-5 rounded-2xl border border-gray-800/80 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-800/60 pb-2.5">
                   <Users className="w-4 h-4 text-purple-400" />
                   <span className="text-white font-black text-xs uppercase tracking-wider">
                     Family Lineage Profile *
@@ -2358,12 +2322,12 @@ export default function CompleteProfile({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
                   {/* Father Details */}
-                  <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-2">
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase border-b border-slate-800 pb-1">
+                  <div className="p-3 bg-gray-950/60 border border-gray-800 rounded-xl space-y-2">
+                    <span className="text-[10px] text-gray-400 font-bold block uppercase border-b border-gray-800 pb-1">
                       Father's Full Name
                     </span>
                     <div>
-                      <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                      <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                         ENGLISH *
                       </label>
                       <input
@@ -2371,11 +2335,11 @@ export default function CompleteProfile({
                         placeholder="e.g. John Anderson"
                         value={fatherName}
                         onChange={(e) => setFatherName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                      <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                         NEPALI *
                       </label>
                       <input
@@ -2383,18 +2347,18 @@ export default function CompleteProfile({
                         placeholder="उदाहारण: जोन एन्डरसन"
                         value={fatherNameNepali}
                         onChange={(e) => setFatherNameNepali(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                       />
                     </div>
                   </div>
 
                   {/* Mother Details */}
-                  <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-2">
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase border-b border-slate-800 pb-1">
+                  <div className="p-3 bg-gray-950/60 border border-gray-800 rounded-xl space-y-2">
+                    <span className="text-[10px] text-gray-400 font-bold block uppercase border-b border-gray-800 pb-1">
                       Mother's Full Name
                     </span>
                     <div>
-                      <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                      <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                         ENGLISH *
                       </label>
                       <input
@@ -2402,11 +2366,11 @@ export default function CompleteProfile({
                         placeholder="e.g. Mary Anderson"
                         value={motherName}
                         onChange={(e) => setMotherName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                      <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                         NEPALI *
                       </label>
                       <input
@@ -2414,19 +2378,19 @@ export default function CompleteProfile({
                         placeholder="उदाहारण: मेरी एन्डरसन"
                         value={motherNameNepali}
                         onChange={(e) => setMotherNameNepali(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-855 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                       />
                     </div>
                   </div>
 
                   {/* Grandfather Details */}
-                  <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-2 md:col-span-2">
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase border-b border-slate-800 pb-1">
+                  <div className="p-3 bg-gray-950/60 border border-gray-800 rounded-xl space-y-2 md:col-span-2">
+                    <span className="text-[10px] text-gray-400 font-bold block uppercase border-b border-gray-800 pb-1">
                       Grandfather's Full Name
                     </span>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                        <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                           ENGLISH *
                         </label>
                         <input
@@ -2434,11 +2398,11 @@ export default function CompleteProfile({
                           placeholder="e.g. Robert Anderson"
                           value={grandfatherName}
                           onChange={(e) => setGrandfatherName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-slate-500 font-bold text-[10px] mb-0.5">
+                        <label className="block text-gray-500 font-bold text-[10px] mb-0.5">
                           NEPALI *
                         </label>
                         <input
@@ -2448,7 +2412,7 @@ export default function CompleteProfile({
                           onChange={(e) =>
                             setGrandfatherNameNepali(e.target.value)
                           }
-                          className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white outline-none focus:border-purple-400"
                         />
                       </div>
                     </div>
@@ -2466,8 +2430,8 @@ export default function CompleteProfile({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
-                      <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-850 space-y-2">
-                        <span className="text-[9px] text-slate-450 font-bold block uppercase">
+                      <div className="bg-gray-950/40 p-2.5 rounded-lg border border-gray-800 space-y-2">
+                        <span className="text-[9px] text-gray-400 font-bold block uppercase">
                           Spouse Name
                         </span>
                         <input
@@ -2475,19 +2439,19 @@ export default function CompleteProfile({
                           placeholder="ENGLISH *"
                           value={spouseName}
                           onChange={(e) => setSpouseName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                         <input
                           type="text"
                           placeholder="NEPALI *"
                           value={spouseNameNepali}
                           onChange={(e) => setSpouseNameNepali(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                       </div>
 
-                      <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-850 space-y-2">
-                        <span className="text-[9px] text-slate-450 font-bold block uppercase">
+                      <div className="bg-gray-950/40 p-2.5 rounded-lg border border-gray-800 space-y-2">
+                        <span className="text-[9px] text-gray-400 font-bold block uppercase">
                           Spouse's Father Name
                         </span>
                         <input
@@ -2495,7 +2459,7 @@ export default function CompleteProfile({
                           placeholder="ENGLISH"
                           value={spouseFatherName}
                           onChange={(e) => setSpouseFatherName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                         <input
                           type="text"
@@ -2504,12 +2468,12 @@ export default function CompleteProfile({
                           onChange={(e) =>
                             setSpouseFatherNameNepali(e.target.value)
                           }
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                       </div>
 
-                      <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-850 space-y-2">
-                        <span className="text-[9px] text-slate-450 font-bold block uppercase">
+                      <div className="bg-gray-950/40 p-2.5 rounded-lg border border-gray-800 space-y-2">
+                        <span className="text-[9px] text-gray-400 font-bold block uppercase">
                           Spouse's Mother Name
                         </span>
                         <input
@@ -2517,7 +2481,7 @@ export default function CompleteProfile({
                           placeholder="ENGLISH"
                           value={spouseMotherName}
                           onChange={(e) => setSpouseMotherName(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                         <input
                           type="text"
@@ -2526,7 +2490,7 @@ export default function CompleteProfile({
                           onChange={(e) =>
                             setSpouseMotherNameNepali(e.target.value)
                           }
-                          className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
+                          className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1.5 text-white outline-none text-[11px] focus:border-rose-400"
                         />
                       </div>
                     </div>
@@ -2538,12 +2502,12 @@ export default function CompleteProfile({
                 <button
                   onClick={handleNext}
                   disabled={isSavingStep}
-                  className="flex items-center gap-1.5 bg-emerald-500 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 bg-emerald-500 text-gray-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {isSavingStep ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Saving Draft...</span>
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-950" />
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
@@ -2564,27 +2528,27 @@ export default function CompleteProfile({
               key="step2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: -20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
                 <Camera className="w-4 h-4" />
                 <span>2. Official Portrait Profile Photo</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 {/* Upload zone */}
-                <div className="border-2 border-dashed border-[var(--border-subtle)] rounded-3xl p-6 text-center hover:border-emerald-500/60 transition-colors flex flex-col justify-center items-center h-[260px] bg-[var(--surface-muted)]">
-                  <Upload className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mb-3 animate-pulse" />
-                  <span className="text-xs text-[var(--text-primary)] font-extrabold uppercase">
+                <div className="border-2 border-dashed border-gray-800 rounded-3xl p-6 text-center hover:border-emerald-500/60 transition-colors flex flex-col justify-center items-center h-[260px] bg-gray-950">
+                  <Upload className="w-10 h-10 text-emerald-400 mb-3 animate-pulse" />
+                  <span className="text-xs text-white font-extrabold uppercase">
                     Upload Profile Image
                   </span>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1 max-w-[230px] mx-auto">
+                  <p className="text-[10px] text-gray-400 mt-1 max-w-[230px] mx-auto">
                     Allowed formats: JPG or PNG. Maximum size constraint: 2 MB
                     limit.
                   </p>
 
-                  <label className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] uppercase font-bold cursor-pointer transition-colors border border-slate-700 shadow-sm">
+                  <label className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-[10px] uppercase font-bold cursor-pointer transition-colors border border-gray-700 shadow-sm">
                     Browse Files
                     <input
                       type="file"
@@ -2594,20 +2558,21 @@ export default function CompleteProfile({
                     />
                   </label>
                   {profilePhotoName && (
-                    <span className="text-[10px] font-mono text-emerald-500 dark:text-emerald-400 mt-2 block">
+                    <span className="text-[10px] font-mono text-emerald-400 mt-2 block">
                       {profilePhotoName}
                     </span>
                   )}
                 </div>
 
                 {/* Preview and Cropper Simulator */}
-                <div className="bg-[var(--surface-muted)] rounded-3xl p-5 border border-[var(--border-subtle)] flex flex-col justify-center items-center h-[260px]">
+                <div className="bg-gray-950 rounded-3xl p-5 border border-gray-800 flex flex-col justify-center items-center h-[260px]">
                   {profilePhoto ? (
                     <div className="w-full flex flex-col items-center gap-3">
-                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl bg-[var(--surface-card)] flex justify-center items-center">
+                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl bg-gray-900 flex justify-center items-center">
                         <img
-                          src={profilePhoto}
+                          src={profilePhotoPreviewUrl || profilePhoto}
                           alt="Cropper preview"
+                          onError={() => setProfilePhotoPreviewUrl("")}
                           style={{
                             transform: `scale(${cropConfig.zoom}) rotate(${cropConfig.rotate}deg)`,
                             transition: "all 0.15s ease-out",
@@ -2618,7 +2583,7 @@ export default function CompleteProfile({
 
                       {/* Interactive portrait controls */}
                       <div className="w-full max-w-[200px] text-xs font-mono space-y-1.5 pt-1.5">
-                        <div className="flex justify-between text-[9px] text-[var(--text-secondary)]">
+                        <div className="flex justify-between text-[9px] text-gray-400">
                           <span>Zoom: {cropConfig.zoom}x</span>
                           <input
                             type="range"
@@ -2635,7 +2600,7 @@ export default function CompleteProfile({
                             className="w-24 accent-emerald-500"
                           />
                         </div>
-                        <div className="flex justify-between text-[9px] text-[var(--text-secondary)]">
+                        <div className="flex justify-between text-[9px] text-gray-400">
                           <span>Rotate: {cropConfig.rotate}°</span>
                           <input
                             type="range"
@@ -2654,7 +2619,7 @@ export default function CompleteProfile({
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-[var(--text-secondary)] font-mono text-xs p-4">
+                    <div className="text-center text-gray-400 font-mono text-xs p-4">
                       Portrait Preview will be rendered on successfully
                       importing.
                     </div>
@@ -2666,7 +2631,7 @@ export default function CompleteProfile({
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -2675,12 +2640,12 @@ export default function CompleteProfile({
                   type="button"
                   onClick={handleNext}
                   disabled={isSavingStep}
-                  className="flex items-center gap-1.5 bg-emerald-500 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 bg-emerald-500 text-gray-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {isSavingStep ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Saving Draft...</span>
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-950" />
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
@@ -2701,7 +2666,7 @@ export default function CompleteProfile({
               key="step3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: -20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
@@ -2715,29 +2680,27 @@ export default function CompleteProfile({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono mb-2">
                 {/* ID input */}
                 <div className="md:col-span-3">
-                  <label className="block text-slate-400 font-bold uppercase mb-1">
+                  <label className="block text-gray-400 font-bold uppercase mb-1">
                     Citizenship / National ID Card ID Number *
                   </label>
                   <input
                     type="text"
                     placeholder="e.g. CZ-9018-0918"
                     value={citizenshipNumber}
-                    onChange={(e) =>
-                      handleCitizenshipNumberChange(e.target.value)
-                    }
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-emerald-500"
+                    onChange={(e) => setCitizenshipNumber(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-emerald-500"
                   />
                 </div>
 
-                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-800/80">
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-gray-950/40 rounded-xl border border-gray-800/80">
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1 text-[10px]">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[10px]">
                       Citizenship Type *
                     </label>
                     <select
                       value={citizenshipType}
                       onChange={(e) => setCitizenshipType(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
                     >
                       <option value="By Descent">By Descent</option>
                       <option value="By Birth">By Birth</option>
@@ -2747,22 +2710,19 @@ export default function CompleteProfile({
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1 text-[10px]">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[10px]">
                       Issue Date *
                     </label>
                     <input
                       type="date"
                       value={citizenshipIssueDate}
-                      onChange={(e) => {
-                        setCitizenshipIssueDate(e.target.value);
-                        setCitizenshipIssueDateAutoFilled(false);
-                      }}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-white outline-none focus:border-emerald-500 text-[11px]"
+                      onChange={(e) => setCitizenshipIssueDate(e.target.value)}
+                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1 text-white outline-none focus:border-emerald-500 text-[11px]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1 text-[10px]">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[10px]">
                       Issuing District *
                     </label>
                     <input
@@ -2772,12 +2732,12 @@ export default function CompleteProfile({
                       onChange={(e) =>
                         setCitizenshipIssueDistrict(e.target.value)
                       }
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1 text-[10px]">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[10px]">
                       Issuing Authority *
                     </label>
                     <input
@@ -2786,12 +2746,12 @@ export default function CompleteProfile({
                       onChange={(e) =>
                         setCitizenshipIssueAuthority(e.target.value)
                       }
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 text-[11px]"
                     />
                   </div>
                 </div>
 
-                <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                <div className="bg-gray-950/40 border border-gray-800/80 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Upload className="w-4 h-4 text-amber-400" />
                     <span className="text-white font-black text-xs uppercase tracking-wider">
@@ -2800,8 +2760,8 @@ export default function CompleteProfile({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
                         Citizenship Front Image
                       </span>
                       {citizenshipFrontImage ? (
@@ -2809,14 +2769,14 @@ export default function CompleteProfile({
                           src={citizenshipFrontImage}
                           alt="Citizenship front preview"
                           loading="lazy"
-                          className="w-full h-[110px] object-contain rounded-lg border border-slate-800 mb-2"
+                          className="w-full h-[110px] object-contain rounded-lg border border-gray-800 mb-2"
                         />
                       ) : (
-                        <div className="h-[110px] w-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-850 text-slate-600 mb-2 text-[10px] px-2">
+                        <div className="h-[110px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px] px-2">
                           Front side preview will appear here
                         </div>
                       )}
-                      <label className="mt-auto w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
+                      <label className="mt-auto w-full px-3 py-2 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
                         Upload Front
                         <input
                           type="file"
@@ -2827,8 +2787,8 @@ export default function CompleteProfile({
                       </label>
                     </div>
 
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-3 flex min-h-[220px] flex-col justify-between items-center text-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
                         Citizenship Back Image
                       </span>
                       {citizenshipBackImage ? (
@@ -2836,14 +2796,14 @@ export default function CompleteProfile({
                           src={citizenshipBackImage}
                           alt="Citizenship back preview"
                           loading="lazy"
-                          className="w-full h-[110px] object-contain rounded-lg border border-slate-800 mb-2"
+                          className="w-full h-[110px] object-contain rounded-lg border border-gray-800 mb-2"
                         />
                       ) : (
-                        <div className="h-[110px] w-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-850 text-slate-600 mb-2 text-[10px] px-2">
+                        <div className="h-[110px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px] px-2">
                           Back side preview will appear here
                         </div>
                       )}
-                      <label className="mt-auto w-full px-3 py-2 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
+                      <label className="mt-auto w-full px-3 py-2 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded transition-colors duration-150 hover:border-emerald-500 hover:text-white cursor-pointer select-none text-center">
                         Upload Back
                         <input
                           type="file"
@@ -2856,9 +2816,9 @@ export default function CompleteProfile({
                   </div>
                 </div>
 
-                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
+                <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
                   <div className="flex justify-between items-center w-full mb-1">
-                    <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                    <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
                       <PenTool className="w-3 h-3 text-emerald-400" />
                       Signature Pad
                     </span>
@@ -2882,14 +2842,14 @@ export default function CompleteProfile({
                     onTouchStart={startDrawing}
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
-                    className="bg-slate-900 border border-dashed border-slate-850 rounded-lg cursor-crosshair w-full h-[90px] mb-2"
+                    className="bg-gray-900 border border-dashed border-gray-800 rounded-lg cursor-crosshair w-full h-[90px] mb-2"
                   />
 
                   <div className="flex flex-col items-center gap-1.5">
-                    <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-slate-500">
+                    <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-gray-500">
                       Draw above or
                     </span>
-                    <label className="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 text-[9px] uppercase font-bold text-sky-400 hover:text-white rounded cursor-pointer select-none">
+                    <label className="px-2.5 py-1 bg-gray-900 border border-gray-800 hover:border-gray-700 hover:bg-gray-800 text-[9px] uppercase font-bold text-sky-400 hover:text-white rounded cursor-pointer select-none">
                       Upload Signature Card
                       <input
                         type="file"
@@ -2905,8 +2865,8 @@ export default function CompleteProfile({
               {/* ==================================================== */}
               {/* NATIONAL IDENTITY CARD (NID) ADDITIONAL PRODUCER    */}
               {/* ==================================================== */}
-              <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-800/60 pb-2.5">
+              <div className="bg-gray-950/40 p-5 rounded-2xl border border-gray-800/80 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-800/60 pb-2.5">
                   <CreditCard className="w-4 h-4 text-indigo-400" />
                   <span className="text-white font-black text-xs uppercase tracking-wider">
                     National Identity (NID) Record Link *
@@ -2915,7 +2875,7 @@ export default function CompleteProfile({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       NID Number *
                     </label>
                     <input
@@ -2923,19 +2883,19 @@ export default function CompleteProfile({
                       placeholder="e.g. NID-101-987"
                       value={nidNumber}
                       onChange={(e) => setNidNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-indigo-400"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-indigo-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1">
                       NID Issue Date *
                     </label>
                     <input
                       type="date"
                       value={nidIssueDate}
                       onChange={(e) => setNidIssueDate(e.target.value)}
-                      className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-1.5 text-white outline-none focus:border-indigo-400"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-white outline-none focus:border-indigo-400"
                     />
                   </div>
                 </div>
@@ -2943,21 +2903,21 @@ export default function CompleteProfile({
                 {/* Upload NID photos */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* NID Front Upload */}
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                    <span className="text-[10px] text-slate-400 font-bold mb-2">
+                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
+                    <span className="text-[10px] text-gray-400 font-bold mb-2">
                       NID Card FRONT Image
                     </span>
                     {nidFrontImage ? (
                       <img
                         src={nidFrontImage}
-                        className="max-h-[85px] border border-slate-800 rounded-lg object-contain mb-2"
+                        className="max-h-[85px] border border-gray-800 rounded-lg object-contain mb-2"
                       />
                     ) : (
-                      <div className="h-[85px] w-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-850 text-slate-600 mb-2 text-[10px]">
+                      <div className="h-[85px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px]">
                         NID Front Side Document
                       </div>
                     )}
-                    <label className="px-3 py-1 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded hover:text-white cursor-pointer select-none">
+                    <label className="px-3 py-1 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none">
                       Upload NID Front
                       <input
                         type="file"
@@ -2969,21 +2929,21 @@ export default function CompleteProfile({
                   </div>
 
                   {/* NID Back Upload */}
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                    <span className="text-[10px] text-slate-400 font-bold mb-2">
+                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
+                    <span className="text-[10px] text-gray-400 font-bold mb-2">
                       NID Card BACK Image
                     </span>
                     {nidBackImage ? (
                       <img
                         src={nidBackImage}
-                        className="max-h-[85px] border border-slate-800 rounded-lg object-contain mb-2"
+                        className="max-h-[85px] border border-gray-800 rounded-lg object-contain mb-2"
                       />
                     ) : (
-                      <div className="h-[85px] w-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-850 text-slate-600 mb-2 text-[10px]">
+                      <div className="h-[85px] w-full flex items-center justify-center bg-gray-900 rounded-lg border border-gray-800 text-gray-600 mb-2 text-[10px]">
                         NID Back Side Document
                       </div>
                     )}
-                    <label className="px-3 py-1 bg-slate-900 border border-slate-850 text-[9px] uppercase font-bold text-slate-300 rounded hover:text-white cursor-pointer select-none">
+                    <label className="px-3 py-1 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none">
                       Upload NID Back
                       <input
                         type="file"
@@ -2999,28 +2959,17 @@ export default function CompleteProfile({
               {/* ==================================================== */}
               {/* BIOMETRIC FINGERPRINT IDENTIFICATION PORTAL          */}
               {/* ==================================================== */}
-              <div className="bg-slate-955/60 p-5 rounded-2xl border border-slate-800/80 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
+              <div className="bg-gray-950/60 p-5 rounded-2xl border border-gray-800/80 space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-800/60 pb-2.5">
                   <div className="flex items-center gap-2">
                     <Fingerprint className="w-4 h-4 text-emerald-400" />
                     <span className="text-white font-black text-xs uppercase tracking-wider">
                       Biometric Fingerprint Compliance Seal *
                     </span>
                   </div>
-                  <div className="flex gap-1.5">
-                    {platformBiometricsAvailable ? (
-                      <span className="bg-emerald-500/10 border border-emerald-500/30 text-[9px] text-emerald-400 font-extrabold uppercase px-2 py-0.5 rounded font-mono">
-                        Hardware Scanner Available
-                      </span>
-                    ) : (
-                      <span className="bg-blue-500/10 border border-blue-500/30 text-[9px] text-blue-400 font-extrabold uppercase px-2 py-0.5 rounded font-mono">
-                        Simulated WebAuthn Enclave
-                      </span>
-                    )}
-                  </div>
                 </div>
 
-                <p className="text-[10px] text-slate-400 leading-normal">
+                <p className="text-[10px] text-gray-400 leading-normal">
                   Place both fingers clearly in the live camera frame for a
                   clean capture. The image is verified instantly against
                   existing voter records to reduce duplicate registrations.
@@ -3028,12 +2977,8 @@ export default function CompleteProfile({
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
                   {/* Fingerprint Touch Sensor Module */}
-                  <div className="md:col-span-4 flex flex-col items-center justify-center bg-slate-950 border border-slate-850 p-4 rounded-2xl relative overflow-hidden select-none">
-                    {isFingerprinting && (
-                      <div className="absolute inset-0 bg-emerald-500/5 animate-[pulse_1.5s_infinite] pointer-events-none" />
-                    )}
-
-                    <div className="relative w-full aspect-[4/3] rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden mb-3">
+                  <div className="md:col-span-4 flex flex-col items-center justify-center bg-gray-950 border border-gray-800 p-4 rounded-2xl relative overflow-hidden select-none">
+                    <div className="relative w-full aspect-[4/3] rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden mb-3">
                       {fingerprintCameraActive ? (
                         <video
                           ref={fingerprintVideoRef}
@@ -3049,12 +2994,12 @@ export default function CompleteProfile({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-center px-4 text-slate-500">
+                        <div className="w-full h-full flex flex-col items-center justify-center text-center px-4 text-gray-500">
                           <Fingerprint className="w-9 h-9 mb-2 text-emerald-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                             Live preview will appear here
                           </span>
-                          <span className="text-[8px] mt-1 text-slate-600">
+                          <span className="text-[8px] mt-1 text-gray-600">
                             Open the camera and align both fingers in the frame
                           </span>
                         </div>
@@ -3078,16 +3023,15 @@ export default function CompleteProfile({
                         type="button"
                         onClick={captureFingerprintFromCamera}
                         disabled={!fingerprintCameraActive}
-                        className="flex-1 min-w-[90px] py-1.5 bg-slate-900 border border-slate-800 text-[9px] text-slate-300 font-bold uppercase rounded-lg hover:text-white cursor-pointer select-none disabled:opacity-40"
+                        className="flex-1 min-w-[90px] py-1.5 bg-gray-900 border border-gray-800 text-[9px] text-gray-300 font-bold uppercase rounded-lg hover:text-white cursor-pointer select-none disabled:opacity-40"
                       >
                         Capture Frame
                       </button>
                     </div>
 
-                    <label className="mt-2 w-full px-3 py-1.5 bg-slate-900 border border-slate-800 text-[9px] uppercase font-bold text-slate-300 rounded hover:text-white cursor-pointer select-none text-center">
+                    <label className="mt-2 w-full px-3 py-1.5 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none text-center">
                       Upload Fingerprint Image
                       <input
-                        ref={fingerprintInputRef}
                         type="file"
                         accept="image/*"
                         capture="environment"
@@ -3097,77 +3041,63 @@ export default function CompleteProfile({
                     </label>
                   </div>
 
-                  {/* Cryptographic Biometrics Output Log Console */}
-                  <div className="md:col-span-8 flex flex-col justify-between h-full space-y-3">
-                    <div>
-                      <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                        Biometrics Enclave Handshake Logs:
-                      </span>
-                      <></>
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={startFingerprintTouchScan}
-                        disabled={!!fingerprintImage || isFingerprinting}
-                        className="flex-1 py-1.5 bg-slate-900 border border-slate-800 text-[9px] text-slate-300 font-bold uppercase rounded-lg hover:text-white cursor-pointer select-none disabled:opacity-50"
-                      >
-                        {fingerprintCameraActive
-                          ? "Camera Active"
-                          : "Open Camera"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextState = !externalSensorDetected;
-                          setExternalSensorDetected(nextState);
-                          setFingerprintLogs((prev) => [
-                            ...prev,
-                            nextState
-                              ? "🔌 [SIMULATOR]: External USB Fingerprint Sensor connected successfully."
-                              : "❌ [SIMULATOR]: External USB Fingerprint Sensor disconnected.",
-                          ]);
-                        }}
-                        className={`px-3 py-1.5 border text-[9px] font-bold uppercase rounded-lg cursor-pointer select-none transition-colors ${
-                          externalSensorDetected
-                            ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/30"
-                            : "bg-red-950/20 border-red-500/30 text-red-400 hover:bg-red-900/30"
-                        }`}
-                      >
-                        {externalSensorDetected
-                          ? "🔌 Unplug Ext Sensor"
-                          : "🔌 Plug Ext Sensor"}
-                      </button>
-
-                      {fingerprintImage && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFingerprintImage("");
-                            setFingerprintStatus("idle");
-                            setFingerprintMatchUser("");
-                            setFingerprintLogs([]);
-                            stopFingerprintCamera();
-                          }}
-                          className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-[9px] text-red-400 font-bold uppercase rounded-lg hover:bg-slate-850 cursor-pointer select-none"
-                        >
-                          Reset Biometric
-                        </button>
+                  {/* Fingerprint Status Display */}
+                  <div className="md:col-span-8 space-y-2">
+                    <span className="text-[9px] font-mono font-bold text-gray-500 uppercase tracking-widest block">
+                      Biometrics Status:
+                    </span>
+                    <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 min-h-[100px]">
+                      {fingerprintStatus === "checking" && (
+                        <div className="flex items-center gap-2 text-yellow-400">
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span className="text-xs">
+                            Checking biometric database...
+                          </span>
+                        </div>
+                      )}
+                      {fingerprintStatus === "clear" && (
+                        <div className="flex items-center gap-2 text-emerald-400">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-xs">
+                            Fingerprint appears unique and ready for
+                            registration.
+                          </span>
+                        </div>
+                      )}
+                      {fingerprintStatus === "duplicate" && (
+                        <div className="flex items-center gap-2 text-rose-400">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-xs">
+                            Potential duplicate fingerprint match for{" "}
+                            {fingerprintMatchUser}.
+                          </span>
+                        </div>
+                      )}
+                      {fingerprintStatus === "idle" && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Fingerprint className="w-4 h-4" />
+                          <span className="text-xs">
+                            Capture a sharp image of both fingers for a clean
+                            registration.
+                          </span>
+                        </div>
                       )}
                     </div>
 
-                    <div className="text-[9px] font-mono text-slate-400">
-                      {fingerprintStatus === "checking" &&
-                        "Checking biometric database…"}
-                      {fingerprintStatus === "clear" &&
-                        "Fingerprint appears unique and ready for registration."}
-                      {fingerprintStatus === "duplicate" &&
-                        `Potential duplicate fingerprint match for ${fingerprintMatchUser}.`}
-                      {fingerprintStatus === "idle" &&
-                        "Capture a sharp image of both fingers for a clean registration."}
-                    </div>
+                    {fingerprintImage && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFingerprintImage("");
+                          setFingerprintStatus("idle");
+                          setFingerprintMatchUser("");
+                          stopFingerprintCamera();
+                        }}
+                        className="px-3 py-1.5 bg-gray-900 border border-gray-800 text-[9px] text-red-400 font-bold uppercase rounded-lg hover:bg-gray-800 cursor-pointer select-none"
+                      >
+                        Reset Biometric
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3176,7 +3106,7 @@ export default function CompleteProfile({
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -3185,12 +3115,12 @@ export default function CompleteProfile({
                   type="button"
                   onClick={handleNext}
                   disabled={isSavingStep}
-                  className="flex items-center gap-1.5 bg-emerald-500 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 bg-emerald-500 text-gray-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {isSavingStep ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Saving Draft...</span>
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-950" />
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
@@ -3211,7 +3141,7 @@ export default function CompleteProfile({
               key="step4"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: -20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
@@ -3220,23 +3150,31 @@ export default function CompleteProfile({
               </div>
 
               {/* Directly Render our majestic high-definition BiometricScanner! */}
-              <div className="border border-slate-800 rounded-3xl overflow-hidden p-2 bg-slate-950">
-                <BiometricScanner
-                  onCapture={(img, template) => {
-                    setFaceImage(img);
-                    setFaceTemplate(template || [0.1, 0.2, 0.3]);
-                  }}
-                  title="Onboarding Camera Portal"
-                  subtitle="Synchronizes liveness markers on leftmost and rightmost eyes, nose and ears profiles."
-                  mode="face-api"
-                />
+              <div className="border border-gray-800 rounded-3xl overflow-hidden p-2 bg-gray-950">
+                <Suspense
+                  fallback={
+                    <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 text-sm text-slate-400 text-center">
+                      Loading biometric camera module...
+                    </div>
+                  }
+                >
+                  <BiometricScanner
+                    onCapture={(img, template) => {
+                      setFaceImage(img);
+                      setFaceTemplate(template || [0.1, 0.2, 0.3]);
+                    }}
+                    title="Onboarding Camera Portal"
+                    subtitle="Synchronizes liveness markers on leftmost and rightmost eyes, nose and ears profiles."
+                    mode="face-api"
+                  />
+                </Suspense>
               </div>
 
               <div className="flex justify-between pt-4">
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -3245,12 +3183,12 @@ export default function CompleteProfile({
                   type="button"
                   onClick={handleNext}
                   disabled={isSavingStep}
-                  className="flex items-center gap-1.5 bg-emerald-500 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 bg-emerald-500 text-gray-950 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {isSavingStep ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Saving Draft...</span>
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-950" />
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
@@ -3271,7 +3209,7 @@ export default function CompleteProfile({
               key="step5"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: -20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
@@ -3279,52 +3217,52 @@ export default function CompleteProfile({
                 <span>5. Final Demographics & Security Seals Verification</span>
               </div>
 
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-gray-400">
                 Ensure all parameters align with official credentials. Upon
                 confirmation, keys will compile your digital voting pass
                 signature.
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono bg-slate-950 p-5 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono bg-gray-950 p-5 rounded-2xl border border-gray-800">
                 {/* Text summary info */}
                 <div className="space-y-2">
-                  <div className="border-b border-slate-850 pb-2">
-                    <span className="text-[10px] text-slate-500 uppercase">
+                  <div className="border-b border-gray-800 pb-2">
+                    <span className="text-[10px] text-gray-500 uppercase">
                       Voter Registration Name:
                     </span>
                     <p className="text-white font-extrabold uppercase block">
                       {user?.fullName}
                     </p>
                   </div>
-                  <div className="border-b border-slate-850 pb-2">
-                    <span className="text-[10px] text-slate-500 uppercase">
+                  <div className="border-b border-gray-800 pb-2">
+                    <span className="text-[10px] text-gray-500 uppercase">
                       National ID Number:
                     </span>
                     <p className="text-white font-extrabold uppercase block">
                       {citizenshipNumber}
                     </p>
                   </div>
-                  <div className="border-b border-slate-850 pb-2">
-                    <span className="text-[10px] text-slate-500 uppercase">
+                  <div className="border-b border-gray-800 pb-2">
+                    <span className="text-[10px] text-gray-500 uppercase">
                       Date of Birth & Gender:
                     </span>
                     <p className="text-white block">
                       {personal.dob} ({personal.gender})
                     </p>
                   </div>
-                  <div className="border-b border-slate-850 pb-2">
-                    <span className="text-[10px] text-slate-500 uppercase">
+                  <div className="border-b border-gray-800 pb-2">
+                    <span className="text-[10px] text-gray-500 uppercase">
                       Permanent Residential Address:
                     </span>
-                    <p className="text-slate-300 block leading-relaxed">
+                    <p className="text-gray-300 block leading-relaxed">
                       {personal.permanentAddress}
                     </p>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase">
+                    <span className="text-[10px] text-gray-500 uppercase">
                       Temporary Current Address:
                     </span>
-                    <p className="text-slate-300 block leading-relaxed">
+                    <p className="text-gray-300 block leading-relaxed">
                       {sameAsPermanent
                         ? "Same as Permanent Address"
                         : personal.temporaryAddress}
@@ -3335,47 +3273,56 @@ export default function CompleteProfile({
                 {/* Thumbnails grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {/* Portrait photo */}
-                  <div className="flex flex-col items-center bg-slate-900 p-2 rounded-lg border border-slate-850 text-center">
-                    <span className="text-[8px] text-slate-400 font-bold block mb-1">
+                  <div className="flex flex-col items-center bg-gray-900 p-2 rounded-lg border border-gray-800 text-center">
+                    <span className="text-[8px] text-gray-400 font-bold block mb-1">
                       PORTRAIT SEAL
                     </span>
-                    <img
-                      src={profilePhoto}
-                      className="w-12 h-12 rounded-full border border-emerald-500 object-cover"
-                    />
+                    {profilePhoto && (
+                      <img
+                        src={profilePhotoPreviewUrl || profilePhoto}
+                        className="w-12 h-12 rounded-full border border-emerald-500 object-cover"
+                        onError={() => setProfilePhotoPreviewUrl("")}
+                      />
+                    )}
                   </div>
 
                   {/* Face capture */}
-                  <div className="flex flex-col items-center bg-slate-900 p-2 rounded-lg border border-slate-850 text-center">
-                    <span className="text-[8px] text-slate-400 font-bold block mb-1">
+                  <div className="flex flex-col items-center bg-gray-900 p-2 rounded-lg border border-gray-800 text-center">
+                    <span className="text-[8px] text-gray-400 font-bold block mb-1">
                       FACIAL METRIC
                     </span>
-                    <img
-                      src={faceImage}
-                      className="w-12 h-12 border border-blue-500 object-contain rounded"
-                    />
+                    {faceImage && (
+                      <img
+                        src={faceImage}
+                        className="w-12 h-12 border border-blue-500 object-contain rounded"
+                      />
+                    )}
                   </div>
 
                   {/* Signature */}
-                  <div className="flex flex-col items-center bg-slate-900 p-2 rounded-lg border border-slate-850 text-center">
-                    <span className="text-[8px] text-slate-400 font-bold block mb-1">
+                  <div className="flex flex-col items-center bg-gray-900 p-2 rounded-lg border border-gray-800 text-center">
+                    <span className="text-[8px] text-gray-400 font-bold block mb-1">
                       SIGNATURE
                     </span>
-                    <img
-                      src={signatureImage}
-                      className="w-12 h-12 bg-white object-contain border border-slate-350 rounded"
-                    />
+                    {signatureImage && (
+                      <img
+                        src={signatureImage}
+                        className="w-12 h-12 bg-white object-contain border border-gray-700 rounded"
+                      />
+                    )}
                   </div>
 
                   {/* Fingerprint */}
-                  <div className="flex flex-col items-center bg-slate-900 p-2 rounded-lg border border-slate-850 text-center">
-                    <span className="text-[8px] text-slate-400 font-bold block mb-1">
+                  <div className="flex flex-col items-center bg-gray-900 p-2 rounded-lg border border-gray-800 text-center">
+                    <span className="text-[8px] text-gray-400 font-bold block mb-1">
                       FINGERPRINT
                     </span>
-                    <img
-                      src={fingerprintImage}
-                      className="w-12 h-12 object-contain border border-slate-805 rounded"
-                    />
+                    {fingerprintImage && (
+                      <img
+                        src={fingerprintImage}
+                        className="w-12 h-12 object-contain border border-gray-800 rounded"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -3384,7 +3331,7 @@ export default function CompleteProfile({
                 <button
                   disabled={loading}
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -3392,16 +3339,16 @@ export default function CompleteProfile({
                 <button
                   disabled={loading}
                   onClick={handleSubmit}
-                  className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-slate-950 px-6 py-3 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                  className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-gray-950 px-6 py-3 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-gray-950" />
                       <span>Transmitting profiles registry...</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-4 h-4 text-slate-950" />
+                      <CheckCircle className="w-4 h-4 text-gray-950" />
                       <span>Validate & Compile Security Seal</span>
                     </>
                   )}
@@ -3428,7 +3375,7 @@ export default function CompleteProfile({
                 Profile Completed Successfully
               </h3>
 
-              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+              <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
                 Your account is now{" "}
                 <strong className="text-emerald-400 uppercase font-bold text-xs">
                   fully activated
@@ -3437,7 +3384,7 @@ export default function CompleteProfile({
                 securely into the Voter Dashboard blocks...
               </p>
 
-              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold uppercase mt-6 bg-slate-950/80 px-3 py-1.5 rounded-full border border-slate-900">
+              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold uppercase mt-6 bg-gray-950/80 px-3 py-1.5 rounded-full border border-gray-900">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 <span>Routing to Active Dashboard Block...</span>
               </div>
@@ -3446,26 +3393,25 @@ export default function CompleteProfile({
         </AnimatePresence>
       </div>
 
-
       {/* ----------------- DISCREPANCY & AUTO-CORRECTION CONTEXT MODAL ----------------- */}
       <AnimatePresence>
         {showDiscrepancyModal && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-gray-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl relative space-y-4 text-left overflow-hidden animate-[pulse_3s_infinite]"
+              className="bg-gray-900 border border-gray-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl relative space-y-4 text-left overflow-hidden"
             >
-              <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
                 <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                   <AlertTriangle className="w-5 h-5 animate-bounce" />
                 </div>
                 <div>
-                  <h3 className="text-md font-black text-rose-450 uppercase tracking-wider">
+                  <h3 className="text-md font-black text-rose-400 uppercase tracking-wider">
                     Demographic Discrepancies Identified
                   </h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
+                  <p className="text-[10px] text-gray-400 mt-0.5">
                     Security check scanned your Citizenship and National ID Card
                     variables. The following mismatches require resolution
                     before final signature seals.
@@ -3478,10 +3424,10 @@ export default function CompleteProfile({
                 {activeMismatches.map((m, idx) => (
                   <div
                     key={idx}
-                    className="bg-slate-950/65 rounded-xl border border-slate-850 p-3 text-xs font-mono space-y-2"
+                    className="bg-gray-950/65 rounded-xl border border-gray-800 p-3 text-xs font-mono space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-bold uppercase text-[10px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      <span className="text-gray-400 font-bold uppercase text-[10px] bg-gray-900 px-2 py-0.5 rounded border border-gray-800">
                         Field: {m.field}
                       </span>
                       <span className="text-rose-400 font-bold text-[9px] uppercase tracking-widest">
@@ -3490,8 +3436,8 @@ export default function CompleteProfile({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-[10.5px]">
-                      <div className="border-r border-slate-850/60 pr-2">
-                        <span className="text-[8.5px] text-slate-500 uppercase block mb-0.5">
+                      <div className="border-r border-gray-800/60 pr-2">
+                        <span className="text-[8.5px] text-gray-500 uppercase block mb-0.5">
                           Citizenship Registry Value:
                         </span>
                         <p className="text-white font-extrabold line-through decoration-rose-500">
@@ -3499,16 +3445,16 @@ export default function CompleteProfile({
                         </p>
                       </div>
                       <div>
-                        <span className="text-[8.5px] text-indigo-455 uppercase block mb-0.5">
+                        <span className="text-[8.5px] text-indigo-400 uppercase block mb-0.5">
                           National ID Database Value:
                         </span>
-                        <p className="text-slate-350 font-bold">{m.nidVal}</p>
+                        <p className="text-gray-300 font-bold">{m.nidVal}</p>
                       </div>
                     </div>
 
                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-2.5 flex items-center justify-between gap-2 mt-1">
                       <div>
-                        <span className="text-[8.5px] text-emerald-405 uppercase font-black block mb-0.5">
+                        <span className="text-[8.5px] text-emerald-400 uppercase font-black block mb-0.5">
                           ⚡ Proposed Auto-Corrected uniform Value:
                         </span>
                         <p className="text-emerald-400 font-black text-sm">
@@ -3551,9 +3497,9 @@ export default function CompleteProfile({
                       "✅ Suggestions applied successfully! Press Save & Continue to proceed.",
                     );
                   }}
-                  className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-slate-950 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider cursor-pointer shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-1"
+                  className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-gray-950 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider cursor-pointer shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-1"
                 >
-                  <CheckCircle className="w-4 h-4 text-slate-950" />
+                  <CheckCircle className="w-4 h-4 text-gray-950" />
                   <span>Apply Suggestions (Recommended)</span>
                 </button>
                 <button
@@ -3565,7 +3511,7 @@ export default function CompleteProfile({
                       "Proceeding with existing entered credentials.",
                     );
                   }}
-                  className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider cursor-pointer active:scale-[0.99] transition-all"
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-extrabold text-xs uppercase px-4 py-3 rounded-xl tracking-wider cursor-pointer active:scale-[0.99] transition-all"
                 >
                   Keep Distinct & Force Proceed
                 </button>

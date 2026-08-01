@@ -26,7 +26,12 @@ export interface DocumentItem {
 
 interface DocumentUploadCenterProps {
   documents: DocumentItem[];
-  onDocumentChange: (id: string, fileUrl: string, status: DocumentItem["status"], errorMessage?: string) => void;
+  onDocumentChange: (
+    id: string,
+    fileUrl: string,
+    status: DocumentItem["status"],
+    errorMessage?: string,
+  ) => void;
   maxSizeBytes?: number;
 }
 
@@ -35,7 +40,9 @@ export default function DocumentUploadCenter({
   onDocumentChange,
   maxSizeBytes = 5 * 1024 * 1024, // 5MB default
 }: DocumentUploadCenterProps) {
-  const [activePreviewDoc, setActivePreviewDoc] = useState<DocumentItem | null>(null);
+  const [activePreviewDoc, setActivePreviewDoc] = useState<DocumentItem | null>(
+    null,
+  );
   const [rotation, setRotation] = useState(0);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -44,14 +51,29 @@ export default function DocumentUploadCenter({
     // Validate Size
     if (file.size > maxSizeBytes) {
       const sizeMB = (maxSizeBytes / (1024 * 1024)).toFixed(0);
-      onDocumentChange(docId, "", "error", `File exceeds maximum allowed size of ${sizeMB}MB.`);
+      onDocumentChange(
+        docId,
+        "",
+        "error",
+        `File exceeds maximum allowed size of ${sizeMB}MB.`,
+      );
       return;
     }
 
     // Validate Type
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    const validTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
     if (!validTypes.includes(file.type)) {
-      onDocumentChange(docId, "", "error", "Invalid file type. Allowed formats: JPG, PNG, WEBP, PDF.");
+      onDocumentChange(
+        docId,
+        "",
+        "error",
+        "Invalid file type. Allowed formats: JPG, PNG, WEBP, PDF.",
+      );
       return;
     }
 
@@ -67,7 +89,12 @@ export default function DocumentUploadCenter({
       }, 500);
     };
     reader.onerror = () => {
-      onDocumentChange(docId, "", "error", "Failed to read file. Please try again.");
+      onDocumentChange(
+        docId,
+        "",
+        "error",
+        "Failed to read file. Please try again.",
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -89,7 +116,8 @@ export default function DocumentUploadCenter({
             Document Verification Hub
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Upload clear, uncropped government-issued identification cards for automatic OCR & authenticity validation.
+            Upload clear, uncropped government-issued identification cards for
+            automatic OCR & authenticity validation.
           </p>
         </div>
       </div>
@@ -105,10 +133,10 @@ export default function DocumentUploadCenter({
                 isDragging
                   ? "border-emerald-500 bg-emerald-500/10 shadow-lg"
                   : doc.status === "verified"
-                  ? "border-emerald-500/40 bg-slate-900/90"
-                  : doc.status === "error"
-                  ? "border-rose-500/40 bg-rose-950/10"
-                  : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+                    ? "border-emerald-500/40 bg-slate-900/90"
+                    : doc.status === "error"
+                      ? "border-rose-500/40 bg-rose-950/10"
+                      : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
               }`}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -125,10 +153,14 @@ export default function DocumentUploadCenter({
                       {doc.label}
                     </span>
                     {doc.required && (
-                      <span className="text-[10px] text-rose-400 font-mono font-bold">*REQUIRED</span>
+                      <span className="text-[10px] text-rose-400 font-mono font-bold">
+                        *REQUIRED
+                      </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{doc.description}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {doc.description}
+                  </p>
                 </div>
 
                 {/* Status Badge */}
@@ -148,9 +180,7 @@ export default function DocumentUploadCenter({
                   </Badge>
                 )}
                 {doc.status === "idle" && (
-                  <Badge variant="neutral">
-                    Pending
-                  </Badge>
+                  <Badge variant="neutral">Pending</Badge>
                 )}
               </div>
 
@@ -160,7 +190,9 @@ export default function DocumentUploadCenter({
                   {doc.fileUrl.startsWith("data:application/pdf") ? (
                     <div className="flex items-center justify-center py-6 gap-2 text-slate-300">
                       <FileText className="w-8 h-8 text-emerald-400" />
-                      <span className="text-xs font-mono font-bold">PDF Document Attached</span>
+                      <span className="text-xs font-mono font-bold">
+                        PDF Document Attached
+                      </span>
                     </div>
                   ) : (
                     <div className="relative h-36 w-full rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center">
@@ -228,7 +260,7 @@ export default function DocumentUploadCenter({
               {/* Hidden File Input */}
               <input
                 ref={(el) => {
-                  fileInputRefs.current[doc.id] = el;
+                  if (el) fileInputRefs.current[doc.id] = el;
                 }}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,application/pdf"

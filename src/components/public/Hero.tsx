@@ -1,5 +1,13 @@
 import React from "react";
-import { ShieldCheck, Vote, Lock, ArrowRight, CheckCircle2, UserCheck, Sparkles } from "lucide-react";
+import {
+  ShieldCheck,
+  Vote,
+  Lock,
+  ArrowRight,
+  CheckCircle2,
+  UserCheck,
+  Sparkles,
+} from "lucide-react";
 
 interface HeroProps {
   onRegisterClick: () => void;
@@ -7,16 +15,19 @@ interface HeroProps {
   onResultsClick: () => void;
 }
 
-export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: HeroProps) {
+export default function Hero({
+  onRegisterClick,
+  onLoginClick,
+  onResultsClick,
+}: HeroProps) {
   return (
-    <section className="relative overflow-hidden py-16 md:py-24 lg:py-28">
+    <section className="relative overflow-hidden py-16 md:py-24 lg:py-28 bg-slate-50 dark:bg-slate-950">
       {/* Background Glow Accents */}
       <div className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-emerald-500/15 via-teal-500/10 to-blue-600/15 blur-3xl" />
       <div className="pointer-events-none absolute top-1/2 right-0 -z-10 h-[300px] w-[400px] rounded-full bg-emerald-500/10 blur-3xl" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          
           {/* Left Hero Text Column */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             {/* Top Pill Badge */}
@@ -31,12 +42,18 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15]">
-              Empowering <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 bg-clip-text text-transparent">Democratic Trust</span> with Cryptographic Integrity.
+              Empowering{" "}
+              <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 bg-clip-text text-transparent">
+                Democratic Trust
+              </span>{" "}
+              with Cryptographic Integrity.
             </h1>
 
             {/* Sub-description */}
             <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
-              VoTex provides tamper-proof, transparent, and biometric-verified online elections for citizens, institutions, and civic bodies with end-to-end security auditability.
+              VoTex provides tamper-proof, transparent, and biometric-verified
+              online elections for citizens, institutions, and civic bodies with
+              end-to-end security auditability.
             </p>
 
             {/* CTAs Button Group */}
@@ -72,15 +89,21 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
             <div className="pt-6 grid grid-cols-3 gap-3 border-t border-slate-200/80 dark:border-slate-850/80 max-w-xl mx-auto lg:mx-0">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Biometric Facial ID</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Biometric Facial ID
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">1-Voter 1-Ballot</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  1-Voter 1-Ballot
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">End-to-End Audit</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  End-to-End Audit
+                </span>
               </div>
             </div>
           </div>
@@ -111,7 +134,9 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <UserCheck className="h-4 w-4 text-blue-500" />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Identity Authentication</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Identity Authentication
+                    </span>
                   </div>
                   <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                     VERIFIED
@@ -121,7 +146,9 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Lock className="h-4 w-4 text-teal-500" />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Anonymized Hash Protocol</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Anonymized Hash Protocol
+                    </span>
                   </div>
                   <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-md bg-teal-500/15 text-teal-600 dark:text-teal-400">
                     ENCRYPTED
@@ -131,7 +158,9 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Vote className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Double-Vote Prevention</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Double-Vote Prevention
+                    </span>
                   </div>
                   <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
                     ENFORCED
@@ -141,12 +170,15 @@ export default function Hero({ onRegisterClick, onLoginClick, onResultsClick }: 
 
               {/* Bottom Card Footer Banner */}
               <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-850 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="font-mono text-[10px]">Liveness & Face Template Matching</span>
-                <span className="font-bold text-emerald-500">99.98% Accuracy</span>
+                <span className="font-mono text-[10px]">
+                  Liveness & Face Template Matching
+                </span>
+                <span className="font-bold text-emerald-500">
+                  99.98% Accuracy
+                </span>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </section>
