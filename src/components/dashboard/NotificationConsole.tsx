@@ -177,6 +177,7 @@ export default function NotificationConsole({
             ) : (
               logs.map((log) => {
                 const otp = extractOTP(log.body);
+                const showOtp = log.type === "SMS" && Boolean(otp);
                 return (
                   <div
                     key={log.id}
@@ -186,7 +187,7 @@ export default function NotificationConsole({
                       <div className="flex items-center gap-1.5">
                         {log.type === "Email" ? (
                           <span className="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1">
-                            <Mail className="w-2.5 h-2.5" /> EMAIL
+                            <Mail className="w-2.5 h-2.5" /> {showOtp ? "EMAIL OTP" : "EMAIL"}
                           </span>
                         ) : (
                           <span className="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1">
@@ -198,7 +199,7 @@ export default function NotificationConsole({
                         </span>
                       </div>
 
-                      {otp && (
+                      {showOtp && (
                         <button
                           onClick={() => handleCopy(otp, log.id)}
                           className="flex items-center gap-1 text-[10px] font-mono font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded transition-all cursor-pointer border border-amber-500/20"

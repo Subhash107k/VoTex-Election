@@ -47,18 +47,17 @@ const normalizeMobileValue = (value: string) => {
   if (!digits) return "";
 
   if (raw.startsWith("+")) {
+    if (digits.startsWith("977") && digits.length > 13) {
+      return `+${digits.slice(0, 13)}`;
+    }
     return `+${digits}`;
   }
 
-  if (digits.startsWith("977") && digits.length === 12) {
-    return `+${digits}`;
+  if (digits.startsWith("977")) {
+    return `+${digits.slice(0, 13)}`;
   }
 
-  if (digits.startsWith("977") && digits.length > 12) {
-    return `+${digits.slice(0, 12)}`;
-  }
-
-  if (digits.startsWith("0") && digits.length === 10) {
+  if (digits.startsWith("0") && digits.length === 11) {
     return `+977${digits.slice(1)}`;
   }
 
@@ -79,13 +78,14 @@ const validateNepaliMobile = (value: string) => {
   return /^9\d{9}$/.test(localPart) ? normalized : null;
 };
 
+const normalizeMobileComparisonValue = (value: string) => {
+  const normalized = normalizeMobileValue(value);
+  if (!normalized) return "";
+  return normalized.replace(/^\+977/, "");
+};
+
 const areSameMobile = (a: string, b: string) => {
-  const normalize = (value: string) =>
-    String(value || "")
-      .trim()
-      .replace(/[\s\-()]/g, "")
-      .toLowerCase();
-  return normalize(a) === normalize(b);
+  return normalizeMobileComparisonValue(a) === normalizeMobileComparisonValue(b);
 };
 
 const normalizeEmailValue = (val?: string) =>
@@ -129,7 +129,19 @@ const registrationSchema = z
     nid: z.string().trim().min(3).max(40).optional(),
     citizenshipNumber: z.string().trim().min(3).max(40).optional(),
     citizenship: z.string().trim().min(3).max(40).optional(),
-    dob: z.string().date(),
+    dob: z
+      .string()
+      .trim()
+      .refine(
+        (value) => {
+          const parsed = new Date(value);
+          return !Number.isNaN(parsed.getTime());
+        },
+        {
+          message:
+            "Date of birth must be a valid date string in the format YYYY-MM-DD.",
+        },
+      ),
     gender: z.enum(["Male", "Female", "Other"]),
     occupation: z.string().trim().min(2).max(120),
     password: z.string().min(12).max(128),
@@ -730,7 +742,9 @@ export const authController = {
         return res.status(400).json({
           success: false,
           error:
+            parsed.error.issues[0]?.message ||
             "Registration data is invalid. Use a 12-character password and valid field values.",
+          details: parsed.error.issues,
         });
       }
       const {
@@ -795,7 +809,10 @@ export const authController = {
 
       const emailStandard = normalizeEmailValue(email);
       const usernameStandard = normalizeUsernameValue(username);
-      const mobileStandard = normalizePhoneValue(mobile);
+      const mobileStandard = validateNepaliMobile(mobile);
+      const mobileNormalizedComparison = mobileStandard
+        ? mobileStandard.replace(/^\+977/, "")
+        : "";
       const nidStandard = normalizeNidValue(nidVal);
       const citizenshipStandard = normalizeCitizenshipValue(citizenshipVal);
 
@@ -886,7 +903,7 @@ export const authController = {
       const isMobileOk = otps.some(
         (o) =>
           o.mobile &&
-          areSameMobile(o.mobile, mobileStandard) &&
+          areSameMobile(o.mobile, mobileStandard || "") &&
           o.isUsed &&
           o.purpose === "Registration",
       );
@@ -913,7 +930,7 @@ export const authController = {
         nationalID: nidStandard,
         citizenshipNumber: citizenshipStandard,
         email: emailStandard,
-        mobile: mobileStandard,
+        mobile: mobileStandard || "",
         address: "",
         dob,
         gender,

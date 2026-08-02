@@ -268,6 +268,22 @@ export default function RegisterPage({
     setIsCaptchaVerified(valid);
   }, []);
 
+  useEffect(() => {
+    setIsEmailVerifiedLocal(false);
+    setEmailVerificationCode("");
+    setIsEmailOtpSent(false);
+    setEmailCountdown(0);
+    setEmailError("");
+  }, [regForm.email]);
+
+  useEffect(() => {
+    setIsSmsVerifiedLocal(false);
+    setSmsVerificationCode("");
+    setIsSmsOtpSent(false);
+    setSmsCountdown(0);
+    setSmsError("");
+  }, [regForm.mobile]);
+
   // Countdown timers
   useEffect(() => {
     let timer: any;
@@ -561,6 +577,16 @@ export default function RegisterPage({
     }
   };
 
+  const handleFormSubmit = (event: React.FormEvent) => {
+    if (!isEmailVerifiedLocal || !isSmsVerifiedLocal || !isIdentityAllAvailable) {
+      event.preventDefault();
+      if (!isEmailVerifiedLocal) setEmailError("Please verify your email before registering.");
+      if (!isSmsVerifiedLocal) setSmsError("Please verify your mobile number before registering.");
+      return;
+    }
+    handleRegisterSubmit(event);
+  };
+
   const renderFieldStatus = (
     fieldKey: "email" | "username" | "phone" | "nid" | "citizenship",
     labelName: string,
@@ -678,7 +704,7 @@ export default function RegisterPage({
             </p>
           </div>
 
-          <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-5 text-xs font-sans">
+          <form onSubmit={handleFormSubmit} className="flex flex-col gap-5 text-xs font-sans">
             
             {/* Role Selection */}
             <div>

@@ -86,7 +86,14 @@ const voteHmacSecret = getRuntimeSecret(
 const app = express();
 const PORT = env.PORT;
 
-if (isProduction) {
+const shouldTrustProxy =
+  isProduction ||
+  process.env.NODE_ENV !== "production" ||
+  ["true", "1"].includes(
+    String(process.env.TRUST_PROXY || "").toLowerCase(),
+  );
+
+if (shouldTrustProxy) {
   app.set("trust proxy", 1);
 }
 
@@ -696,6 +703,12 @@ const logDispatch = async (
   body: string,
   html?: string,
 ): Promise<boolean> => {
+  try {
+    dispatchLogs = await Database.getDispatchLogs();
+  } catch (err) {
+    console.warn("Unable to load existing dispatch logs:", err);
+  }
+
   dispatchLogs.unshift({
     id: createId("disp"),
     type,
@@ -705,6 +718,12 @@ const logDispatch = async (
     timestamp: new Date().toISOString(),
   });
   if (dispatchLogs.length > 50) dispatchLogs.pop();
+
+  try {
+    await Database.saveDispatchLogs(dispatchLogs);
+  } catch (err) {
+    console.warn("Unable to persist dispatch logs:", err);
+  }
 
   if (type === "Email") {
     return sendRealEmail(to, title, body, html);
@@ -835,27 +854,30 @@ app.get(
   "/api/system/dispatches",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req, res) => {
-    res.json({ logs: dispatchLogs });
+  async (req, res) => {
+    const logs = await Database.getDispatchLogs();
+    res.json({ logs });
   },
 );
 
-app.get("/api/system/dispatches/public", (req, res) => {
+app.get("/api/system/dispatches/public", async (req, res) => {
   if (process.env.NODE_ENV === "production") {
     return res
       .status(403)
       .json({ error: "Public dispatch logs are disabled in production." });
   }
 
-  res.json({ logs: dispatchLogs });
+  const logs = await Database.getDispatchLogs();
+  res.json({ logs });
 });
 
 app.post(
   "/api/system/dispatches/clear",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req, res) => {
+  async (req, res) => {
     dispatchLogs = [];
+    await Database.saveDispatchLogs(dispatchLogs);
     res.json({ success: true });
   },
 );
