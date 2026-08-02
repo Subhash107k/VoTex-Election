@@ -440,6 +440,9 @@ export class Database {
       // Ensure indexes
       await this.ensureIndexes();
 
+      // Load persisted cache from MongoDB so runtime APIs reflect actual admin data
+      await this.loadDatabaseCache();
+
       // Start health check
       this.startHealthCheck();
       this.ensureSeedData();
@@ -558,6 +561,33 @@ export class Database {
     } catch (error) {
       console.error(`Error fetching from ${collectionName}:`, error);
       return [];
+    }
+  }
+
+  static async loadDatabaseCache(): Promise<void> {
+    try {
+      if (!this.db) return;
+
+      const [users, elections, candidates, votes, notifications, faqs] =
+        await Promise.all([
+          this.findAll<User>("users"),
+          this.findAll<Election>("elections"),
+          this.findAll<Candidate>("candidates"),
+          this.findAll<Vote>("votes"),
+          this.findAll<any>("notifications"),
+          this.findAll<any>("faqs"),
+        ]);
+
+      this.inMemStore.set("users", users);
+      this.inMemStore.set("elections", elections);
+      this.inMemStore.set("candidates", candidates);
+      this.inMemStore.set("votes", votes);
+      this.inMemStore.set("notifications", notifications);
+      this.inMemStore.set("faqs", faqs);
+
+      console.log("✅ Loaded database cache from MongoDB");
+    } catch (error) {
+      console.error("Error loading database cache:", error);
     }
   }
 
@@ -1607,12 +1637,19 @@ export class Database {
     try {
       if (this.db) {
         for (const user of users) {
-          await this.upsertOne("users", { id: user.id }, user);
+          await this.upsertOne(
+            "users",
+            {
+              $or: [{ id: user.id }, { username: user.username }],
+            } as any,
+            user,
+          );
         }
       }
       this.inMemStore.set("users", users);
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Error saving users:", error);
       return false;
     }
   }
@@ -1649,20 +1686,32 @@ export class Database {
     return this.getElectionById(electionId);
   }
 
-  static saveCandidates(candidates: Candidate[]): boolean {
+  static async saveCandidates(candidates: Candidate[]): Promise<boolean> {
     try {
+      if (this.db) {
+        for (const candidate of candidates) {
+          await this.upsertOne("candidates", { id: candidate.id }, candidate);
+        }
+      }
       this.inMemStore.set("candidates", candidates);
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Error saving candidates:", error);
       return false;
     }
   }
 
-  static savePoliticalParties(parties: PoliticalParty[]): boolean {
+  static async savePoliticalParties(parties: PoliticalParty[]): Promise<boolean> {
     try {
+      if (this.db) {
+        for (const party of parties) {
+          await this.upsertOne("political_parties", { code: party.code }, party);
+        }
+      }
       this.inMemStore.set("political_parties", parties);
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Error saving political parties:", error);
       return false;
     }
   }
