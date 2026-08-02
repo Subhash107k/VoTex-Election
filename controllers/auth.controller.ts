@@ -1,6 +1,9 @@
 import crypto from "crypto";
+import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import nodemailer from "nodemailer";
+import twilio from "twilio";
 import { Database, User, OTPRecord } from "../src/db/dbService.js";
 import {
   getRegistrationVerificationEmail,
@@ -9,19 +12,71 @@ import {
   getPasswordChangedEmail,
 } from "../src/services/emailTemplates.js";
 
+dotenv.config({ quiet: true });
+
 const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const createOtpCode = () => crypto.randomInt(100000, 1000000).toString();
+
+export const normalizeVerificationCode = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .replace(/\s+/g, "");
+
+export const buildMailFromAddress = (address: string, displayName?: string) => {
+  const trimmedAddress = String(address || "").trim();
+  const trimmedName = String(displayName || "").trim();
+  if (!trimmedAddress) return "noreply@votex.com";
+  return trimmedName ? `${trimmedName} <${trimmedAddress}>` : trimmedAddress;
+};
 
 const validateEmail = (value: string) => {
   const trimmed = String(value || "")
     .trim()
     .toLowerCase();
-  return trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+  return trimmed &&
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(trimmed)
+    ? trimmed
+    : null;
+};
+
+const normalizeMobileValue = (value: string) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (raw.startsWith("+")) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith("977") && digits.length === 12) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith("977") && digits.length > 12) {
+    return `+${digits.slice(0, 12)}`;
+  }
+
+  if (digits.startsWith("0") && digits.length === 10) {
+    return `+977${digits.slice(1)}`;
+  }
+
+  if (digits.length === 10) {
+    return `+977${digits}`;
+  }
+
+  return `+${digits}`;
 };
 
 const validateNepaliMobile = (value: string) => {
-  const normalized = String(value || "").trim();
-  return /^\+97798[0-9]{8}$/.test(normalized) ? normalized : null;
+  const normalized = normalizeMobileValue(value);
+  if (!normalized.startsWith("+977")) {
+    return null;
+  }
+
+  const localPart = normalized.replace(/^\+977/, "");
+  return /^9\d{9}$/.test(localPart) ? normalized : null;
 };
 
 const areSameMobile = (a: string, b: string) => {
@@ -44,16 +99,16 @@ const normalizeUsernameValue = (val?: string) =>
 const normalizePhoneValue = (val?: string) =>
   String(val || "")
     .trim()
-    .replace(/[\s\-()]/g, "");
+    .replace(/[\s()-]/g, "");
 const normalizeNidValue = (val?: string) =>
   String(val || "")
     .trim()
-    .replace(/[\s\-]/g, "")
+    .replace(/[\s-]/g, "")
     .toUpperCase();
 const normalizeCitizenshipValue = (val?: string) =>
   String(val || "")
     .trim()
-    .replace(/[\s\-]/g, "")
+    .replace(/[\s-]/g, "")
     .toUpperCase();
 
 const registrationSchema = z
@@ -64,7 +119,10 @@ const registrationSchema = z
       .trim()
       .min(3)
       .max(40)
-      .regex(/^[a-zA-Z0-9_.-]+$/),
+      .regex(
+        /^[a-zA-Z0-9]+$/,
+        "Username must contain only letters and numbers",
+      ),
     email: z.string().trim().email().max(254),
     mobile: z.string().trim().min(8).max(20),
     nationalID: z.string().trim().min(3).max(40).optional(),
@@ -77,8 +135,10 @@ const registrationSchema = z
     password: z.string().min(12).max(128),
     confirmPassword: z.string().min(12).max(128),
     role: z.enum(["Voter", "Candidate"]),
+    b_website: z.string().optional(),
+    hpWebsite: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 const preferenceSchema = z
   .object({
@@ -102,8 +162,8 @@ const getUserAccessState = (user: User) => ({
   accountStatus: user.accountStatus || "Pending",
 });
 
-const checkOtpCooldown = (target: string, purpose: string) => {
-  const otpRecords = Database.getOTPs();
+const checkOtpCooldown = async (target: string, purpose: string) => {
+  const otpRecords = await Database.getOTPs();
   const now = Date.now();
   const recent = otpRecords.filter(
     (record) =>
@@ -124,6 +184,108 @@ const checkOtpCooldown = (target: string, purpose: string) => {
   };
 };
 
+let mailTransporter: any = null;
+const sendRealEmail = async (
+  to: string,
+  subject: string,
+  text: string,
+  html?: string,
+): Promise<boolean> => {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || "587", 10) || 587;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = buildMailFromAddress(
+    process.env.MAIL_FROM || process.env.SMTP_FROM || "noreply@votex.com",
+    process.env.SMTP_FROM_NAME,
+  );
+
+  if (!host || !user || !pass) {
+    console.warn(
+      `Skipping real email dispatch for ${to}: SMTP credentials are not configured.`,
+    );
+    return false;
+  }
+
+  try {
+    if (!mailTransporter) {
+      mailTransporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      });
+    }
+
+    await mailTransporter.sendMail({ from, to, subject, text, html });
+    return true;
+  } catch (error: any) {
+    console.error(
+      `Failed to dispatch real email to ${to}:`,
+      error?.message || error,
+    );
+    return false;
+  }
+};
+
+let twilioClient: any = null;
+const normalizeSmsRecipient = (value: string) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (raw.startsWith("+")) return `+${digits}`;
+  if (digits.startsWith("977") && digits.length === 12) return `+${digits}`;
+  if (digits.startsWith("0") && digits.length === 10)
+    return `+977${digits.slice(1)}`;
+  if (digits.length === 10) return `+977${digits}`;
+  return `+${digits}`;
+};
+
+const sendRealSms = async (to: string, body: string): Promise<boolean> => {
+  const sid = String(process.env.TWILIO_ACCOUNT_SID || "").trim();
+  const token = String(process.env.TWILIO_AUTH_TOKEN || "").trim();
+  const fromNumber = String(process.env.TWILIO_PHONE_NUMBER || "").trim();
+  const messagingServiceSid = String(
+    process.env.TWILIO_MESSAGING_SERVICE_SID || "",
+  ).trim();
+
+  if (!sid || !token) {
+    console.warn(
+      `Skipping real SMS dispatch for ${to}: Twilio credentials are not configured.`,
+    );
+    return false;
+  }
+
+  const recipient = normalizeSmsRecipient(to);
+  if (!recipient) {
+    console.warn(`Unable to normalize SMS recipient: ${to}`);
+    return false;
+  }
+
+  try {
+    if (!twilioClient) {
+      twilioClient = twilio(sid, token);
+    }
+
+    const payload: Record<string, string> = { body, to: recipient };
+    if (messagingServiceSid) {
+      payload.messagingServiceSid = messagingServiceSid;
+    } else if (fromNumber) {
+      payload.from = fromNumber;
+    }
+
+    await twilioClient.messages.create(payload);
+    return true;
+  } catch (error: any) {
+    console.error(
+      `Failed to dispatch real SMS to ${to}:`,
+      error?.message || error,
+    );
+    return false;
+  }
+};
+
 const logDispatch = async (
   type: "Email" | "SMS",
   to: string,
@@ -131,8 +293,8 @@ const logDispatch = async (
   body: string,
   html?: string,
 ) => {
-  const dispatchLogs = Database.getDispatchLogs();
-  dispatchLogs.push({
+  const dispatchLogs = await Database.getDispatchLogs();
+  dispatchLogs.unshift({
     id: createId("dispatch"),
     type,
     to,
@@ -140,8 +302,16 @@ const logDispatch = async (
     body,
     timestamp: new Date().toISOString(),
   });
-  Database.saveDispatchLogs(dispatchLogs);
-  return true;
+  if (dispatchLogs.length > 50) dispatchLogs.pop();
+  await Database.saveDispatchLogs(dispatchLogs);
+
+  if (type === "Email") {
+    return sendRealEmail(to, title, body, html);
+  }
+  if (type === "SMS") {
+    return sendRealSms(to, body);
+  }
+  return false;
 };
 
 const createFingerprintHash = (imageData: string): string => {
@@ -150,6 +320,31 @@ const createFingerprintHash = (imageData: string): string => {
     "",
   );
   return crypto.createHash("sha256").update(normalized).digest("hex");
+};
+
+export const isMeaningfulFaceTemplate = (faceTemplate: unknown): boolean => {
+  if (!Array.isArray(faceTemplate) || faceTemplate.length < 8) {
+    return false;
+  }
+
+  const numericValues = faceTemplate.filter(
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value),
+  );
+  if (numericValues.length < 8) {
+    return false;
+  }
+
+  const magnitude =
+    numericValues.reduce((sum, value) => sum + Math.abs(value), 0) /
+    numericValues.length;
+  const variance =
+    numericValues.reduce(
+      (sum, value) => sum + Math.pow(value - magnitude, 2),
+      0,
+    ) / numericValues.length;
+
+  return magnitude > 0.01 && variance > 0.0001;
 };
 
 const deriveReviewScore = (seed: string, minimum: number, spread: number) => {
@@ -173,7 +368,7 @@ export const authController = {
           .json({ error: "Please enter a valid email address." });
       }
 
-      const cooldown = checkOtpCooldown(emailStandardUrl, "Registration");
+      const cooldown = await checkOtpCooldown(emailStandardUrl, "Registration");
       if (cooldown.isCoolingDown) {
         return res.status(429).json({
           error: `Please wait ${cooldown.remainingSec} seconds before requesting another secure verification code.`,
@@ -181,7 +376,7 @@ export const authController = {
         });
       }
 
-      const users = Database.getUsers();
+      const users = await Database.getUsers();
       if (users.some((u) => u.email.toLowerCase() === emailStandardUrl)) {
         return res.json({
           success: true,
@@ -193,7 +388,7 @@ export const authController = {
 
       const code = createOtpCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const otps = Database.getOTPs();
+      const otps = await Database.getOTPs();
       otps.push({
         id: createId("otp_email"),
         email: emailStandardUrl,
@@ -204,15 +399,23 @@ export const authController = {
         purpose: "Registration",
         createdAt: new Date().toISOString(),
       } as OTPRecord);
-      Database.saveOTPs(otps);
+      await Database.saveOTPs(otps);
 
       const verificationEmail = getRegistrationVerificationEmail(code);
-      await logDispatch(
+      const dispatchOk = await logDispatch(
         "Email",
         emailStandardUrl,
         verificationEmail.subject,
         verificationEmail.text,
       );
+
+      if (!dispatchOk) {
+        return res.status(502).json({
+          success: false,
+          error:
+            "Unable to send the verification email right now. Please try again later.",
+        });
+      }
 
       res.json({
         success: true,
@@ -226,6 +429,7 @@ export const authController = {
   async verifyEmailCode(req: any, res: any) {
     try {
       const { email, code } = req.body;
+      const normalizedCode = normalizeVerificationCode(code);
       if (!email || !code) {
         return res
           .status(400)
@@ -238,11 +442,12 @@ export const authController = {
           .status(400)
           .json({ error: "Please enter a valid email address." });
       }
-      const otps = Database.getOTPs();
+      const otps = await Database.getOTPs();
       const matchedIdx = otps.findIndex(
         (o) =>
+          o.email &&
           o.email.toLowerCase() === emailStandard &&
-          o.code === code &&
+          String(o.code) === normalizedCode &&
           !o.isUsed &&
           new Date(o.expiresAt) > new Date(),
       );
@@ -254,7 +459,7 @@ export const authController = {
       }
 
       otps[matchedIdx].isUsed = true;
-      Database.saveOTPs(otps);
+      await Database.saveOTPs(otps);
 
       res.json({
         success: true,
@@ -281,7 +486,7 @@ export const authController = {
         });
       }
 
-      const cooldown = checkOtpCooldown(mobileStandard, "Registration");
+      const cooldown = await checkOtpCooldown(mobileStandard, "Registration");
       if (cooldown.isCoolingDown) {
         return res.status(429).json({
           error: `Please wait ${cooldown.remainingSec} seconds before requesting another SMS OTP.`,
@@ -289,8 +494,8 @@ export const authController = {
         });
       }
 
-      const users = Database.getUsers();
-      if (users.some((u) => areSameMobile(u.mobile, mobileStandard))) {
+      const users = await Database.getUsers();
+      if (users.some((u) => areSameMobile(u.mobile || "", mobileStandard))) {
         return res.json({
           success: true,
           alreadyRegistered: true,
@@ -301,7 +506,7 @@ export const authController = {
 
       const code = createOtpCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const otps = Database.getOTPs();
+      const otps = await Database.getOTPs();
       otps.push({
         id: createId("otp_sms"),
         email: "",
@@ -312,7 +517,7 @@ export const authController = {
         purpose: "Registration",
         createdAt: new Date().toISOString(),
       } as OTPRecord);
-      Database.saveOTPs(otps);
+      await Database.saveOTPs(otps);
 
       const dispatchOk = await logDispatch(
         "SMS",
@@ -325,7 +530,7 @@ export const authController = {
         return res.status(502).json({
           success: false,
           error:
-            "Twilio rejected the SMS OTP delivery. Verify the recipient number, Twilio sender configuration, and trial-account restrictions before retrying.",
+            "Unable to send the SMS OTP right now. Verify the recipient number, Twilio configuration, or try again later.",
         });
       }
 
@@ -338,10 +543,11 @@ export const authController = {
     }
   },
 
-  verifySmsOtp(req: any, res: any) {
+  async verifySmsOtp(req: any, res: any) {
     try {
       const { mobile, code } = req.body;
-      if (!mobile || !code) {
+      const normalizedCode = normalizeVerificationCode(code);
+      if (!mobile || !normalizedCode) {
         return res
           .status(400)
           .json({ error: "Mobile and OTP code are required" });
@@ -354,11 +560,12 @@ export const authController = {
           .json({ error: "Please provide a valid Nepali mobile number." });
       }
 
-      const otps = Database.getOTPs();
+      const otps = await Database.getOTPs();
       const matchedIdx = otps.findIndex(
         (o) =>
+          o.mobile &&
           areSameMobile(o.mobile, mobileStandard) &&
-          o.code === code &&
+          String(o.code) === normalizedCode &&
           !o.isUsed &&
           new Date(o.expiresAt) > new Date(),
       );
@@ -370,7 +577,7 @@ export const authController = {
       }
 
       otps[matchedIdx].isUsed = true;
-      Database.saveOTPs(otps);
+      await Database.saveOTPs(otps);
 
       res.json({
         success: true,
@@ -382,7 +589,7 @@ export const authController = {
     }
   },
 
-  checkAvailability(req: any, res: any) {
+  async checkAvailability(req: any, res: any) {
     try {
       const email = req.query.email ? String(req.query.email) : undefined;
       const username = req.query.username
@@ -404,8 +611,8 @@ export const authController = {
           ? String(req.query.citizenshipNumber)
           : undefined;
 
-      const users = Database.getUsers();
-      const profiles = Database.getUserProfiles();
+      const users = await Database.getUsers();
+      const profiles = await Database.getUserProfiles();
 
       const available: Record<string, boolean> = {
         email: true,
@@ -431,7 +638,15 @@ export const authController = {
 
       if (username) {
         const userStd = normalizeUsernameValue(username);
-        if (userStd) {
+        if (!/^[a-zA-Z0-9]+$/.test(username)) {
+          available.username = false;
+          message.username =
+            "Username must contain only letters and numbers (no special characters).";
+        } else if (!/^(?=.*[a-zA-Z])(?=.*[0-9])/.test(username)) {
+          available.username = false;
+          message.username =
+            "Username must contain both letters and numbers (e.g. voter123).";
+        } else if (userStd) {
           const taken = users.some(
             (u) => u.username && normalizeUsernameValue(u.username) === userStd,
           );
@@ -500,17 +715,23 @@ export const authController = {
     }
   },
 
-  register(req: any, res: any) {
+  async register(req: any, res: any) {
     try {
+      // Honeypot anti-bot protection
+      if (req.body?.b_website || req.body?.hpWebsite || req.body?.botField) {
+        return res.status(400).json({
+          success: false,
+          error: "Bot activity detected. Account creation blocked.",
+        });
+      }
+
       const parsed = registrationSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error:
-              "Registration data is invalid. Use a 12-character password and valid field values.",
-          });
+        return res.status(400).json({
+          success: false,
+          error:
+            "Registration data is invalid. Use a 12-character password and valid field values.",
+        });
       }
       const {
         fullName,
@@ -545,12 +766,10 @@ export const authController = {
         !password ||
         !confirmPassword
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "All required registration fields must be completed",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "All required registration fields must be completed",
+        });
       }
 
       const birthDate = new Date(dob);
@@ -561,21 +780,17 @@ export const authController = {
       const actualAge =
         monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
       if (actualAge < 18) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Registration requires users to be at least 18 years old.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Registration requires users to be at least 18 years old.",
+        });
       }
 
       if (password !== confirmPassword) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Password confirmations do not match",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Password confirmations do not match",
+        });
       }
 
       const emailStandard = normalizeEmailValue(email);
@@ -584,8 +799,8 @@ export const authController = {
       const nidStandard = normalizeNidValue(nidVal);
       const citizenshipStandard = normalizeCitizenshipValue(citizenshipVal);
 
-      const users = Database.getUsers();
-      const profiles = Database.getUserProfiles();
+      const users = await Database.getUsers();
+      const profiles = await Database.getUserProfiles();
       const errors: Record<string, string> = {};
 
       if (!emailStandard || !validateEmail(email)) {
@@ -613,8 +828,9 @@ export const authController = {
       } else if (
         users.some(
           (u) =>
-            areSameMobile(u.mobile, mobileStandard) ||
-            normalizePhoneValue(u.mobile) === mobileStandard,
+            !!u.mobile &&
+            (areSameMobile(u.mobile, mobileStandard) ||
+              normalizePhoneValue(u.mobile) === mobileStandard),
         )
       ) {
         errors.phone = "Phone number already registered.";
@@ -659,36 +875,34 @@ export const authController = {
           .json({ success: false, error: Object.values(errors)[0], errors });
       }
 
-      const otps = Database.getOTPs();
+      const otps = await Database.getOTPs();
       const isEmailOk = otps.some(
         (o) =>
+          o.email &&
           o.email.toLowerCase() === emailStandard &&
           o.isUsed &&
           o.purpose === "Registration",
       );
       const isMobileOk = otps.some(
         (o) =>
+          o.mobile &&
           areSameMobile(o.mobile, mobileStandard) &&
           o.isUsed &&
           o.purpose === "Registration",
       );
 
       if (!isEmailOk) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error:
-              "Please verify your email address via SMTP verification token first",
-          });
+        return res.status(400).json({
+          success: false,
+          error:
+            "Please verify your email address via SMTP verification token first",
+        });
       }
       if (!isMobileOk) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Please verify your mobile number via SMS OTP code first",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Please verify your mobile number via SMS OTP code first",
+        });
       }
 
       const targetRole = role === "Candidate" ? "Candidate" : "Voter";
@@ -710,13 +924,7 @@ export const authController = {
         isVerified: false,
         isApproved: false,
         isSuspended: false,
-        isEmailVerified: true,
-        isMobileVerified: true,
-        emailVerifiedAt: new Date().toISOString(),
-        mobileVerifiedAt: new Date().toISOString(),
-        otpTimestamps: {
-          emailSent: new Date(Date.now() - 60000).toISOString(),
-          mobileSent: new Date(Date.now() - 30000).toISOString(),
+        verificationSteps: {
           emailVerified: new Date().toISOString(),
           mobileVerified: new Date().toISOString(),
         },
@@ -733,7 +941,7 @@ export const authController = {
 
       try {
         users.push(newUser);
-        Database.saveUsers(users);
+        await Database.saveUsers(users);
       } catch (dbErr: any) {
         const errMsg = String(dbErr?.message || dbErr || "");
         const dbErrors: Record<string, string> = {};
@@ -768,13 +976,11 @@ export const authController = {
           dbErrors.general =
             "Registration failed due to a database constraint conflict.";
         }
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: Object.values(dbErrors)[0],
-            errors: dbErrors,
-          });
+        return res.status(400).json({
+          success: false,
+          error: Object.values(dbErrors)[0],
+          errors: dbErrors,
+        });
       }
 
       const ip =
@@ -808,23 +1014,21 @@ export const authController = {
       );
       logDispatch(
         "SMS",
-        newUser.mobile,
+        newUser.mobile || "",
         "VoTex Welcome SMS Gateway",
         `VoTex Security: Account successfully registered for ${newUser.fullName}. Check email for login instructions and complete profile verification.`,
       );
 
-      res
-        .status(201)
-        .json({
-          message: "Registration completed successfully",
-          success: true,
-        });
+      res.status(201).json({
+        message: "Registration completed successfully",
+        success: true,
+      });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   },
 
-  login(req: any, res: any) {
+  async login(req: any, res: any) {
     try {
       const { email, password, faceVerificationImage } = req.body;
       if (!email || !password) {
@@ -833,7 +1037,7 @@ export const authController = {
           .json({ error: "Email or username and password are required" });
       }
 
-      const users = Database.getUsers();
+      const users = await Database.getUsers();
       const ident = email.toLowerCase().trim();
       const user = users.find(
         (u) =>
@@ -846,44 +1050,49 @@ export const authController = {
       }
 
       if (user.lockoutUntil && user.lockoutUntil > Date.now()) {
-        const minutesLeft = Math.ceil((user.lockoutUntil - Date.now()) / 60000);
-        return res
-          .status(403)
-          .json({
-            error: `Account heavily locked due to multiple consecutive login failures. Try again in ${minutesLeft} minute(s).`,
-          });
+        const remainingMs = user.lockoutUntil - Date.now();
+        const remainingSec = Math.ceil(remainingMs / 1000);
+        const minutesLeft = Math.ceil(remainingSec / 60);
+        return res.status(403).json({
+          error: `Account locked due to multiple consecutive failed login attempts. Please wait ${minutesLeft} minute(s).`,
+          lockoutUntil: user.lockoutUntil,
+          remainingSec,
+          failedAttempts: 5,
+        });
       }
 
       const isMatch = bcrypt.compareSync(password, user.passwordHash);
       if (!isMatch) {
         user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
         if (user.failedLoginAttempts >= 5) {
-          user.lockoutUntil = Date.now() + 5 * 60000;
-          Database.saveUsers(users);
+          const lockoutTime = Date.now() + 5 * 60000;
+          user.lockoutUntil = lockoutTime;
+          await Database.saveUsers(users);
           const ip =
             (req.headers["x-forwarded-for"] as string) ||
             req.socket.remoteAddress ||
             "127.0.0.1";
-          Database.addAuditLog(
+          await Database.addAuditLog(
             user.id,
             user.email,
-            `Account locked due to consecutive failures. IP: ${ip}`,
+            `Account locked due to 5 consecutive login failures. IP: ${ip}`,
             ip,
             req.headers["user-agent"] || "",
           );
-          return res
-            .status(403)
-            .json({
-              error:
-                "Invalid login credentials. Too many failed attempts. This account is locked for 5 minutes.",
-            });
+          return res.status(403).json({
+            error:
+              "Invalid login credentials. Too many failed attempts. Your account is locked for 5 minutes.",
+            lockoutUntil: lockoutTime,
+            remainingSec: 300,
+            failedAttempts: 5,
+          });
         }
         Database.saveUsers(users);
-        return res
-          .status(401)
-          .json({
-            error: `Invalid login credentials. Attempt ${user.failedLoginAttempts} of 5.`,
-          });
+        return res.status(401).json({
+          error: `Invalid login credentials. Failed attempt ${user.failedLoginAttempts} of 5.`,
+          failedAttempts: user.failedLoginAttempts,
+          maxAttempts: 5,
+        });
       }
 
       if (user.role === "Voter" && faceVerificationImage) {
@@ -895,25 +1104,23 @@ export const authController = {
       }
 
       if (user.isSuspended) {
-        return res
-          .status(403)
-          .json({
-            error:
-              "Your voting identity profile has been suspended by administrators for security reviews.",
-          });
+        return res.status(403).json({
+          error:
+            "Your voting identity profile has been suspended by administrators for security reviews.",
+        });
       }
 
       user.failedLoginAttempts = 0;
       user.lockoutUntil = undefined;
       user.lastLoginAt = new Date().toISOString();
-      Database.saveUsers(users);
+      await Database.saveUsers(users);
 
       const token = Database.generateToken(user);
       const ip =
         (req.headers["x-forwarded-for"] as string) ||
         req.socket.remoteAddress ||
         "127.0.0.1";
-      Database.addAuditLog(
+      await Database.addAuditLog(
         user.id,
         user.email,
         `User login successful (${user.role})`,
@@ -922,7 +1129,7 @@ export const authController = {
       );
       logDispatch(
         "SMS",
-        user.mobile,
+        user.mobile || "",
         "VoTex Notification",
         `New login detected on your VoTex profile on ${new Date().toLocaleString()} from IP: ${ip}.`,
       );
@@ -977,55 +1184,64 @@ export const authController = {
     });
   },
 
-  logout(req: any, res: any) {
-    const users = Database.getUsers();
+  async logout(req: any, res: any) {
+    const users = await Database.getUsers();
     const user = users.find((candidate) => candidate.id === req.user.id);
     if (user) {
       user.tokenVersion = (user.tokenVersion || 0) + 1;
-      Database.saveUsers(users);
+      await Database.saveUsers(users);
     }
     res.status(204).end();
   },
 
-  getPreferences(req: any, res: any) {
-    const preferences = Database.getUserPreferences();
-    const preference = preferences.find((item) => item.userId === req.user.id);
+  async getPreferences(req: any, res: any) {
+    const preference = await Database.getUserPreferences(req.user.id);
     res.json({ preferences: preference || defaultPreferences });
   },
 
-  updatePreferences(req: any, res: any) {
+  async updatePreferences(req: any, res: any) {
     const parsed = preferenceSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid preference values" });
     }
 
-    const preferences = Database.getUserPreferences();
-    const existingIndex = preferences.findIndex(
-      (item) => item.userId === req.user.id,
-    );
-    const existing = existingIndex >= 0 ? preferences[existingIndex] : null;
+    const existing = await Database.getUserPreferences(req.user.id);
     const preference = {
-      id: existing?.id || createId("pref"),
-      userId: req.user.id,
       ...defaultPreferences,
       ...existing,
       ...parsed.data,
       updatedAt: new Date().toISOString(),
     };
 
-    if (existingIndex >= 0) preferences[existingIndex] = preference;
-    else preferences.push(preference);
-    Database.saveUserPreferences(preferences);
+    await Database.saveUserPreferences(req.user.id, preference);
     res.json({ preferences: preference });
   },
 
   async getProfile(req: any, res: any) {
     try {
       const userId = req.user.id;
-      const profiles = Database.getUserProfiles();
-      const profile = profiles.find((p) => p.userId === userId) || null;
-      const docs = Database.getIdentityDocuments();
-      const doc = docs.find((d) => d.userId === userId) || null;
+      // Mark idempotency record as in-progress for this user if an idempotency key was provided
+      try {
+        const idempotencyKeySet =
+          (req.headers["idempotency-key"] as string) ||
+          (req.headers["Idempotency-Key"] as string) ||
+          (req.headers["Idempotency_Key"] as string) ||
+          (req.headers["idempotency_key"] as string) ||
+          null;
+        if (idempotencyKeySet) {
+          await Database.saveIdempotencyRecord(idempotencyKeySet, {
+            status: "in-progress",
+            userId,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // ignore persistence errors for idempotency
+      }
+      const profiles = await Database.getUserProfiles();
+      const profile = profiles.find((p: any) => p.userId === userId) || null;
+      const docs = await Database.getIdentityDocuments();
+      const doc = docs.find((d: any) => d.userId === userId) || null;
 
       res.json({ profile, document: doc });
     } catch (error: any) {
@@ -1046,10 +1262,10 @@ export const authController = {
       }
 
       const incomingHash = createFingerprintHash(fingerprintImage);
-      const profiles = Database.getUserProfiles();
-      const users = Database.getUsers();
+      const profiles = await Database.getUserProfiles();
+      const users = await Database.getUsers();
       const currentProfile = profiles.find(
-        (profile) => profile.userId === req.user.id,
+        (profile: any) => profile.userId === req.user.id,
       );
       const currentRegisteredHash =
         currentProfile?.fingerprintHash ||
@@ -1057,20 +1273,20 @@ export const authController = {
 
       const matches = profiles
         .filter(
-          (profile) =>
+          (profile: any) =>
             profile.userId !== req.user.id && profile.fingerprintImage,
         )
-        .map((profile) => {
+        .map((profile: any) => {
           const storedHash =
             profile.fingerprintHash ||
             createFingerprintHash(profile.fingerprintImage || "");
           const similarity = incomingHash === storedHash ? 1 : 0;
           return { profile, similarity, storedHash };
         })
-        .filter((entry) => entry.similarity >= 1)
-        .map((entry) => {
+        .filter((entry: any) => entry.similarity >= 1)
+        .map((entry: any) => {
           const user = users.find(
-            (candidate) => candidate.id === entry.profile.userId,
+            (candidate: any) => candidate.id === entry.profile.userId,
           );
           return {
             similarity: entry.similarity,
@@ -1094,7 +1310,34 @@ export const authController = {
     }
   },
 
-  completeProfile(req: any, res: any) {
+  async completeProfile(req: any, res: any) {
+    // Quick idempotency pre-check: if client sent an Idempotency-Key and a
+    // completed response exists for it, return that immediately to avoid
+    // duplicate processing.
+    try {
+      const idempotencyKeyPre =
+        (req.headers["idempotency-key"] as string) ||
+        (req.headers["Idempotency-Key"] as string) ||
+        (req.headers["Idempotency_Key"] as string) ||
+        (req.headers["idempotency_key"] as string) ||
+        null;
+      if (idempotencyKeyPre) {
+        const existing = await Database.getIdempotencyRecord(idempotencyKeyPre);
+        if (existing && existing.status === "completed" && existing.response) {
+          return res.json(existing.response);
+        }
+        if (existing && existing.status === "in-progress") {
+          return res.status(202).json({
+            success: false,
+            message:
+              "Submission is already being processed. Please retry later.",
+          });
+        }
+      }
+    } catch (e) {
+      // ignore idempotency lookup errors and continue
+    }
+
     try {
       const {
         dob,
@@ -1115,6 +1358,8 @@ export const authController = {
         faceImage,
         faceTemplate,
         fingerprintImage,
+        fingerprintLeftImage,
+        fingerprintRightImage,
         fingerprintCaptureMethod,
         deviceInformation,
         permCountry,
@@ -1172,18 +1417,18 @@ export const authController = {
         !signatureImage ||
         !faceImage ||
         !faceTemplate ||
-        !fingerprintImage
+        !fingerprintImage ||
+        !fingerprintLeftImage ||
+        !fingerprintRightImage
       ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "All required profile fields, citizenship images, signature, face capture, and fingerprint scan are mandatory.",
-          });
+        return res.status(400).json({
+          error:
+            "All required profile fields, citizenship images, signature, face capture, and fingerprint scan are mandatory.",
+        });
       }
 
       const userId = req.user.id;
-      const users = Database.getUsers();
+      const users = await Database.getUsers();
       const userIdx = users.findIndex((u) => u.id === userId);
       if (userIdx === -1) {
         return res.status(404).json({ error: "User profile not found." });
@@ -1193,38 +1438,49 @@ export const authController = {
       const faceTemplateArray = Array.isArray(faceTemplate)
         ? faceTemplate
         : [0.1, 0.2, 0.3];
-      const isFaceDuplicate = users.some((u) => {
-        if (u.id === userId) return false;
-        if (
-          !u.faceTemplate ||
-          !faceTemplateArray ||
-          u.faceTemplate.length === 0
-        )
-          return false;
-        let sumSq = 0;
-        const len = Math.min(u.faceTemplate.length, faceTemplateArray.length);
-        for (let i = 0; i < len; i++) {
-          sumSq += Math.pow(
-            (u.faceTemplate[i] || 0) - (faceTemplateArray[i] || 0),
-            2,
-          );
-        }
-        const dist = Math.sqrt(sumSq);
-        return dist < 1.0;
-      });
+      const shouldCheckFaceDuplicates =
+        isMeaningfulFaceTemplate(faceTemplateArray);
+      const isFaceDuplicate = shouldCheckFaceDuplicates
+        ? users.some((u) => {
+            if (u.id === userId) return false;
+            if (
+              !u.faceTemplate ||
+              !faceTemplateArray ||
+              u.faceTemplate.length === 0
+            )
+              return false;
+            let sumSq = 0;
+            const len = Math.min(
+              u.faceTemplate.length,
+              faceTemplateArray.length,
+            );
+            for (let i = 0; i < len; i++) {
+              sumSq += Math.pow(
+                (u.faceTemplate[i] || 0) - (faceTemplateArray[i] || 0),
+                2,
+              );
+            }
+            const dist = Math.sqrt(sumSq);
+            return dist < 1.0;
+          })
+        : false;
 
       if (isFaceDuplicate) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Biometric Failure: This facial signature is already registered to another citizen's account",
-          });
+        return res.status(400).json({
+          error:
+            "Biometric Failure: This facial signature is already registered to another citizen's account",
+        });
       }
 
-      const profiles = Database.getUserProfiles();
+      const profiles = await Database.getUserProfiles();
+      const existingProfileIdx = profiles.findIndex(
+        (profile: any) => profile.userId === userId,
+      );
       const newProfile = {
-        id: createId("prof"),
+        id:
+          existingProfileIdx >= 0
+            ? profiles[existingProfileIdx].id
+            : createId("prof"),
         userId,
         dob,
         gender,
@@ -1237,7 +1493,10 @@ export const authController = {
         postalCode: postalCode || "",
         occupation: occupation || "",
         profilePhoto: profilePhoto || faceImage,
-        createdAt: new Date().toISOString(),
+        createdAt:
+          existingProfileIdx >= 0
+            ? profiles[existingProfileIdx].createdAt
+            : new Date().toISOString(),
         permCountry: permCountry || "",
         permProvince: permProvince || "",
         permDistrict: permDistrict || "",
@@ -1276,6 +1535,8 @@ export const authController = {
         citizenshipIssueDistrict: citizenshipIssueDistrict || "",
         citizenshipIssueAuthority: citizenshipIssueAuthority || "",
         fingerprintImage: fingerprintImage || "",
+        fingerprintLeftImage: fingerprintLeftImage || "",
+        fingerprintRightImage: fingerprintRightImage || "",
         fingerprintCaptureMethod: fingerprintCaptureMethod || "local-scan",
         nidIssueDate: nidIssueDate || "",
         nidStatus: nidStatus || "",
@@ -1285,13 +1546,19 @@ export const authController = {
         nationality: nationality || "Nepali",
         nidNumber: nidNumber || "",
       };
-      profiles.push(newProfile);
-      Database.saveUserProfiles(profiles);
+      if (existingProfileIdx >= 0) {
+        profiles[existingProfileIdx] = newProfile;
+      } else {
+        profiles.push(newProfile);
+      }
+      await Database.saveUserProfiles(profiles);
 
-      const docs = Database.getIdentityDocuments();
-      const newDoc = {
+      const docs = await Database.getIdentityDocuments();
+      const newDoc: any = {
         id: createId("doc"),
         userId,
+        documentType: "citizenship",
+        documentNumber: citizenshipNumber,
         citizenshipFrontImage,
         citizenshipBackImage,
         citizenshipNumber,
@@ -1299,15 +1566,15 @@ export const authController = {
         createdAt: new Date().toISOString(),
       };
       docs.push(newDoc);
-      Database.saveIdentityDocuments(docs);
+      await Database.saveIdentityDocuments(docs);
 
-      const faceVers = Database.getFaceVerifications();
-      const newFaceVer = {
+      const faceVers = await Database.getFaceVerifications();
+      const newFaceVer: any = {
         id: createId("face"),
         userId,
         faceImage,
         faceTemplate: faceTemplateArray,
-        verificationStatus: "Verified" as const,
+        verificationStatus: "verified" as const,
         verificationTimestamp: new Date().toISOString(),
         deviceInformation: deviceInformation || "Web Client Canvas",
         ipAddress:
@@ -1316,7 +1583,7 @@ export const authController = {
           "127.0.0.1",
       };
       faceVers.push(newFaceVer);
-      Database.saveFaceVerifications(faceVers);
+      await Database.saveFaceVerifications(faceVers);
 
       matchedUser.dob = dob;
       matchedUser.gender = gender as any;
@@ -1325,6 +1592,8 @@ export const authController = {
       matchedUser.faceImage = faceImage;
       matchedUser.faceTemplate = faceTemplateArray;
       matchedUser.fingerprintImage = fingerprintImage || "";
+      matchedUser.fingerprintLeftImage = fingerprintLeftImage || "";
+      matchedUser.fingerprintRightImage = fingerprintRightImage || "";
       matchedUser.fingerprintHash = fingerprintImage
         ? createFingerprintHash(fingerprintImage)
         : "";
@@ -1349,54 +1618,49 @@ export const authController = {
       const ocrAccuracy = deriveReviewScore(`${scoreSeed}|ocr`, 95, 5);
       const fingerprintQuality = deriveReviewScore(
         `${scoreSeed}|fingerprint`,
-        94,
-        6,
-      );
-      const trustScore = parseFloat(
-        (
-          0.3 * documentScore +
-          0.4 * avgFaceMatch +
-          0.2 * ocrAccuracy +
-          0.1 * fingerprintQuality
-        ).toFixed(1),
+        96,
+        4,
       );
 
-      matchedUser.verificationReport = {
-        documentScore,
-        faceMatchScore: avgFaceMatch,
-        faceMatchDetails: {
-          citizenship: faceMatchCitz,
-          nid: faceMatchNid,
-          uploadedPhoto: faceMatchPort,
+      matchedUser.verificationScores = {
+        documentAuthenticity: documentScore,
+        facialMatch: avgFaceMatch,
+        ocrAccuracy: ocrAccuracy,
+        fingerprintQuality: fingerprintQuality,
+        livenessPassed: 1,
+        overallConfidence: parseFloat(
+          (
+            (documentScore + avgFaceMatch + ocrAccuracy + fingerprintQuality) /
+            4
+          ).toFixed(1),
+        ),
+      };
+
+      matchedUser.verificationSummary = {
+        facialAnalysis: {
+          citizenshipMatch: faceMatchCitz,
+          nidMatch: faceMatchNid,
+          photoMatch: faceMatchPort,
+          averageMatch: avgFaceMatch,
+          livenessVerified: true,
         },
-        ocrAccuracy,
-        fingerprintQuality,
-        fraudRisk: "Low",
-        fraudReport: [
-          "Citizenship / NID authority signature match check: Secure & Genuine",
-          "Deepfake liveness, parallax, and facial skin heat signature check: Genuine human",
-          "Cross-boundary duplicate registration scan: Clean (0 matching metrics)",
-          "Tampering & screenshot metadata layer check: Passed",
-          "Synthetic identity threat check: Low Risk (Score: 1/100)",
-          "Proxy check (VPN tunnel overlay, region mask): Location matches coordinates",
-        ],
-        overallTrustScore: trustScore,
-        fingerprintImage: fingerprintImage || "",
-        fingerprintCaptureMethod: fingerprintCaptureMethod || "local-scan",
-        correctionHistory: req.body.correctionHistory || [
-          {
-            field: "Father Legal Name",
-            applied: true,
-            detectedValue: fatherName,
-            confidence: 99.4,
-          },
-        ],
-        submissionTimestamp: new Date().toISOString(),
-        deviceInformation: deviceInformation || "Apple WebKit Engine Client",
-        ipAddress:
-          (req.headers["x-forwarded-for"] as string) ||
-          req.socket.remoteAddress ||
-          "127.0.0.1",
+        documentAnalysis: {
+          authenticityScore: documentScore,
+          ocrAccuracy: ocrAccuracy,
+          fieldsMatched: 12,
+          fieldsTotal: 12,
+        },
+        fingerprintAnalysis: {
+          scanned: hasScannedFingerprint,
+          qualityScore: fingerprintQuality,
+          minutiaePoints: 48,
+          captureMethod: fingerprintCaptureMethod || "local-scan",
+        },
+        riskAssessment: {
+          riskScore: "Low",
+          flags: [],
+          recommendation: "Auto-Approve Eligible",
+        },
       };
 
       if (!matchedUser.auditLogs) matchedUser.auditLogs = [];
@@ -1411,28 +1675,28 @@ export const authController = {
       );
 
       users[userIdx] = matchedUser;
-      Database.saveUsers(users);
+      await Database.saveUsers(users);
 
       const ip =
         (req.headers["x-forwarded-for"] as string) ||
         req.socket.remoteAddress ||
         "127.0.0.1";
       const userAgent = req.headers["user-agent"] || "";
-      Database.addAuditLog(
+      await Database.addAuditLog(
         userId,
         matchedUser.email,
         "Document Upload (Citizenship & National ID Front/Back)",
         ip,
         userAgent,
       );
-      Database.addAuditLog(
+      await Database.addAuditLog(
         userId,
         matchedUser.email,
         "Biometric Face Capture & Parallax Liveness Check",
         ip,
         userAgent,
       );
-      Database.addAuditLog(
+      await Database.addAuditLog(
         userId,
         matchedUser.email,
         "Enrollment Submitted & Queued for Administrative Review",
@@ -1440,14 +1704,14 @@ export const authController = {
         userAgent,
       );
 
-      logDispatch(
+      await logDispatch(
         "SMS",
-        matchedUser.mobile,
+        matchedUser.mobile || "",
         "VoTex Enrollment",
         `VoTex National security check: Dear ${matchedUser.fullName}, your registration is complete! Your biometric profile was successfully queued under Pending Verification standard procedures.`,
       );
 
-      const notifications = Database.getNotifications();
+      const notifications = await Database.getNotifications();
       notifications.unshift({
         id: createId("n"),
         userId,
@@ -1457,9 +1721,9 @@ export const authController = {
         type: "info",
         timestamp: new Date().toISOString(),
       });
-      Database.saveNotifications(notifications);
+      await Database.saveNotifications(notifications);
 
-      res.json({
+      const responsePayload = {
         success: true,
         message:
           "Voter credentials successfully queued for administrative review.",
@@ -1481,29 +1745,67 @@ export const authController = {
           accountStatus: "Pending Verification",
           verificationReport: matchedUser.verificationReport,
         },
-      });
+      };
+
+      // finalize idempotency record if provided
+      try {
+        const idempotencyKeySet =
+          (req.headers["idempotency-key"] as string) ||
+          (req.headers["Idempotency-Key"] as string) ||
+          (req.headers["Idempotency_Key"] as string) ||
+          (req.headers["idempotency_key"] as string) ||
+          null;
+        if (idempotencyKeySet) {
+          Database.saveIdempotencyRecord(idempotencyKeySet, {
+            status: "completed",
+            userId,
+            response: responsePayload,
+            completedAt: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // ignore idempotency persistence errors
+      }
+
+      res.json(responsePayload);
     } catch (err: any) {
+      // If an idempotency key exists, mark it failed so clients can retry
+      try {
+        const idempotencyKeyFail =
+          (req.headers["idempotency-key"] as string) ||
+          (req.headers["Idempotency-Key"] as string) ||
+          (req.headers["Idempotency_Key"] as string) ||
+          (req.headers["idempotency_key"] as string) ||
+          null;
+        if (idempotencyKeyFail) {
+          Database.saveIdempotencyRecord(idempotencyKeyFail, {
+            status: "failed",
+            error: err.message,
+            failedAt: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // ignore
+      }
       res.status(500).json({ error: err.message });
     }
   },
 
-  otpSend(req: any, res: any) {
+  async otpSend(req: any, res: any) {
     const { channel, purpose } = req.body;
     if (!channel) return res.status(400).json({ error: "Channel is required" });
 
     const target = channel.trim();
     const targetPurpose = purpose || "Voting";
-    const cooldown = checkOtpCooldown(target, targetPurpose);
+    const cooldown = await checkOtpCooldown(target, targetPurpose);
     if (cooldown.isCoolingDown) {
-      return res
-        .status(429)
-        .json({
-          error: `Please wait ${cooldown.remainingSec} seconds before requesting another authorization code.`,
-        });
+      return res.status(429).json({
+        error: `Please wait ${cooldown.remainingSec} seconds before requesting another authorization code.`,
+      });
     }
 
     const code = createOtpCode();
-    const otps = Database.getOTPs();
+    const otps = await Database.getOTPs();
     const expiry = new Date();
     expiry.setMinutes(expiry.getMinutes() + 5);
 
@@ -1519,30 +1821,35 @@ export const authController = {
     } as any;
 
     otps.push(otpRecord);
-    Database.saveOTPs(otps);
+    await Database.saveOTPs(otps);
 
     if (channel.includes("@")) {
-      logDispatch(
+      const dispatchOk = await logDispatch(
         "Email",
         channel,
         `VoTex Verification Code - ${code}`,
         `Your verification code for ${purpose || "authorization"} is: ${code}. Valid for 5 minutes.`,
       );
+      if (!dispatchOk) {
+        return res.status(502).json({
+          success: false,
+          error:
+            "Unable to send the email OTP right now. Please try again later.",
+        });
+      }
     } else {
-      const dispatchOk = logDispatch(
+      const dispatchOk = await logDispatch(
         "SMS",
         channel,
         "VoTex Verification",
         `Your VoTex OTP for ${purpose || "authorization"} is: ${code}. Expires in 5 minutes.`,
       );
       if (!dispatchOk) {
-        return res
-          .status(502)
-          .json({
-            success: false,
-            error:
-              "Twilio rejected the OTP delivery. Verify the recipient number, Twilio sender configuration, and trial-account restrictions before retrying.",
-          });
+        return res.status(502).json({
+          success: false,
+          error:
+            "Unable to send the SMS OTP right now. Verify the recipient number, Twilio configuration, or try again later.",
+        });
       }
     }
 
@@ -1552,19 +1859,20 @@ export const authController = {
     });
   },
 
-  otpVerify(req: any, res: any) {
+  async otpVerify(req: any, res: any) {
     const { channel, code } = req.body;
-    if (!channel || !code)
+    const normalizedCode = normalizeVerificationCode(code);
+    if (!channel || !normalizedCode)
       return res
         .status(400)
         .json({ error: "Channel and OTP code are required" });
 
-    const otps = Database.getOTPs();
+    const otps = await Database.getOTPs();
     const now = new Date().toISOString();
     const record = otps.find(
       (o) =>
         !o.isUsed &&
-        o.code === code &&
+        String(o.code) === normalizedCode &&
         (o.email === channel || o.mobile === channel) &&
         o.expiresAt > now,
     );
@@ -1576,7 +1884,7 @@ export const authController = {
     }
 
     record.isUsed = true;
-    Database.saveOTPs(otps);
+    await Database.saveOTPs(otps);
 
     res.json({
       success: true,
@@ -1584,23 +1892,21 @@ export const authController = {
     });
   },
 
-  forgotPassword(req: any, res: any) {
+  async forgotPassword(req: any, res: any) {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "Email address is required" });
     }
 
     const emailStandard = email.toLowerCase().trim();
-    const cooldown = checkOtpCooldown(emailStandard, "PasswordReset");
+    const cooldown = await checkOtpCooldown(emailStandard, "PasswordReset");
     if (cooldown.isCoolingDown) {
-      return res
-        .status(429)
-        .json({
-          error: `Please wait ${cooldown.remainingSec} seconds before requesting another password reset OTP.`,
-        });
+      return res.status(429).json({
+        error: `Please wait ${cooldown.remainingSec} seconds before requesting another password reset OTP.`,
+      });
     }
 
-    const users = Database.getUsers();
+    const users = await Database.getUsers();
     const user = users.find((u) => u.email.toLowerCase() === emailStandard);
 
     if (!user) {
@@ -1608,7 +1914,7 @@ export const authController = {
     }
 
     const code = createOtpCode();
-    const otps = Database.getOTPs();
+    const otps = await Database.getOTPs();
     const expiry = new Date();
     expiry.setMinutes(expiry.getMinutes() + 10);
 
@@ -1622,7 +1928,7 @@ export const authController = {
       purpose: "PasswordReset",
       createdAt: new Date().toISOString(),
     } as any);
-    Database.saveOTPs(otps);
+    await Database.saveOTPs(otps);
 
     const passwordResetEmail = getPasswordResetRequestEmail(code);
     logDispatch(
@@ -1635,29 +1941,44 @@ export const authController = {
     res.json({ success: true, message: "Security reset link code sent!" });
   },
 
-  resetPassword(req: any, res: any) {
+  async resetPassword(req: any, res: any) {
     const { email, code, newPassword } = req.body;
+    const normalizedCode = normalizeVerificationCode(code);
 
-    if (!email || !code || !newPassword) {
+    if (!email || !normalizedCode || !newPassword) {
       return res
         .status(400)
         .json({ error: "Complement all required fields to update password" });
     }
 
-    const otps = Database.getOTPs();
+    const emailStd = email.trim().toLowerCase();
+    const codeStd = normalizedCode;
+
+    if (newPassword.length < 12) {
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 12 characters long." });
+    }
+
+    const otps = await Database.getOTPs();
+    const nowStr = new Date().toISOString();
     const record = otps.find(
       (o) =>
-        o.email === email &&
-        o.code === code &&
+        o.email &&
+        o.email.toLowerCase() === emailStd &&
+        String(o.code) === codeStd &&
         !o.isUsed &&
-        o.purpose === "PasswordReset",
+        o.purpose === "PasswordReset" &&
+        o.expiresAt > nowStr,
     );
 
     if (!record) {
-      return res.status(400).json({ error: "Invalid password reset token" });
+      return res.status(400).json({
+        error: "Invalid or expired password reset verification code.",
+      });
     }
 
-    const users = Database.getUsers();
+    const users = await Database.getUsers();
     const user = users.find(
       (u) => u.email.toLowerCase() === email.toLowerCase(),
     );
@@ -1668,10 +1989,10 @@ export const authController = {
 
     user.passwordHash = bcrypt.hashSync(newPassword, 10);
     user.tokenVersion = (user.tokenVersion || 0) + 1;
-    Database.saveUsers(users);
+    await Database.saveUsers(users);
 
     record.isUsed = true;
-    Database.saveOTPs(otps);
+    await Database.saveOTPs(otps);
 
     const passwordChangedEmail = getPasswordChangedEmail(user.fullName);
     logDispatch(

@@ -47,7 +47,10 @@ export default function CtaSection({
         const res = await fetch("/api/elections");
         if (!res.ok) throw new Error("Failed to load elections");
         const json = await res.json();
-        const list: Election[] = (json.elections || []).map((e: any) => ({
+        const electionItems = Array.isArray(json.elections)
+          ? json.elections
+          : [];
+        const list: Election[] = electionItems.map((e: any) => ({
           id: e.id,
           title: e.title,
           description: e.description,
@@ -66,15 +69,16 @@ export default function CtaSection({
           );
           if (!candRes.ok) throw new Error("Failed to load candidates");
           const candJson = await candRes.json();
-          const candList: Candidate[] = (candJson.candidates || []).map(
-            (c: any) => ({
-              id: c.id,
-              name: c.name || c.fullName || "Unknown",
-              fullName: c.fullName,
-              party: c.party,
-              electionId: c.electionId,
-            }),
-          );
+          const candidateItems = Array.isArray(candJson.candidates)
+            ? candJson.candidates
+            : [];
+          const candList: Candidate[] = candidateItems.map((c: any) => ({
+            id: c.id,
+            name: c.name || c.fullName || "Unknown",
+            fullName: c.fullName,
+            party: c.party,
+            electionId: c.electionId,
+          }));
           if (!mounted) return;
           setCandidates(candList);
         } else {

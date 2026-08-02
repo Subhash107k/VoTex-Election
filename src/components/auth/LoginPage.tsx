@@ -21,6 +21,31 @@ interface LoginPageProps {
   setTheme: (theme: ThemeMode) => void;
 }
 
+const getDomainTypoSuggestion = (emailStr: string): string | null => {
+  const trimmed = emailStr.trim().toLowerCase();
+  const parts = trimmed.split("@");
+  if (parts.length !== 2) return null;
+  const [local, domain] = parts;
+
+  const typoMap: Record<string, string> = {
+    "gmial.com": "gmail.com",
+    "gmal.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "gmai.com": "gmail.com",
+    "yaho.com": "yahoo.com",
+    "yahooo.com": "yahoo.com",
+    "hotmial.com": "hotmail.com",
+    "hotmai.com": "hotmail.com",
+    "outlok.com": "outlook.com",
+    "icoud.com": "icloud.com",
+  };
+
+  if (typoMap[domain]) {
+    return `${local}@${typoMap[domain]}`;
+  }
+  return null;
+};
+
 export default function LoginPage({
   setCurrentPath,
   loading,
@@ -31,6 +56,7 @@ export default function LoginPage({
   setTheme,
 }: LoginPageProps) {
   const isLight = theme === "light";
+  const emailSuggestion = getDomainTypoSuggestion(loginForm.email);
 
   const bgMain = isLight
     ? "bg-slate-50 text-slate-800"
@@ -134,10 +160,27 @@ export default function LoginPage({
                   onChange={(e) =>
                     setLoginForm({ ...loginForm, email: e.target.value })
                   }
+                  onBlur={() => {
+                    if (loginForm.email !== loginForm.email.trim()) {
+                      setLoginForm({ ...loginForm, email: loginForm.email.trim() });
+                    }
+                  }}
                   className={`w-full px-3 py-2.5 pl-9 rounded-xl border ${inputBg}`}
                 />
                 <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
               </div>
+              {emailSuggestion && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                  <span>💡 Did you mean <strong>{emailSuggestion}</strong>?</span>
+                  <button
+                    type="button"
+                    onClick={() => setLoginForm({ ...loginForm, email: emailSuggestion })}
+                    className="underline font-bold text-amber-600 dark:text-amber-300 hover:text-amber-400 cursor-pointer ml-auto shrink-0"
+                  >
+                    Fix typo
+                  </button>
+                </div>
+              )}
             </div>
 
             <PasswordField

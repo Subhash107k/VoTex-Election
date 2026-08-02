@@ -47,7 +47,10 @@ export default function PublicLanding({
         const electRes = await fetch("/api/elections");
         if (electRes.ok) {
           const electJson = await electRes.json();
-          const publicElections = (electJson.elections || []).filter(
+          const electionItems = Array.isArray(electJson.elections)
+            ? electJson.elections
+            : [];
+          const publicElections = electionItems.filter(
             (el: any) => el.status === "Active" || el.status === "Closed",
           );
           setElections(publicElections);

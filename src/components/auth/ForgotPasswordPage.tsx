@@ -17,6 +17,31 @@ interface ForgotPasswordPageProps {
   setTheme: (theme: ThemeMode) => void;
 }
 
+const getDomainTypoSuggestion = (emailStr: string): string | null => {
+  const trimmed = emailStr.trim().toLowerCase();
+  const parts = trimmed.split("@");
+  if (parts.length !== 2) return null;
+  const [local, domain] = parts;
+
+  const typoMap: Record<string, string> = {
+    "gmial.com": "gmail.com",
+    "gmal.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "gmai.com": "gmail.com",
+    "yaho.com": "yahoo.com",
+    "yahooo.com": "yahoo.com",
+    "hotmial.com": "hotmail.com",
+    "hotmai.com": "hotmail.com",
+    "outlok.com": "outlook.com",
+    "icoud.com": "icloud.com",
+  };
+
+  if (typoMap[domain]) {
+    return `${local}@${typoMap[domain]}`;
+  }
+  return null;
+};
+
 export default function ForgotPasswordPage({
   setCurrentPath,
   loading,
@@ -30,6 +55,8 @@ export default function ForgotPasswordPage({
   setTheme,
 }: ForgotPasswordPageProps) {
   const isLight = theme === "light";
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const emailSuggestion = getDomainTypoSuggestion(forgotForm.email);
 
   const bgMain = isLight
     ? "bg-slate-50 text-slate-800"
@@ -137,10 +164,27 @@ export default function ForgotPasswordPage({
                     placeholder="voter@example.com"
                     value={forgotForm.email}
                     onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
+                    onBlur={() => {
+                      if (forgotForm.email !== forgotForm.email.trim()) {
+                        setForgotForm({ ...forgotForm, email: forgotForm.email.trim() });
+                      }
+                    }}
                     className={`w-full px-3 py-2.5 pl-9 rounded-xl border ${inputBg}`}
                   />
                   <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
                 </div>
+                {emailSuggestion && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                    <span>💡 Did you mean <strong>{emailSuggestion}</strong>?</span>
+                    <button
+                      type="button"
+                      onClick={() => setForgotForm({ ...forgotForm, email: emailSuggestion })}
+                      className="underline font-bold text-amber-600 dark:text-amber-300 hover:text-amber-400 cursor-pointer ml-auto shrink-0"
+                    >
+                      Fix typo
+                    </button>
+                  </div>
+                )}
               </div>
 
               <button
@@ -210,11 +254,23 @@ export default function ForgotPasswordPage({
                 autoComplete="new-password"
               />
 
+              <PasswordField
+                label="Confirm New Password"
+                value={confirmPassword}
+                onChange={(val) => setConfirmPassword(val)}
+                inputBg={inputBg}
+                autoComplete="new-password"
+              />
+
+              {confirmPassword.length > 0 && confirmPassword !== forgotForm.newPassword && (
+                <p className="text-[11px] text-rose-500 font-mono">Passwords do not match.</p>
+              )}
+
               <PasswordStrength password={forgotForm.newPassword} />
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (confirmPassword.length > 0 && confirmPassword !== forgotForm.newPassword)}
                 className="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 font-extrabold uppercase rounded-xl tracking-wider transition-all cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50"
               >
                 {loading ? "Resetting Password..." : "Submit New Password"}

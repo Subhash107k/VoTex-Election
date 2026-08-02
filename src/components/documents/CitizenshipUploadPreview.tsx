@@ -10,10 +10,7 @@ import {
 } from "lucide-react";
 
 export type CitizenshipPreviewStatus =
-  | "idle"
-  | "uploading"
-  | "verified"
-  | "error";
+  "idle" | "uploading" | "verified" | "error";
 
 interface CitizenshipUploadPreviewProps {
   label: string;
@@ -29,6 +26,9 @@ interface CitizenshipUploadPreviewProps {
   accent?: "emerald" | "indigo";
   onFileChange?: (file: File) => void;
   onRemove?: () => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: () => void;
   readOnly?: boolean;
   className?: string;
 }
@@ -86,6 +86,9 @@ export default function CitizenshipUploadPreview({
   accent = "emerald",
   onFileChange,
   onRemove,
+  onDrop,
+  onDragOver,
+  onDragLeave,
   readOnly = false,
   className = "",
 }: CitizenshipUploadPreviewProps) {

@@ -129,7 +129,6 @@ export default function App() {
 
   const clearSession = (reason?: string) => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem("votex_user");
     setToken(null);
     setCurrentUser(null);
 
@@ -140,7 +139,6 @@ export default function App() {
 
   const saveSession = (newToken: string, user: User) => {
     localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
-    localStorage.setItem("votex_user", JSON.stringify(user));
     setToken(newToken);
     setCurrentUser(user);
   };
@@ -171,31 +169,92 @@ export default function App() {
       );
       localStorage.removeItem(LOGOUT_REASON_KEY);
     }
-
-    if (token) {
-      syncSession();
-    }
   }, [token]);
 
   useEffect(() => {
-    if (currentUser) {
-      const homeByRole: Record<User["role"], string> = {
-        Voter: "/voter",
-        Candidate: "/candidate",
-        Administrator: "/admin",
-        "Super Administrator": "/admin",
-        "Election Officer": "/admin",
-        Moderator: "/admin",
-        "FAQ Manager": "/admin",
-        "Verification Officer": "/admin",
-        "Support Staff": "/admin",
+    if (!token) return;
+
+    let active = true;
+
+    const refreshCurrentUser = async () => {
+      try {
+        const data = await getCurrentUser(token);
+        if (!active) return;
+        setCurrentUser(data.user);
+      } catch (error) {
+        console.error(error);
+        if (!active) return;
+        clearSession("Your session ended. Please sign in again.");
+        setCurrentPath("/login");
+      }
+    };
+
+    refreshCurrentUser();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "votex_profile_refresh") {
+        refreshCurrentUser();
+      }
+      if (event.key === "votex_force_logout_event") {
+        clearSession("Session closed on another browser tab.");
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("votex_session_sync");
+      channel.onmessage = (e) => {
+        if (e.data?.type === "PROFILE_REFRESH") {
+          refreshCurrentUser();
+        }
+        if (e.data?.type === "LOGOUT") {
+          clearSession(e.data.reason || "Session synchronized logout.");
+          window.location.reload();
+        }
       };
-      if (
-        currentPath === "/" ||
-        currentPath === "/login" ||
-        currentPath === "/admin/login"
-      ) {
-        setCurrentPath(homeByRole[currentUser.role]);
+    } catch {
+      // BroadcastChannel may not be available in all environments
+    }
+
+    return () => {
+      active = false;
+      window.removeEventListener("storage", handleStorage);
+      if (channel) channel.close();
+    };
+  }, [token, currentPath]);
+
+  const getHomePath = (role: User["role"]) => {
+    const homeByRole: Record<User["role"], string> = {
+      Voter: "/voter",
+      Candidate: "/candidate",
+      Administrator: "/admin",
+      "Super Administrator": "/admin",
+      "Election Officer": "/admin",
+      Moderator: "/admin",
+      "FAQ Manager": "/admin",
+      "Verification Officer": "/admin",
+      "Support Staff": "/admin",
+    };
+
+    return homeByRole[role] ?? "/login";
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      const authPages = new Set([
+        "/",
+        "/login",
+        "/register",
+        "/forgot_password",
+        "/forgot-password",
+        "/admin/login",
+      ]);
+
+      if (authPages.has(currentPath)) {
+        setCurrentPath(getHomePath(currentUser.role));
       }
       return;
     }
@@ -267,7 +326,12 @@ export default function App() {
     try {
       setLoading(true);
       await registerAccount(regForm);
-      showToast("Account created. Please sign in.");
+      try {
+        localStorage.setItem("votex_account_created", "true");
+      } catch {
+        // ignore storage errors
+      }
+      showToast("Account created successfully. Please sign in.");
       setCurrentPath("/login");
       setRegForm(emptyRegisterForm);
       setRegFaceImage("");
@@ -284,9 +348,11 @@ export default function App() {
 
     try {
       setLoading(true);
-      const data = await loginAccount(loginForm);
+      const authResult = await loginAccount(loginForm);
+      const profileResult = await getCurrentUser(authResult.token);
       showToast("Signed in successfully.");
-      saveSession(data.token, data.user);
+      saveSession(authResult.token, profileResult.user);
+      setCurrentPath(getHomePath(profileResult.user.role));
     } catch (error) {
       showToast(getErrorMessage(error), "error");
     } finally {
@@ -459,12 +525,13 @@ export default function App() {
         onLogout={(reason) => clearSession(reason)}
         onExtendSession={async () => {
           if (token) {
-            await getCurrentUser(token);
+            const data = await getCurrentUser(token);
+            setCurrentUser(data.user);
           }
         }}
       />
 
-      <NotificationConsole />
+      <NotificationConsole userRole={currentUser?.role ?? ""} />
     </div>
   );
 }

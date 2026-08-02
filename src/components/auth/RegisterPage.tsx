@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   UserCheck,
   Mail,
@@ -33,6 +33,148 @@ interface RegisterPageProps {
   handleRegisterSubmit: (event: React.FormEvent) => void;
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
+}
+
+function VisualCaptchaComponent({
+  onVerifyChange,
+  inputBg,
+}: {
+  onVerifyChange: (isValid: boolean) => void;
+  inputBg: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [captchaCode, setCaptchaCode] = useState("");
+  const [userInput, setUserInput] = useState("");
+  const [isValid, setIsValid] = useState(false);
+
+  const generateCaptcha = useCallback(() => {
+    const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let code = "";
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptchaCode(code);
+    setUserInput("");
+    setIsValid(false);
+    onVerifyChange(false);
+  }, [onVerifyChange]);
+
+  useEffect(() => {
+    generateCaptcha();
+  }, [generateCaptcha]);
+
+  const drawCaptchaOnCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !captchaCode) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGradient.addColorStop(0, "#0f172a");
+    bgGradient.addColorStop(1, "#1e293b");
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < 5; i++) {
+      ctx.strokeStyle = `rgba(16, 185, 129, ${0.25 + Math.random() * 0.3})`;
+      ctx.lineWidth = 1 + Math.random() * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 35; i++) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(
+        Math.random() * canvas.width,
+        Math.random() * canvas.height,
+        Math.random() * 1.5,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+
+    ctx.font = "bold 20px monospace";
+    ctx.textBaseline = "middle";
+
+    const colors = ["#10b981", "#3b82f6", "#f59e0b", "#ec4899", "#8b5cf6"];
+    for (let i = 0; i < captchaCode.length; i++) {
+      const char = captchaCode[i];
+      ctx.save();
+      const x = 16 + i * 22;
+      const y = canvas.height / 2 + (Math.random() * 4 - 2);
+      const angle = (Math.random() * 24 - 12) * (Math.PI / 180);
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.shadowColor = "rgba(0,0,0,0.6)";
+      ctx.shadowBlur = 3;
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    }
+  }, [captchaCode]);
+
+  useEffect(() => {
+    drawCaptchaOnCanvas();
+  }, [captchaCode, drawCaptchaOnCanvas]);
+
+  const handleInputChange = (val: string) => {
+    setUserInput(val);
+    const valid = val.trim().toUpperCase() === captchaCode.toUpperCase();
+    setIsValid(valid);
+    onVerifyChange(valid);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-inner flex items-center shrink-0">
+        <canvas
+          ref={canvasRef}
+          width={130}
+          height={38}
+          className="block cursor-pointer"
+          onClick={generateCaptcha}
+          title="Click to refresh Visual CAPTCHA"
+        />
+        <button
+          type="button"
+          onClick={generateCaptcha}
+          title="Refresh Visual CAPTCHA"
+          className="p-2 text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-800/80 border-l border-slate-700"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <input
+        type="text"
+        required
+        placeholder="Answer"
+        value={userInput}
+        onChange={(e) => handleInputChange(e.target.value)}
+        className={`w-36 px-3 py-2 rounded-xl border text-xs font-mono font-bold tracking-wider uppercase ${inputBg}`}
+      />
+
+      {userInput.trim() !== "" && (
+        <span className="text-[11px] font-mono font-bold">
+          {isValid ? (
+            <span className="text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
+              ✔ Verified Human
+            </span>
+          ) : (
+            <span className="text-rose-500 dark:text-rose-400">
+              ❌ Incorrect CAPTCHA
+            </span>
+          )}
+        </span>
+      )}
+    </div>
+  );
 }
 
 interface FieldCheckState {
@@ -111,6 +253,21 @@ export default function RegisterPage({
   const [smsVerifyLoading, setSmsVerifyLoading] = useState(false);
   const [smsError, setSmsError] = useState("");
 
+  // Anti-Bot & Single Account Guard States
+  const [hpWebsite, setHpWebsite] = useState("");
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  const [alreadyHasAccount] = useState(() => {
+    try {
+      return localStorage.getItem("votex_account_created") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleCaptchaVerifyChange = useCallback((valid: boolean) => {
+    setIsCaptchaVerified(valid);
+  }, []);
+
   // Countdown timers
   useEffect(() => {
     let timer: any;
@@ -129,8 +286,8 @@ export default function RegisterPage({
   }, [smsCountdown]);
 
   const isValidEmailAddress = (value: string) => {
-    const trimmed = String(value || "").trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmed = String(value || "").trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(trimmed);
   };
 
@@ -169,7 +326,7 @@ export default function RegisterPage({
       if (!regForm.email) {
         nextStatus.email = { status: "idle" };
       } else if (!isValidEmailAddress(regForm.email)) {
-        nextStatus.email = { status: "invalid", message: "Invalid email format." };
+        nextStatus.email = { status: "invalid", message: "Invalid email format. Must be e.g. name@domain.com" };
       } else {
         nextStatus.email = { status: "checking" };
         queryParams.email = regForm.email;
@@ -179,8 +336,10 @@ export default function RegisterPage({
         nextStatus.username = { status: "idle" };
       } else if (regForm.username.length < 3) {
         nextStatus.username = { status: "invalid", message: "Username must be at least 3 characters." };
-      } else if (!/^[a-zA-Z0-9_.-]+$/.test(regForm.username)) {
-        nextStatus.username = { status: "invalid", message: "Only letters, numbers, _, ., - allowed." };
+      } else if (!/^[a-zA-Z0-9]+$/.test(regForm.username)) {
+        nextStatus.username = { status: "invalid", message: "Username must contain only letters and numbers (no special characters)." };
+      } else if (!/^(?=.*[a-zA-Z])(?=.*[0-9])/.test(regForm.username)) {
+        nextStatus.username = { status: "invalid", message: "Username must contain both letters and numbers (e.g. voter123)." };
       } else {
         nextStatus.username = { status: "checking" };
         queryParams.username = regForm.username;
@@ -439,6 +598,11 @@ export default function RegisterPage({
     return null;
   };
 
+  const isBotChallengePassed =
+    isCaptchaVerified &&
+    !hpWebsite &&
+    !alreadyHasAccount;
+
   const isIdentityAllAvailable =
     identityStatus.email.status === "available" &&
     identityStatus.username.status === "available" &&
@@ -448,7 +612,8 @@ export default function RegisterPage({
     regForm.password.length >= 12 &&
     regForm.password === regForm.confirmPassword &&
     dobAge !== null &&
-    dobAge >= 18;
+    dobAge >= 18 &&
+    isBotChallengePassed;
 
   return (
     <div className={`min-h-screen ${bgMain} flex flex-col justify-between relative transition-colors duration-300 font-sans`}>
@@ -834,6 +999,47 @@ export default function RegisterPage({
             </div>
 
             <PasswordStrength password={regForm.password} />
+
+            {/* Honeypot hidden input to trap automated spam bots */}
+            <div className="hidden opacity-0 pointer-events-none absolute -left-[9999px]" aria-hidden="true">
+              <input
+                type="text"
+                name="b_website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={hpWebsite}
+                onChange={(e) => setHpWebsite(e.target.value)}
+              />
+            </div>
+
+            {/* Bot Prevention & Single Account Security Check */}
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    Bot Prevention & Single Account Guard
+                  </span>
+                </div>
+                <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold font-mono">
+                  Visual CAPTCHA
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                To block automated bots and enforce 1-time account registration per user, complete the security check.
+              </p>
+
+              {alreadyHasAccount ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
+                  <span>⚠️ An account has already been registered on this browser. Multiple account creations from the same session are blocked to prevent bot spam.</span>
+                </div>
+              ) : (
+                <VisualCaptchaComponent
+                  onVerifyChange={handleCaptchaVerifyChange}
+                  inputBg={inputBg}
+                />
+              )}
+            </div>
 
             {/* Submit Button */}
             <button

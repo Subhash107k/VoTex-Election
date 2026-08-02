@@ -167,179 +167,177 @@ export default function DocumentPreview({
   const previewLabel = fileName || label;
 
   return (
-    <div
-      className={`rounded-3xl border bg-slate-950/90 border-slate-800 shadow-black/20 shadow-sm overflow-hidden ${
-        dragActive ? "border-emerald-500 bg-emerald-500/10 shadow-lg" : ""
-      } ${className}`}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-    >
-      <div className="p-5 border-b border-slate-800/70">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.22em] text-white">
-              <FileText className="w-4 h-4 text-emerald-400" />
-              {label}
+    <>
+      <div
+        className={`rounded-3xl border bg-slate-950/90 border-slate-800 shadow-black/20 shadow-sm overflow-hidden ${
+          dragActive ? "border-emerald-500 bg-emerald-500/10 shadow-lg" : ""
+        } ${className}`}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+      >
+        <div className="p-5 border-b border-slate-800/70">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.22em] text-white">
+                <FileText className="w-4 h-4 text-emerald-400" />
+                {label}
+              </div>
+              {subtitle && (
+                <p className="text-[11px] text-slate-400 mt-2">{subtitle}</p>
+              )}
             </div>
-            {subtitle && (
-              <p className="text-[11px] text-slate-400 mt-2">{subtitle}</p>
-            )}
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant={statusProps.variant}
-              dot={status !== "idle" && status !== "pending"}
-            >
-              {statusProps.label}
-            </Badge>
-            {required && (
-              <span className="text-[10px] uppercase tracking-[0.24em] text-rose-300 font-bold">
-                Required
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={statusProps.variant}
+                dot={status !== "idle" && status !== "pending"}
+              >
+                {statusProps.label}
+              </Badge>
+              {required && (
+                <span className="text-[10px] uppercase tracking-[0.24em] text-rose-300 font-bold">
+                  Required
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 p-5 lg:grid-cols-[35%_65%]">
-        <div className="space-y-4 text-[11px] text-slate-300">
-          {description && (
-            <div className="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-3 leading-relaxed">
-              <p>{description}</p>
+        <div className="grid gap-4 p-5 lg:grid-cols-[35%_65%]">
+          <div className="space-y-4 text-[11px] text-slate-300">
+            {description && (
+              <div className="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-3 leading-relaxed">
+                <p>{description}</p>
+              </div>
+            )}
+
+            <div className="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 space-y-3">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-slate-400 uppercase tracking-[0.24em]">
+                  File
+                </span>
+                <span className="text-slate-400 uppercase tracking-[0.24em]">
+                  Details
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Name</span>
+                  <span className="text-slate-200">
+                    {fileName || "Not uploaded"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Type</span>
+                  <span className="text-slate-200">
+                    {hasPreview ? fileTypeLabel : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Size</span>
+                  <span className="text-slate-200">
+                    {finalFileSize ? bytesToSize(finalFileSize) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-500">Upload</span>
+                  <span className="text-slate-200">
+                    {uploadedAt || "Not yet"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {onFileChange && (
+                <label className="block w-full cursor-pointer rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.24em] text-emerald-300 transition hover:bg-emerald-500/15">
+                  {hasPreview ? "Replace Document" : "Upload Document"}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={accept}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              )}
+
+              {onRemove && hasPreview && (
+                <button
+                  type="button"
+                  onClick={onRemove}
+                  className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-rose-300 transition hover:bg-rose-500/15"
+                >
+                  Remove Document
+                </button>
+              )}
+            </div>
+          </div>
+
+          {(status === "uploading" || hasPreview) && (
+            <div className="space-y-4">
+              {status === "uploading" ? (
+                <div className="animate-pulse space-y-3 w-full">
+                  <div className="h-4 w-2/5 rounded-full bg-slate-700" />
+                  <div className="h-48 rounded-3xl bg-slate-800" />
+                  <div className="h-4 w-1/3 rounded-full bg-slate-700" />
+                </div>
+              ) : hasPreview ? (
+                <div className="space-y-4">
+                  <div className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 border border-slate-800">
+                    {isPdf ? (
+                      <iframe
+                        src={fileUrl}
+                        className="h-[300px] min-h-[260px] w-full rounded-[1.75rem] border-0 bg-slate-950"
+                        title={previewLabel}
+                      />
+                    ) : (
+                      <div className="relative flex h-[300px] min-h-[260px] w-full items-center justify-center overflow-hidden rounded-[1.75rem] bg-slate-950">
+                        <img
+                          src={fileUrl}
+                          alt={previewLabel}
+                          onLoad={() => setImageLoaded(true)}
+                          className={`max-h-full max-w-full object-contain transition-all duration-300 ${
+                            imageLoaded ? "opacity-100" : "opacity-0"
+                          }`}
+                          style={{
+                            transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                          }}
+                        />
+                        {!imageLoaded && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
+                            <ImageIcon className="w-10 h-10 text-slate-500" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                      onClick={openPreview}
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                      Preview
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleOpenInNewTab}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
-
-          <div className="rounded-3xl border border-slate-800/70 bg-slate-900/70 p-4 space-y-3">
-            <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-400 uppercase tracking-[0.24em]">
-                File
-              </span>
-              <span className="text-slate-400 uppercase tracking-[0.24em]">
-                Details
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Name</span>
-                <span className="text-slate-200">
-                  {fileName || "Not uploaded"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Type</span>
-                <span className="text-slate-200">
-                  {hasPreview ? fileTypeLabel : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Size</span>
-                <span className="text-slate-200">
-                  {finalFileSize ? bytesToSize(finalFileSize) : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Upload</span>
-                <span className="text-slate-200">
-                  {uploadedAt || "Not yet"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {onFileChange && (
-              <label className="block w-full cursor-pointer rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.24em] text-emerald-300 transition hover:bg-emerald-500/15">
-                {hasPreview ? "Replace Document" : "Upload Document"}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={accept}
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-            )}
-
-            {onRemove && hasPreview && (
-              <button
-                type="button"
-                onClick={onRemove}
-                className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-rose-300 transition hover:bg-rose-500/15"
-              >
-                Remove Document
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div
-            className={`rounded-3xl border border-slate-800/70 bg-slate-900/80 p-4 min-h-[310px] flex flex-col justify-between ${
-              !hasPreview ? "items-center justify-center" : ""
-            }`}
-          >
-            {status === "uploading" ? (
-              <div className="animate-pulse space-y-3 w-full">
-                <div className="h-4 w-2/5 rounded-full bg-slate-700" />
-                <div className="h-48 rounded-3xl bg-slate-800" />
-                <div className="h-4 w-1/3 rounded-full bg-slate-700" />
-              </div>
-            ) : hasPreview ? (
-              <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 border border-slate-800">
-                  {isPdf ? (
-                    <iframe
-                      src={fileUrl}
-                      className="h-[300px] min-h-[260px] w-full rounded-[1.75rem] border-0 bg-slate-950"
-                      title={previewLabel}
-                    />
-                  ) : (
-                    <div className="relative flex h-[300px] min-h-[260px] w-full items-center justify-center overflow-hidden rounded-[1.75rem] bg-slate-950">
-                      <img
-                        src={fileUrl}
-                        alt={previewLabel}
-                        onLoad={() => setImageLoaded(true)}
-                        className={`max-h-full max-w-full object-contain transition-all duration-300 ${
-                          imageLoaded ? "opacity-100" : "opacity-0"
-                        }`}
-                        style={{
-                          transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                        }}
-                      />
-                      {!imageLoaded && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
-                          <ImageIcon className="w-10 h-10 text-slate-500" />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="w-full"
-                    onClick={openPreview}
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="w-full"
-                    onClick={handleOpenInNewTab}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Open
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </div>
 
           {hasPreview && (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -429,6 +427,6 @@ export default function DocumentPreview({
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

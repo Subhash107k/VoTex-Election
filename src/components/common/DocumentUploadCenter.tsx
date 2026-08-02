@@ -114,20 +114,18 @@ export default function DocumentUploadCenter({
               key={doc.id}
               label={doc.label}
               description={doc.description}
-              required={doc.required}
               fileUrl={doc.fileUrl}
               fileName={doc.label}
               status={doc.status}
               accept="image/jpeg,image/png,image/webp,application/pdf"
-              dragActive={isDragging}
-              onDrop={(e) => {
+              onDrop={(e: React.DragEvent) => {
                 e.preventDefault();
                 setDragOverId(null);
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                   handleFileSelected(doc.id, e.dataTransfer.files[0]);
                 }
               }}
-              onDragOver={(e) => {
+              onDragOver={(e: React.DragEvent) => {
                 e.preventDefault();
                 setDragOverId(doc.id);
               }}

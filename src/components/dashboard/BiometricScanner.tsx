@@ -437,7 +437,7 @@ export default function BiometricScanner({
         );
 
         if (isActive && isMountedRef.current) {
-          setDetector(model);
+          setDetector(model as any);
           setBiometricsLog((prev) => [
             ...prev,
             "✔ Face landmark model loaded.",

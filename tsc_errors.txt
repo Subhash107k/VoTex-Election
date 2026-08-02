@@ -1,0 +1,699 @@
+controllers/auth.controller.ts(108,29): error TS2339: Property 'filter' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(109,6): error TS7006: Parameter 'record' implicitly has an 'any' type.
+controllers/auth.controller.ts(134,33): error TS2339: Property 'getDispatchLogs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(143,12): error TS2339: Property 'saveDispatchLogs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(210,17): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(210,23): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(222,12): error TS2339: Property 'push' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(232,16): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(267,31): error TS2339: Property 'findIndex' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(268,10): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(281,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(282,16): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(318,17): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(318,23): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(330,12): error TS2339: Property 'push' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(340,16): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(383,31): error TS2339: Property 'findIndex' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(384,10): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(397,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(398,16): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(447,31): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(448,14): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(460,31): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(461,14): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(473,31): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(474,14): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(489,38): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(490,14): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(492,44): error TS2339: Property 'some' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(493,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+controllers/auth.controller.ts(505,38): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(506,14): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(510,44): error TS2339: Property 'some' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(511,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+controllers/auth.controller.ts(611,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(611,21): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(619,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(620,12): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(631,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(632,12): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(643,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(644,12): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(647,18): error TS2339: Property 'some' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(648,12): error TS7006: Parameter 'p' implicitly has an 'any' type.
+controllers/auth.controller.ts(657,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(658,12): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(663,18): error TS2339: Property 'some' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(664,12): error TS7006: Parameter 'p' implicitly has an 'any' type.
+controllers/auth.controller.ts(680,30): error TS2339: Property 'some' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(681,10): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(686,31): error TS2339: Property 'some' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(687,10): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(726,9): error TS2561: Object literal may only specify known properties, but 'isEmailVerified' does not exist in type 'User'. Did you mean to write 'isVerified'?
+controllers/auth.controller.ts(748,15): error TS2339: Property 'push' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(749,18): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(847,26): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(848,10): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(869,20): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(886,18): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(910,16): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(983,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(983,30): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+controllers/auth.controller.ts(986,16): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(992,34): error TS2339: Property 'getUserPreferences' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(993,42): error TS7006: Parameter 'item' implicitly has an 'any' type.
+controllers/auth.controller.ts(1003,34): error TS2339: Property 'getUserPreferences' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1005,8): error TS7006: Parameter 'item' implicitly has an 'any' type.
+controllers/auth.controller.ts(1019,14): error TS2339: Property 'saveUserPreferences' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1035,20): error TS2339: Property 'saveIdempotencyRecord' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1045,32): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1045,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+controllers/auth.controller.ts(1047,24): error TS2339: Property 'find' does not exist on type 'Promise<IdentityDocument[]>'.
+controllers/auth.controller.ts(1047,30): error TS7006: Parameter 'd' implicitly has an 'any' type.
+controllers/auth.controller.ts(1070,39): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1071,10): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+controllers/auth.controller.ts(1078,10): error TS2339: Property 'filter' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1079,12): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+controllers/auth.controller.ts(1082,15): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+controllers/auth.controller.ts(1089,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+controllers/auth.controller.ts(1090,15): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+controllers/auth.controller.ts(1091,30): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(1092,14): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+controllers/auth.controller.ts(1128,35): error TS2339: Property 'getIdempotencyRecord' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1235,29): error TS2339: Property 'findIndex' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(1235,40): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(1240,27): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<User[]>'.
+controllers/auth.controller.ts(1247,17): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(1247,23): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(1279,43): error TS2339: Property 'findIndex' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1280,10): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+controllers/auth.controller.ts(1285,15): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1301,15): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1353,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1355,18): error TS2339: Property 'push' does not exist on type 'Promise<UserProfile[]>'.
+controllers/auth.controller.ts(1357,16): error TS2551: Property 'saveUserProfiles' does not exist on type 'typeof Database'. Did you mean 'getUserProfiles'?
+controllers/auth.controller.ts(1369,12): error TS2339: Property 'push' does not exist on type 'Promise<IdentityDocument[]>'.
+controllers/auth.controller.ts(1370,16): error TS2551: Property 'saveIdentityDocuments' does not exist on type 'typeof Database'. Did you mean 'getIdentityDocuments'?
+controllers/auth.controller.ts(1386,16): error TS2339: Property 'push' does not exist on type 'Promise<FaceVerification[]>'.
+controllers/auth.controller.ts(1387,16): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+controllers/auth.controller.ts(1483,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<User[]>'.
+controllers/auth.controller.ts(1484,16): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1521,21): error TS2339: Property 'unshift' does not exist on type 'Promise<Notification[]>'.
+controllers/auth.controller.ts(1530,16): error TS2551: Property 'saveNotifications' does not exist on type 'typeof Database'. Did you mean 'getNotifications'?
+controllers/auth.controller.ts(1565,20): error TS2339: Property 'saveIdempotencyRecord' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1587,20): error TS2339: Property 'saveIdempotencyRecord' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1629,10): error TS2339: Property 'push' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(1630,14): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1670,25): error TS2339: Property 'find' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(1671,8): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(1685,14): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1708,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(1708,30): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(1719,10): error TS2339: Property 'push' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(1729,14): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1752,25): error TS2339: Property 'find' does not exist on type 'Promise<OTPRecord[]>'.
+controllers/auth.controller.ts(1753,8): error TS7006: Parameter 'o' implicitly has an 'any' type.
+controllers/auth.controller.ts(1765,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+controllers/auth.controller.ts(1766,8): error TS7006: Parameter 'u' implicitly has an 'any' type.
+controllers/auth.controller.ts(1775,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+controllers/auth.controller.ts(1778,14): error TS2339: Property 'saveOTPs' does not exist on type 'typeof Database'.
+controllers/faceVerification.controller.ts(60,11): error TS2339: Property 'id' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+controllers/faceVerification.controller.ts(164,59): error TS2339: Property 'getActiveSession' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(204,27): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; status: string; threshold: number; }'.
+controllers/faceVerification.controller.ts(215,32): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; status: string; threshold: number; }'.
+controllers/faceVerification.controller.ts(254,31): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; quality: { ...; }; metadata?: { ...; } | undefined; }'.
+controllers/faceVerification.controller.ts(286,11): error TS2353: Object literal may only specify known properties, and 'context' does not exist in type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; quality: { ...; }; metadata?: { ...; } | undefined; }'.
+controllers/faceVerification.controller.ts(299,31): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; quality: { ...; }; metadata?: { ...; } | undefined; }'.
+controllers/faceVerification.controller.ts(302,28): error TS2339: Property 'success' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(309,18): error TS2339: Property 'success' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(313,24): error TS2339: Property 'verificationId' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(314,30): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; quality: { ...; }; metadata?: { ...; } | undefined; }'.
+controllers/faceVerification.controller.ts(316,32): error TS2339: Property 'matchScore' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(317,35): error TS2339: Property 'livenessScore' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(328,24): error TS2339: Property 'success' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(329,26): error TS2339: Property 'sessionId' does not exist on type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; quality: { ...; }; metadata?: { ...; } | undefined; }'.
+controllers/faceVerification.controller.ts(334,33): error TS2339: Property 'livenessScore' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(335,30): error TS2339: Property 'matchScore' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(336,34): error TS2339: Property 'qualityMetrics' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(341,19): error TS2339: Property 'success' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(346,28): error TS2339: Property 'failureReason' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(352,32): error TS2339: Property 'success' does not exist on type '{ passed: boolean; message: string; }'.
+controllers/faceVerification.controller.ts(393,11): error TS2353: Object literal may only specify known properties, and 'options' does not exist in type '{ verificationId: string; electionId: string; livenessChecks: { blinkDetected: boolean; headTurnLeft: boolean; headTurnRight: boolean; returnedToCenter: boolean; faceDetected: boolean; leftEye: boolean; ... 7 more ...; stable: boolean; }; ... 6 more ...; documentImage?: string | undefined; }'.
+controllers/faceVerification.controller.ts(406,13): error TS2367: This comparison appears to be unintentional because the types '"Failed"' and '"Pending"' have no overlap.
+controllers/faceVerification.controller.ts(417,30): error TS2339: Property 'matchScore' does not exist on type 'FaceVerificationDecision'.
+controllers/faceVerification.controller.ts(428,34): error TS2339: Property 'matchScore' does not exist on type 'FaceVerificationDecision'.
+controllers/faceVerification.controller.ts(472,41): error TS2551: Property 'isVerified' does not exist on type '{ verified: boolean; status: string; verificationId?: undefined; result?: undefined; similarityScore?: undefined; threshold?: undefined; expiresAt?: undefined; } | { verified: any; verificationId: any; ... 4 more ...; expiresAt: any; }'. Did you mean 'verified'?
+  Property 'isVerified' does not exist on type '{ verified: boolean; status: string; verificationId?: undefined; result?: undefined; similarityScore?: undefined; threshold?: undefined; expiresAt?: undefined; }'.
+controllers/faceVerification.controller.ts(482,34): error TS2551: Property 'isVerified' does not exist on type '{ verified: boolean; status: string; verificationId?: undefined; result?: undefined; similarityScore?: undefined; threshold?: undefined; expiresAt?: undefined; } | { verified: any; verificationId: any; ... 4 more ...; expiresAt: any; }'. Did you mean 'verified'?
+  Property 'isVerified' does not exist on type '{ verified: boolean; status: string; verificationId?: undefined; result?: undefined; similarityScore?: undefined; threshold?: undefined; expiresAt?: undefined; }'.
+controllers/faceVerification.controller.ts(513,53): error TS2339: Property 'getHistory' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(564,52): error TS2339: Property 'compareFaces' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(603,54): error TS2339: Property 'getTemplate' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(629,61): error TS2339: Property 'getTemplate' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(647,52): error TS2339: Property 'updateTemplate' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(658,9): error TS2322: Type '"MEDIUM"' is not assignable to type '"CRITICAL" | "INFO" | "WARNING" | "ERROR" | undefined'.
+controllers/faceVerification.controller.ts(689,52): error TS2339: Property 'deleteFaceData' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(700,9): error TS2322: Type '"HIGH"' is not assignable to type '"CRITICAL" | "INFO" | "WARNING" | "ERROR" | undefined'.
+controllers/faceVerification.controller.ts(734,53): error TS2339: Property 'batchVerify' does not exist on type 'typeof FaceVerificationService'.
+controllers/faceVerification.controller.ts(768,51): error TS2551: Property 'getStats' does not exist on type 'typeof FaceVerificationService'. Did you mean 'getStatus'?
+middleware/verifyFace.ts(57,9): error TS2339: Property 'id' does not exist on type 'FaceVerificationRequest'.
+middleware/verifyFace.ts(79,37): error TS2339: Property 'findElectionById' does not exist on type 'typeof Database'.
+middleware/verifyFace.ts(117,9): error TS2322: Type '"HIGH"' is not assignable to type '"CRITICAL" | "INFO" | "WARNING" | "ERROR" | undefined'.
+middleware/verifyFace.ts(129,43): error TS2339: Property 'getRecentVerificationAttempts' does not exist on type 'typeof Database'.
+middleware/verifyFace.ts(159,11): error TS2353: Object literal may only specify known properties, and 'verificationId' does not exist in type '{ userId: string; action: string; sessionId?: string | undefined; electionId?: string | undefined; context?: AuditEventContext | undefined; metadata?: AuditMetadata | undefined; }'.
+middleware/verifyFace.ts(182,7): error TS2554: Expected 2-3 arguments, but got 4.
+middleware/verifyFace.ts(187,57): error TS2339: Property 'getLastVerification' does not exist on type 'typeof FaceVerificationService'.
+middleware/verifyFace.ts(233,22): error TS2339: Property 'recordVerificationAttempt' does not exist on type 'typeof Database'.
+middleware/verifyFace.ts(236,42): error TS2551: Property 'getFailedVerificationCount' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+middleware/verifyFace.ts(281,11): error TS2322: Type '"MEDIUM"' is not assignable to type '"CRITICAL" | "INFO" | "WARNING" | "ERROR" | undefined'.
+middleware/verifyFace.ts(318,7): error TS2353: Object literal may only specify known properties, and 'verificationId' does not exist in type '{ userId: string; action: string; sessionId?: string | undefined; electionId?: string | undefined; context?: AuditEventContext | undefined; metadata?: AuditMetadata | undefined; }'.
+middleware/verifyFace.ts(329,20): error TS2339: Property 'recordVerificationAttempt' does not exist on type 'typeof Database'.
+routes/faceVerification.routes.ts(40,19): error TS2339: Property 'warn' does not exist on type '(serviceName?: string) => any'.
+server.ts(23,3): error TS2614: Module '"./src/db/dbService.js"' has no exported member 'NewsletterSubscriber'. Did you mean to use 'import NewsletterSubscriber from "./src/db/dbService.js"' instead?
+server.ts(231,28): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(236,28): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(236,68): error TS7053: Element implicitly has an 'any' type because expression of type '0' can't be used to index type 'Promise<User[]>'.
+  Property '0' does not exist on type 'Promise<User[]>'.
+server.ts(253,22): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(253,28): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(290,38): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(291,8): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+server.ts(296,34): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(297,10): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+server.ts(300,39): error TS2339: Property 'find' does not exist on type 'Promise<IdentityDocument[]>'.
+server.ts(301,10): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+server.ts(305,10): error TS2339: Property 'filter' does not exist on type 'Promise<FaceVerification[]>'.
+server.ts(305,18): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+server.ts(306,16): error TS7006: Parameter 'left' implicitly has an 'any' type.
+server.ts(306,22): error TS7006: Parameter 'right' implicitly has an 'any' type.
+server.ts(800,24): error TS2339: Property 'filter' does not exist on type 'Promise<OTPRecord[]>'.
+server.ts(801,6): error TS7006: Parameter 'o' implicitly has an 'any' type.
+server.ts(871,36): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(871,44): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(872,34): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(873,8): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(875,42): error TS2339: Property 'length' does not exist on type 'Promise<Election[]>'.
+server.ts(876,40): error TS2339: Property 'length' does not exist on type 'Promise<Candidate[]>'.
+server.ts(877,29): error TS2339: Property 'length' does not exist on type 'Promise<Vote[]>'.
+server.ts(936,7): error TS2353: Object literal may only specify known properties, and 'eligibilityDept' does not exist in type 'Election'.
+server.ts(940,15): error TS2339: Property 'push' does not exist on type 'Promise<Election[]>'.
+server.ts(941,14): error TS2551: Property 'saveElections' does not exist on type 'typeof Database'. Did you mean 'getElections'?
+server.ts(957,19): error TS2339: Property 'unshift' does not exist on type 'Promise<Notification[]>'.
+server.ts(964,14): error TS2551: Property 'saveNotifications' does not exist on type 'typeof Database'. Did you mean 'getNotifications'?
+server.ts(988,32): error TS2339: Property 'find' does not exist on type 'Promise<Election[]>'.
+server.ts(988,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(1021,14): error TS2551: Property 'saveElections' does not exist on type 'typeof Database'. Did you mean 'getElections'?
+server.ts(1046,32): error TS2339: Property 'find' does not exist on type 'Promise<Election[]>'.
+server.ts(1046,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(1052,27): error TS2339: Property 'filter' does not exist on type 'Promise<Election[]>'.
+server.ts(1052,35): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(1053,14): error TS2551: Property 'saveElections' does not exist on type 'typeof Database'. Did you mean 'getElections'?
+server.ts(1096,3): error TS2322: Type '"Pending" | "Rejected" | "Withdrawn"' is not assignable to type '"Pending" | "Verified" | "Approved" | "Rejected" | undefined'.
+  Type '"Withdrawn"' is not assignable to type '"Pending" | "Verified" | "Approved" | "Rejected" | undefined'.
+server.ts(1121,15): error TS2339: Property 'isIndependent' does not exist on type 'Candidate'.
+server.ts(1126,38): error TS2339: Property 'electionSymbol' does not exist on type 'Candidate'.
+server.ts(1135,5): error TS2353: Object literal may only specify known properties, and 'fullName' does not exist in type 'Candidate'.
+server.ts(1135,55): error TS2339: Property 'fullName' does not exist on type 'Candidate'.
+server.ts(1136,38): error TS2339: Property 'gender' does not exist on type 'Candidate'.
+server.ts(1137,48): error TS2339: Property 'dateOfBirth' does not exist on type 'Candidate'.
+server.ts(1139,43): error TS2339: Property 'citizenshipNumber' does not exist on type 'Candidate'.
+server.ts(1140,52): error TS2339: Property 'contactNumber' does not exist on type 'Candidate'.
+server.ts(1141,50): error TS2339: Property 'emailAddress' does not exist on type 'Candidate'.
+server.ts(1142,58): error TS2339: Property 'permanentAddress' does not exist on type 'Candidate'.
+server.ts(1143,54): error TS2339: Property 'currentAddress' does not exist on type 'Candidate'.
+server.ts(1144,50): error TS2339: Property 'electionType' does not exist on type 'Candidate'.
+server.ts(1147,17): error TS2339: Property 'electionPosition' does not exist on type 'Candidate'.
+server.ts(1150,47): error TS2339: Property 'electoralConstituency' does not exist on type 'Candidate'.
+server.ts(1151,46): error TS2339: Property 'wardNumber' does not exist on type 'Candidate'.
+server.ts(1154,17): error TS2339: Property 'candidateRegistrationNumber' does not exist on type 'Candidate'.
+server.ts(1158,17): error TS2339: Property 'nominationDate' does not exist on type 'Candidate'.
+server.ts(1162,17): error TS2339: Property 'electionSymbolAllocationDate' does not exist on type 'Candidate'.
+server.ts(1172,19): error TS2551: Property 'partyLogo' does not exist on type 'Candidate'. Did you mean 'partyLogoUrl'?
+server.ts(1180,19): error TS2551: Property 'partyLogo' does not exist on type 'Candidate'. Did you mean 'partyLogoUrl'?
+server.ts(1185,19): error TS2339: Property 'partyAbbreviation' does not exist on type 'Candidate'.
+server.ts(1194,17): error TS2339: Property 'partyColorTheme' does not exist on type 'Candidate'.
+server.ts(1198,56): error TS2339: Property 'visionStatement' does not exist on type 'Candidate'.
+server.ts(1201,69): error TS2339: Property 'keyPromises' does not exist on type 'Candidate'.
+server.ts(1209,46): error TS2339: Property 'profession' does not exist on type 'Candidate'.
+server.ts(1211,43): error TS2339: Property 'assetsDeclaration' does not exist on type 'Candidate'.
+server.ts(1214,17): error TS2339: Property 'criminalCaseDeclaration' does not exist on type 'Candidate'.
+server.ts(1216,58): error TS2339: Property 'socialMediaLinks' does not exist on type 'Candidate'.
+server.ts(1217,56): error TS2339: Property 'officialWebsite' does not exist on type 'Candidate'.
+server.ts(1218,56): error TS2339: Property 'manifestoPdfUrl' does not exist on type 'Candidate'.
+server.ts(1219,54): error TS2339: Property 'coverBannerUrl' does not exist on type 'Candidate'.
+server.ts(1221,44): error TS2339: Property 'verificationQrCode' does not exist on type 'Candidate'.
+server.ts(1226,17): error TS2339: Property 'candidatePhoto' does not exist on type 'Candidate'.
+server.ts(1231,17): error TS2339: Property 'candidatePhoto' does not exist on type 'Candidate'.
+server.ts(1246,21): error TS2339: Property 'isVisible' does not exist on type 'Candidate'.
+server.ts(1254,27): error TS2339: Property 'verifiedAt' does not exist on type 'Candidate'.
+server.ts(1263,25): error TS2339: Property 'map' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1263,30): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1266,8): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1274,32): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1284,34): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1284,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1308,34): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1308,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1324,43): error TS2339: Property 'findIndex' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1325,12): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1327,34): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<Candidate[]>'.
+server.ts(1363,20): error TS2339: Property 'push' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1366,16): error TS2551: Property 'saveCandidates' does not exist on type 'typeof Database'. Did you mean 'getCandidates'?
+server.ts(1414,36): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1414,42): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1441,16): error TS2551: Property 'saveCandidates' does not exist on type 'typeof Database'. Did you mean 'getCandidates'?
+server.ts(1446,25): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(1446,31): error TS7006: Parameter 'usr' implicitly has an 'any' type.
+server.ts(1456,20): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(1497,30): error TS2339: Property 'candidateStatus' does not exist on type 'Candidate'.
+server.ts(1504,16): error TS2339: Property 'push' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1505,14): error TS2551: Property 'saveCandidates' does not exist on type 'typeof Database'. Did you mean 'getCandidates'?
+server.ts(1531,34): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1531,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1538,39): error TS2339: Property 'findIndex' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1538,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1539,5): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<Candidate[]>'.
+server.ts(1541,14): error TS2551: Property 'saveCandidates' does not exist on type 'typeof Database'. Did you mean 'getCandidates'?
+server.ts(1566,34): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1566,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1572,29): error TS2339: Property 'filter' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1572,37): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1573,14): error TS2551: Property 'saveCandidates' does not exist on type 'typeof Database'. Did you mean 'getCandidates'?
+server.ts(1641,28): error TS2339: Property 'find' does not exist on type 'Promise<PoliticalParty[]>'.
+server.ts(1642,10): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(1664,15): error TS2339: Property 'push' does not exist on type 'Promise<PoliticalParty[]>'.
+server.ts(1665,16): error TS2551: Property 'savePoliticalParties' does not exist on type 'typeof Database'. Did you mean 'getPoliticalParties'?
+server.ts(1704,29): error TS2339: Property 'find' does not exist on type 'Promise<PoliticalParty[]>'.
+server.ts(1704,35): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(1738,16): error TS2551: Property 'savePoliticalParties' does not exist on type 'typeof Database'. Did you mean 'getPoliticalParties'?
+server.ts(1767,29): error TS2339: Property 'find' does not exist on type 'Promise<PoliticalParty[]>'.
+server.ts(1767,35): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(1773,25): error TS2339: Property 'filter' does not exist on type 'Promise<PoliticalParty[]>'.
+server.ts(1773,33): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(1774,16): error TS2551: Property 'savePoliticalParties' does not exist on type 'typeof Database'. Did you mean 'getPoliticalParties'?
+server.ts(1830,42): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: FaceVerificationRequest, res: Response<any, Record<string, any>>, next: NextFunction) => Promise<void | Response<any, Record<...>>>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: FaceVerificationRequest, res: Response<any, Record<string, any>>, next: NextFunction) => Promise<void | Response<any, Record<...>>>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Property 'user' is missing in type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' but required in type 'FaceVerificationRequest'.
+server.ts(1876,32): error TS2339: Property 'find' does not exist on type 'Promise<Election[]>'.
+server.ts(1876,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(1903,34): error TS2339: Property 'find' does not exist on type 'Promise<Candidate[]>'.
+server.ts(1904,8): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(1963,37): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(1964,8): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+server.ts(1999,32): error TS2339: Property 'some' does not exist on type 'Promise<Vote[]>'.
+server.ts(1999,38): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(2045,7): error TS2353: Object literal may only specify known properties, and 'encryptedBallot' does not exist in type 'Vote'.
+server.ts(2050,11): error TS2339: Property 'push' does not exist on type 'Promise<Vote[]>'.
+server.ts(2051,14): error TS2339: Property 'saveVotes' does not exist on type 'typeof Database'.
+server.ts(2100,30): error TS2339: Property 'map' does not exist on type 'Promise<Election[]>'.
+server.ts(2100,35): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(2106,25): error TS2339: Property 'some' does not exist on type 'Promise<Vote[]>'.
+server.ts(2106,31): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(2132,36): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2132,44): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2133,34): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2134,8): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2136,40): error TS2339: Property 'length' does not exist on type 'Promise<Candidate[]>'.
+server.ts(2137,30): error TS2339: Property 'length' does not exist on type 'Promise<Vote[]>'.
+server.ts(2146,39): error TS2339: Property 'map' does not exist on type 'Promise<Candidate[]>'.
+server.ts(2146,44): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(2147,34): error TS2339: Property 'find' does not exist on type 'Promise<Election[]>'.
+server.ts(2147,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(2148,27): error TS2339: Property 'filter' does not exist on type 'Promise<Vote[]>'.
+server.ts(2148,35): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(2160,19): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2160,27): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2161,21): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2161,29): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2162,20): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2162,28): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2183,11): error TS2339: Property 'forEach' does not exist on type 'Promise<User[]>'.
+server.ts(2183,20): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2202,24): error TS2339: Property 'slice' does not exist on type 'Promise<AuditLog[]>'.
+server.ts(2208,53): error TS2339: Property 'filter' does not exist on type 'Promise<Notification[]>'.
+server.ts(2240,19): error TS2339: Property 'unshift' does not exist on type 'Promise<Notification[]>'.
+server.ts(2241,14): error TS2551: Property 'saveNotifications' does not exist on type 'typeof Database'. Did you mean 'getNotifications'?
+server.ts(2258,22): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(2259,6): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+server.ts(2274,12): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(2290,32): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2292,6): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2321,34): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2323,8): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2355,14): error TS2339: Property 'saveNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2389,34): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2390,48): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2418,14): error TS2339: Property 'saveNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2465,34): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2466,16): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2467,16): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2473,10): error TS7006: Parameter 'left' implicitly has an 'any' type.
+server.ts(2473,16): error TS7006: Parameter 'right' implicitly has an 'any' type.
+server.ts(2481,23): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2482,26): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2483,12): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2485,28): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2486,12): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2488,27): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2489,12): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2510,34): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2511,42): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2524,14): error TS2339: Property 'saveNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2543,34): error TS2339: Property 'getNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2544,42): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2550,42): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server.ts(2551,14): error TS2339: Property 'saveNewsletterSubscribers' does not exist on type 'typeof Database'.
+server.ts(2591,33): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(2591,39): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2599,26): error TS2488: Type 'Promise<Faq[]>' must have a '[Symbol.iterator]()' method that returns an iterator.
+server.ts(2629,50): error TS2339: Property 'length' does not exist on type 'Promise<Faq[]>'.
+server.ts(2633,10): error TS2339: Property 'push' does not exist on type 'Promise<Faq[]>'.
+server.ts(2634,14): error TS2339: Property 'saveFaqs' does not exist on type 'typeof Database'.
+server.ts(2662,22): error TS2339: Property 'find' does not exist on type 'Promise<Faq[]>'.
+server.ts(2662,28): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2673,14): error TS2339: Property 'saveFaqs' does not exist on type 'typeof Database'.
+server.ts(2699,24): error TS2339: Property 'findIndex' does not exist on type 'Promise<Faq[]>'.
+server.ts(2699,35): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2704,10): error TS2339: Property 'splice' does not exist on type 'Promise<Faq[]>'.
+server.ts(2705,14): error TS2339: Property 'saveFaqs' does not exist on type 'typeof Database'.
+server.ts(2738,19): error TS2339: Property 'filter' does not exist on type 'Promise<Faq[]>'.
+server.ts(2738,27): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2740,12): error TS2339: Property 'forEach' does not exist on type 'Promise<Faq[]>'.
+server.ts(2740,21): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2744,12): error TS2339: Property 'forEach' does not exist on type 'Promise<Faq[]>'.
+server.ts(2744,21): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2751,14): error TS2339: Property 'saveFaqs' does not exist on type 'typeof Database'.
+server.ts(2786,24): error TS2339: Property 'find' does not exist on type 'Promise<Faq[]>'.
+server.ts(2786,30): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(2792,14): error TS2339: Property 'saveFaqs' does not exist on type 'typeof Database'.
+server.ts(2808,8): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(2808,16): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2809,13): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2840,15): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+server.ts(2840,21): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2846,13): error TS2339: Property 'some' does not exist on type 'Promise<User[]>'.
+server.ts(2847,10): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2878,11): error TS2339: Property 'push' does not exist on type 'Promise<User[]>'.
+server.ts(2879,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(2915,25): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(2915,31): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2943,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(2975,25): error TS2339: Property 'findIndex' does not exist on type 'Promise<User[]>'.
+server.ts(2975,36): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(2982,19): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Promise<User[]>'.
+server.ts(2992,11): error TS2339: Property 'splice' does not exist on type 'Promise<User[]>'.
+server.ts(2993,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(3023,8): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(3023,16): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3024,13): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3051,27): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3051,33): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3057,32): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(3057,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(3060,24): error TS2339: Property 'find' does not exist on type 'Promise<IdentityDocument[]>'.
+server.ts(3060,30): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server.ts(3114,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3114,30): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3140,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(3178,19): error TS2339: Property 'unshift' does not exist on type 'Promise<Notification[]>'.
+server.ts(3196,14): error TS2551: Property 'saveNotifications' does not exist on type 'typeof Database'. Did you mean 'getNotifications'?
+server.ts(3207,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3207,30): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3239,27): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(3239,33): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(3252,16): error TS2551: Property 'saveUserProfiles' does not exist on type 'typeof Database'. Did you mean 'getUserProfiles'?
+server.ts(3257,22): error TS2339: Property 'find' does not exist on type 'Promise<IdentityDocument[]>'.
+server.ts(3257,28): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server.ts(3264,16): error TS2551: Property 'saveIdentityDocuments' does not exist on type 'typeof Database'. Did you mean 'getIdentityDocuments'?
+server.ts(3318,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(3334,19): error TS2339: Property 'unshift' does not exist on type 'Promise<Notification[]>'.
+server.ts(3343,14): error TS2551: Property 'saveNotifications' does not exist on type 'typeof Database'. Did you mean 'getNotifications'?
+server.ts(3359,20): error TS2352: Conversion of type 'Promise<ProfileDraft[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<ProfileDraft[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+server.ts(3382,14): error TS2551: Property 'saveProfileDrafts' does not exist on type 'typeof Database'. Did you mean 'saveProfileDraft'?
+server.ts(3391,20): error TS2352: Conversion of type 'Promise<ProfileDraft[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<ProfileDraft[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+server.ts(3404,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3404,30): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3426,25): error TS2339: Property 'filter' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(3426,33): error TS7006: Parameter 'p' implicitly has an 'any' type.
+server.ts(3427,14): error TS2551: Property 'saveUserProfiles' does not exist on type 'typeof Database'. Did you mean 'getUserProfiles'?
+server.ts(3430,17): error TS2339: Property 'filter' does not exist on type 'Promise<IdentityDocument[]>'.
+server.ts(3430,25): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server.ts(3431,14): error TS2551: Property 'saveIdentityDocuments' does not exist on type 'typeof Database'. Did you mean 'getIdentityDocuments'?
+server.ts(3434,25): error TS2339: Property 'filter' does not exist on type 'Promise<FaceVerification[]>'.
+server.ts(3434,33): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server.ts(3435,14): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+server.ts(3439,21): error TS2339: Property 'filter' does not exist on type 'Promise<ProfileDraft[]>'.
+server.ts(3439,29): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server.ts(3440,14): error TS2551: Property 'saveProfileDrafts' does not exist on type 'typeof Database'. Did you mean 'saveProfileDraft'?
+server.ts(3442,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(3488,24): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3488,30): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3542,26): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(3542,32): error TS7006: Parameter 'prof' implicitly has an 'any' type.
+server.ts(3552,18): error TS2551: Property 'saveUserProfiles' does not exist on type 'typeof Database'. Did you mean 'getUserProfiles'?
+server.ts(3556,14): error TS2339: Property 'saveUsers' does not exist on type 'typeof Database'.
+server.ts(3597,47): error TS2339: Property 'filter' does not exist on type 'Promise<Election[]>'.
+server.ts(3603,41): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(3604,8): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3608,32): error TS2339: Property 'find' does not exist on type 'Promise<UserProfile[]>'.
+server.ts(3609,10): error TS7006: Parameter 'profileRecord' implicitly has an 'any' type.
+server.ts(3621,26): error TS2339: Property 'find' does not exist on type 'Promise<User[]>'.
+server.ts(3621,32): error TS7006: Parameter 'item' implicitly has an 'any' type.
+server.ts(3625,44): error TS7006: Parameter 'elect' implicitly has an 'any' type.
+server.ts(3626,32): error TS2339: Property 'filter' does not exist on type 'Promise<Vote[]>'.
+server.ts(3626,40): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(3627,42): error TS2339: Property 'filter' does not exist on type 'Promise<Candidate[]>'.
+server.ts(3628,10): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(3633,10): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(3633,18): error TS7006: Parameter 'user' implicitly has an 'any' type.
+server.ts(3634,19): error TS7006: Parameter 'user' implicitly has an 'any' type.
+server.ts(3639,44): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(3641,12): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(3649,21): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server.ts(3649,24): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server.ts(3692,30): error TS2339: Property 'find' does not exist on type 'Promise<Election[]>'.
+server.ts(3692,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server.ts(3706,37): error TS2339: Property 'filter' does not exist on type 'Promise<Vote[]>'.
+server.ts(3706,45): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(3707,47): error TS2339: Property 'filter' does not exist on type 'Promise<Candidate[]>'.
+server.ts(3708,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(3712,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(3713,33): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server.ts(3723,19): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server.ts(3723,22): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server.ts(3730,39): error TS2339: Property 'filter' does not exist on type 'Promise<User[]>'.
+server.ts(3730,47): error TS7006: Parameter 'u' implicitly has an 'any' type.
+server.ts(3754,29): error TS2339: Property 'getConfig' does not exist on type 'typeof Database'.
+server.ts(3816,31): error TS2339: Property 'getConfig' does not exist on type 'typeof Database'.
+server.ts(3828,16): error TS2339: Property 'saveConfig' does not exist on type 'typeof Database'.
+server.ts(3932,31): error TS2341: Property 'isConnected' is private and only accessible within class 'Database'.
+server.ts(3933,36): error TS2339: Property 'simulatedLatency' does not exist on type 'typeof Database'.
+server.ts(3934,35): error TS2339: Property 'totalReconnects' does not exist on type 'typeof Database'.
+server.ts(3935,37): error TS2339: Property 'lastSyncTimestamp' does not exist on type 'typeof Database'.
+server.ts(3936,36): error TS2339: Property 'syncSuccessCount' does not exist on type 'typeof Database'.
+server.ts(3937,36): error TS2339: Property 'syncFailureCount' does not exist on type 'typeof Database'.
+server.ts(3938,41): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(3939,32): error TS2339: Property 'pendingQueue' does not exist on type 'typeof Database'.
+server.ts(3940,36): error TS2339: Property 'pendingQueue' does not exist on type 'typeof Database'.
+server.ts(3941,31): error TS2339: Property 'syncHistory' does not exist on type 'typeof Database'.
+server.ts(3942,34): error TS2339: Property 'systemTimeline' does not exist on type 'typeof Database'.
+server.ts(3943,40): error TS2339: Property 'length' does not exist on type 'Promise<Vote[]>'.
+server.ts(3944,40): error TS2339: Property 'length' does not exist on type 'Promise<User[]>'.
+server.ts(3966,16): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(3974,31): error TS2341: Property 'isConnected' is private and only accessible within class 'Database'.
+server.ts(3992,38): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(3993,16): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(3995,20): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(3996,18): error TS2341: Property 'isConnected' is private and only accessible within class 'Database'.
+server.ts(3997,18): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(4003,18): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(4013,41): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(4014,31): error TS2341: Property 'isConnected' is private and only accessible within class 'Database'.
+server.ts(4015,27): error TS2339: Property 'isForceFailoverActive' does not exist on type 'typeof Database'.
+server.ts(4032,37): error TS2339: Property 'pendingQueue' does not exist on type 'typeof Database'.
+server.ts(4033,16): error TS2339: Property 'pendingQueue' does not exist on type 'typeof Database'.
+server.ts(4041,16): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(4076,22): error TS2339: Property 'encryptFallbackFile' does not exist on type 'typeof Database'.
+server.ts(4081,16): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(4116,22): error TS2339: Property 'decryptAndRestoreFallbackFile' does not exist on type 'typeof Database'.
+server.ts(4121,16): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+server.ts(4143,36): error TS2339: Property 'runIntegrityAuditAndValidate' does not exist on type 'typeof Database'.
+server.ts(4144,16): error TS2339: Property 'addTimelineEvent' does not exist on type 'typeof Database'.
+services/audit.service.ts(54,22): error TS2341: Property 'updateOne' is private and only accessible within class 'Database'.
+services/faceVerification.service.ts(87,25): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(123,25): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(157,27): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(175,28): error TS2339: Property 'id' does not exist on type 'Promise<AuditLog | null>'.
+services/faceVerification.service.ts(185,14): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+services/faceVerification.service.ts(222,34): error TS2339: Property 'id' does not exist on type 'Promise<AuditLog | null>'.
+services/faceVerification.service.ts(224,14): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+services/faceVerification.service.ts(256,16): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+services/faceVerification.service.ts(278,16): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+services/faceVerification.service.ts(315,34): error TS2339: Property 'id' does not exist on type 'Promise<AuditLog | null>'.
+services/faceVerification.service.ts(320,14): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+services/faceVerification.service.ts(336,27): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(378,27): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(393,27): error TS2352: Conversion of type 'Promise<FaceVerification[]>' to type 'any[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<FaceVerification[]>' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+services/faceVerification.service.ts(397,16): error TS2551: Property 'saveFaceVerifications' does not exist on type 'typeof Database'. Did you mean 'getFaceVerifications'?
+src/App.tsx(424,17): error TS2322: Type '{ token: string; user: User; onLogout: () => void; theme: ThemeMode; setTheme: Dispatch<SetStateAction<ThemeMode>>; }' is not assignable to type 'IntrinsicAttributes & { token: string; onLogout: () => void; theme: ThemeMode; setTheme: (theme: ThemeMode) => void; }'.
+  Property 'user' does not exist on type 'IntrinsicAttributes & { token: string; onLogout: () => void; theme: ThemeMode; setTheme: (theme: ThemeMode) => void; }'.
+src/components/Admin/AdminPanel.tsx(131,13): error TS2322: Type 'ThemeMode' is not assignable to type '"light" | "dark"'.
+  Type '"high-contrast"' is not assignable to type '"light" | "dark"'.
+src/components/Admin/Sidebar/AdminSidebar.tsx(125,42): error TS2345: Argument of type 'string' is not assignable to parameter of type 'AdminTab'.
+src/components/auth/RegisterPage.tsx(244,21): error TS7053: Element implicitly has an 'any' type because expression of type 'string | number' can't be used to index type '{ email: boolean; username: boolean; phone: boolean; nid: boolean; citizenship: boolean; }'.
+  No index signature with a parameter of type 'string' was found on type '{ email: boolean; username: boolean; phone: boolean; nid: boolean; citizenship: boolean; }'.
+src/components/common/DocumentUploadCenter.tsx(117,15): error TS2322: Type '{ key: string; label: string; description: string; required: boolean | undefined; fileUrl: string; fileName: string; status: "verified" | "error" | "idle" | "uploading"; accept: string; dragActive: boolean; ... 4 more ...; onRemove: () => void; }' is not assignable to type 'IntrinsicAttributes & CitizenshipUploadPreviewProps'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & CitizenshipUploadPreviewProps'.
+src/components/common/DocumentUploadCenter.tsx(123,24): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/DocumentUploadCenter.tsx(130,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/dashboard/BiometricScanner.tsx(440,23): error TS2345: Argument of type 'FaceDetector' is not assignable to parameter of type 'SetStateAction<FaceLandmarksDetector | null>'.
+  Property 'reset' is missing in type 'FaceDetector' but required in type 'FaceLandmarksDetector'.
+src/components/dashboard/CompleteProfile.tsx(1582,27): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/components/dashboard/ComprehensiveProfile.tsx(1,8): error TS2300: Duplicate identifier 'React'.
+src/components/dashboard/ComprehensiveProfile.tsx(1,17): error TS2300: Duplicate identifier 'useEffect'.
+src/components/dashboard/ComprehensiveProfile.tsx(1,28): error TS2300: Duplicate identifier 'useMemo'.
+src/components/dashboard/ComprehensiveProfile.tsx(1,37): error TS2300: Duplicate identifier 'useState'.
+src/components/dashboard/ComprehensiveProfile.tsx(3,3): error TS2300: Duplicate identifier 'Activity'.
+src/components/dashboard/ComprehensiveProfile.tsx(4,3): error TS2300: Duplicate identifier 'CheckCircle2'.
+src/components/dashboard/ComprehensiveProfile.tsx(5,3): error TS2300: Duplicate identifier 'ChevronDown'.
+src/components/dashboard/ComprehensiveProfile.tsx(6,3): error TS2300: Duplicate identifier 'Clock3'.
+src/components/dashboard/ComprehensiveProfile.tsx(7,3): error TS2300: Duplicate identifier 'FileText'.
+src/components/dashboard/ComprehensiveProfile.tsx(8,3): error TS2300: Duplicate identifier 'Fingerprint'.
+src/components/dashboard/ComprehensiveProfile.tsx(11,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/dashboard/ComprehensiveProfile.tsx(12,3): error TS2300: Duplicate identifier 'Phone'.
+src/components/dashboard/ComprehensiveProfile.tsx(13,3): error TS2300: Duplicate identifier 'RefreshCw'.
+src/components/dashboard/ComprehensiveProfile.tsx(14,3): error TS2300: Duplicate identifier 'ShieldCheck'.
+src/components/dashboard/ComprehensiveProfile.tsx(15,3): error TS2300: Duplicate identifier 'User'.
+src/components/dashboard/ComprehensiveProfile.tsx(16,3): error TS2300: Duplicate identifier 'Users'.
+src/components/dashboard/ComprehensiveProfile.tsx(17,3): error TS2300: Duplicate identifier 'Vote'.
+src/components/dashboard/ComprehensiveProfile.tsx(19,8): error TS2300: Duplicate identifier 'DocumentPreview'.
+src/components/dashboard/ComprehensiveProfile.tsx(25,6): error TS2300: Duplicate identifier 'Tone'.
+src/components/dashboard/ComprehensiveProfile.tsx(26,7): error TS2451: Cannot redeclare block-scoped variable 'first'.
+src/components/dashboard/ComprehensiveProfile.tsx(31,7): error TS2451: Cannot redeclare block-scoped variable 'shown'.
+src/components/dashboard/ComprehensiveProfile.tsx(32,7): error TS2451: Cannot redeclare block-scoped variable 'date'.
+src/components/dashboard/ComprehensiveProfile.tsx(35,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(63,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(82,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(109,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(150,25): error TS2323: Cannot redeclare exported variable 'default'.
+src/components/dashboard/ComprehensiveProfile.tsx(150,25): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(576,8): error TS2300: Duplicate identifier 'React'.
+src/components/dashboard/ComprehensiveProfile.tsx(576,17): error TS2300: Duplicate identifier 'useEffect'.
+src/components/dashboard/ComprehensiveProfile.tsx(576,28): error TS2300: Duplicate identifier 'useMemo'.
+src/components/dashboard/ComprehensiveProfile.tsx(576,37): error TS2300: Duplicate identifier 'useState'.
+src/components/dashboard/ComprehensiveProfile.tsx(578,3): error TS2300: Duplicate identifier 'Activity'.
+src/components/dashboard/ComprehensiveProfile.tsx(584,3): error TS2300: Duplicate identifier 'CheckCircle2'.
+src/components/dashboard/ComprehensiveProfile.tsx(585,3): error TS2300: Duplicate identifier 'ChevronDown'.
+src/components/dashboard/ComprehensiveProfile.tsx(587,3): error TS2300: Duplicate identifier 'Clock3'.
+src/components/dashboard/ComprehensiveProfile.tsx(589,3): error TS2300: Duplicate identifier 'FileText'.
+src/components/dashboard/ComprehensiveProfile.tsx(590,3): error TS2300: Duplicate identifier 'Fingerprint'.
+src/components/dashboard/ComprehensiveProfile.tsx(598,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/dashboard/ComprehensiveProfile.tsx(599,3): error TS2300: Duplicate identifier 'Phone'.
+src/components/dashboard/ComprehensiveProfile.tsx(601,3): error TS2300: Duplicate identifier 'RefreshCw'.
+src/components/dashboard/ComprehensiveProfile.tsx(604,3): error TS2300: Duplicate identifier 'ShieldCheck'.
+src/components/dashboard/ComprehensiveProfile.tsx(605,3): error TS2300: Duplicate identifier 'User'.
+src/components/dashboard/ComprehensiveProfile.tsx(607,3): error TS2300: Duplicate identifier 'Users'.
+src/components/dashboard/ComprehensiveProfile.tsx(608,3): error TS2300: Duplicate identifier 'Vote'.
+src/components/dashboard/ComprehensiveProfile.tsx(611,8): error TS2300: Duplicate identifier 'DocumentPreview'.
+src/components/dashboard/ComprehensiveProfile.tsx(619,6): error TS2300: Duplicate identifier 'Tone'.
+src/components/dashboard/ComprehensiveProfile.tsx(622,7): error TS2451: Cannot redeclare block-scoped variable 'first'.
+src/components/dashboard/ComprehensiveProfile.tsx(628,7): error TS2451: Cannot redeclare block-scoped variable 'shown'.
+src/components/dashboard/ComprehensiveProfile.tsx(630,7): error TS2451: Cannot redeclare block-scoped variable 'date'.
+src/components/dashboard/ComprehensiveProfile.tsx(634,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(644,9): error TS2322: Type '"info" | Tone' is not assignable to type 'Tone'.
+  Type '"info"' is not assignable to type 'Tone'.
+src/components/dashboard/ComprehensiveProfile.tsx(688,5): error TS2353: Object literal may only specify known properties, and 'info' does not exist in type 'Record<Tone, { bg: string; text: string; border: string; dot: string; }>'.
+src/components/dashboard/ComprehensiveProfile.tsx(711,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(753,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(838,10): error TS2393: Duplicate function implementation.
+src/components/dashboard/ComprehensiveProfile.tsx(921,25): error TS2323: Cannot redeclare exported variable 'default'.
+src/components/dashboard/ComprehensiveProfile.tsx(921,25): error TS2393: Duplicate function implementation.
+src/components/dashboard/FinalPreviewDashboard.tsx(752,19): error TS2322: Type '(string | null)[]' is not assignable to type 'string[]'.
+  Type 'string | null' is not assignable to type 'string'.
+    Type 'null' is not assignable to type 'string'.
+src/components/dashboard/FinalPreviewDashboard.tsx(757,19): error TS2322: Type '(string | null)[]' is not assignable to type 'string[]'.
+  Type 'string | null' is not assignable to type 'string'.
+    Type 'null' is not assignable to type 'string'.
+src/components/dashboard/NotificationConsole.tsx(33,29): error TS2552: Cannot find name 'userRoleProp'. Did you mean 'userRole'?
+src/db/dbService.ts(592,7): error TS1117: An object literal cannot have multiple properties with the same name.
+src/db/dbService.ts(817,7): error TS2783: 'timestamp' is specified more than once, so this usage will be overwritten.
+src/db/schema.ts(142,9): error TS2353: Object literal may only specify known properties, and 'sparse' does not exist in type 'FieldDefinition'.
+src/db/schema.ts(197,9): error TS2353: Object literal may only specify known properties, and 'sparse' does not exist in type 'FieldDefinition'.
+src/db/schema.ts(206,9): error TS2353: Object literal may only specify known properties, and 'sparse' does not exist in type 'FieldDefinition'.
+src/db/schema.ts(695,9): error TS2322: Type '{ country: string; province: string; district: string; municipality: string; wardNumber: string; tole: string; streetAddress: string; postalCode: string; }' is not assignable to type 'string'.
+src/pages/FaceVerification.tsx(891,7): error TS2741: Property 'reset' is missing in type 'FaceDetector' but required in type 'FaceLandmarksDetector'.
+src/services/tensorflow.ts(210,16): error TS2307: Cannot find module '@tensorflow/tfjs-backend-wasm' or its corresponding type declarations.
+src/services/tensorflow.ts(231,9): error TS2322: Type '(backend: string) => Promise<boolean>' is not assignable to type '(backend: string) => Promise<void>'.
+  Type 'Promise<boolean>' is not assignable to type 'Promise<void>'.
+    Type 'boolean' is not assignable to type 'void'.
+src/services/tensorflow.ts(236,9): error TS2322: Type '<T>(fn: () => T) => TensorContainer' is not assignable to type '<T>(fn: () => T) => T'.
+  Type 'TensorContainer' is not assignable to type 'T'.
+    'T' could be instantiated with an arbitrary type which could be unrelated to 'TensorContainer'.
+src/services/tensorflow.ts(236,43): error TS2345: Argument of type '() => T' is not assignable to parameter of type 'string | ScopeFn<TensorContainer>'.
+  Type '() => T' is not assignable to type 'ScopeFn<TensorContainer>'.
+    Type 'T' is not assignable to type 'TensorContainer'.
+      Type 'T' is not assignable to type 'Uint8Array<ArrayBufferLike>'.
+src/services/tensorflow.ts(237,21): error TS2339: Property 'version' does not exist on type '{ default: typeof import("@tensorflow/tfjs-core"); AdadeltaOptimizer: typeof AdadeltaOptimizer; AdagradOptimizer: typeof AdagradOptimizer; AdamOptimizer: typeof AdamOptimizer; ... 466 more ...; FusedDepthwiseConv2D: "FusedDepthwiseConv2D"; }'.
+src/services/tensorflow.ts(258,18): error TS2352: Conversion of type 'FaceLandmarksDetector' to type 'FaceDetector' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'getModelInfo' is missing in type 'FaceLandmarksDetector' but required in type 'FaceDetector'.
+validators/faceVerification.validator.ts(55,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(59,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(63,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(67,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(71,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(75,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(79,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(83,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(87,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(91,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(95,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(99,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(103,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(107,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(134,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(141,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(148,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(159,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(170,7): error TS2353: Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(191,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): ZodString', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+  Overload 2 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): $ZodType<...>', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(218,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): ZodString', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+  Overload 2 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): $ZodType<...>', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(226,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): ZodString', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+  Overload 2 of 2, '(params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; } | undefined): $ZodType<...>', gave the following error.
+    Object literal may only specify known properties, and 'required_error' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidType<unknown>> | undefined; message?: string | undefined; }'.
+validators/faceVerification.validator.ts(422,31): error TS2339: Property 'errors' does not exist on type 'ZodError<T>'.
+validators/faceVerification.validator.ts(422,43): error TS7006: Parameter 'err' implicitly has an 'any' type.
+vite.config.ts(4,29): error TS2307: Cannot find module 'vite-plugin-compression2' or its corresponding type declarations.
+vite.config.ts(5,36): error TS2307: Cannot find module 'vite-plugin-image-optimizer' or its corresponding type declarations.
+vite.config.ts(6,25): error TS2307: Cannot find module 'vite-plugin-pwa' or its corresponding type declarations.
+vite.config.ts(10,29): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '({ command, mode }: ConfigEnv) => { plugins: any[]; resolve: { alias: { "@": string; "@components": string; "@pages": string; "@services": string; "@hooks": string; "@utils": string; "@types": string; "@assets": string; ... 7 more ...; "@shared": string; }; extensions: string[]; }; ... 12 more ...; customLogger: { ....' is not assignable to parameter of type 'UserConfigExport'.
+      Type '({ command, mode }: ConfigEnv) => { plugins: any[]; resolve: { alias: { "@": string; "@components": string; "@pages": string; "@services": string; "@hooks": string; "@utils": string; "@types": string; "@assets": string; ... 7 more ...; "@shared": string; }; extensions: string[]; }; ... 12 more ...; customLogger: { ....' is not assignable to type 'UserConfigFnObject'.
+        Call signature return types '{ plugins: any[]; resolve: { alias: { "@": string; "@components": string; "@pages": string; "@services": string; "@hooks": string; "@utils": string; "@types": string; "@assets": string; "@styles": string; "@db": string; "@api": string; ... 4 more ...; "@shared": string; }; extensions: string[]; }; ... 12 more ...; c...' and 'UserConfig' are incompatible.
+          The types of 'customLogger' are incompatible between these types.
+            Type '{ info(msg: string, options: LogOptions | undefined): void; warn(msg: string): void; error(msg: string): void; }' is missing the following properties from type 'Logger': warnOnce, clearScreen, hasErrorLogged, hasWarned
+vite.config.ts(32,11): error TS2322: Type '(false | (string | { exclude: string[]; })[])[]' is not assignable to type 'PluginItem[]'.
+  Type 'false | (string | { exclude: string[]; })[]' is not assignable to type 'PluginItem'.
+    Type 'boolean' is not assignable to type 'PluginItem'.

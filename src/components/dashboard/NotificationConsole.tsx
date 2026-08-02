@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { DispatchLog } from "../../types.js";
 
-export default function NotificationConsole() {
+interface NotificationConsoleProps {
+  userRole?: string;
+}
+
+export default function NotificationConsole({
+  userRole,
+}: NotificationConsoleProps) {
   const [logs, setLogs] = useState<DispatchLog[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,20 +28,9 @@ export default function NotificationConsole() {
     return token ? { Authorization: `Bearer ${token}` } : null;
   };
 
-  const getUserRole = () => {
-    try {
-      const raw = localStorage.getItem("votex_user");
-      if (!raw) return "";
-      const parsed = JSON.parse(raw);
-      return String(parsed?.role || "").toLowerCase();
-    } catch {
-      return "";
-    }
-  };
-
   const fetchLogs = async () => {
     const headers = getAuthHeaders();
-    const userRole = getUserRole();
+    const role = String(userRole || "").toLowerCase();
     const isPrivileged = [
       "administrator",
       "super administrator",
@@ -44,7 +39,7 @@ export default function NotificationConsole() {
       "verification officer",
       "support staff",
       "faq manager",
-    ].includes(userRole);
+    ].includes(role);
 
     try {
       setLoading(true);

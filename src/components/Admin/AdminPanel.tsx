@@ -128,7 +128,7 @@ export default function AdminPanel({
 
         <div className="flex min-h-screen flex-1 flex-col">
           <AdminTopbar
-            theme={theme}
+            theme={theme === "high-contrast" ? "dark" : theme}
             onToggleTheme={handleThemeToggle}
             onRefresh={() => window.location.reload()}
             onSearch={setSearchQuery}
