@@ -79,6 +79,7 @@ export default function SessionManager({
   const warningCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const securityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
+  const lastBehaviorWarningRef = useRef<number>(0);
   const mouseMovementsRef = useRef<{ x: number; y: number; time: number }[]>(
     [],
   );
@@ -313,20 +314,25 @@ export default function SessionManager({
       (m) => m.time > now - 5000,
     );
 
-    if (recentMovements.length > 0) {
-      const avgSpeed =
-        recentMovements.reduce((acc, m, i, arr) => {
-          if (i === 0) return 0;
-          const prev = arr[i - 1];
-          const distance = Math.sqrt(
-            Math.pow(m.x - prev.x, 2) + Math.pow(m.y - prev.y, 2),
-          );
-          return acc + distance;
-        }, 0) / recentMovements.length;
+    if (recentMovements.length >= 6) {
+      const distances = recentMovements.slice(1).map((m, i) => {
+        const prev = recentMovements[i];
+        return Math.hypot(m.x - prev.x, m.y - prev.y);
+      });
 
-      // Flag suspicious behavior (too fast or too uniform)
-      if (avgSpeed > 500 || avgSpeed < 1) {
+      const avgSpeed =
+        distances.reduce((acc, distance) => acc + distance, 0) /
+        distances.length;
+      const maxDistance = Math.max(...distances);
+      const timeSinceLastWarning = now - lastBehaviorWarningRef.current;
+      const warningCooldown = 20 * 1000; // 20 seconds
+
+      const isAbruptMovement = avgSpeed > 500 || maxDistance > 200;
+      const isStalledMovement = avgSpeed < 0.3 && distances.length > 8;
+
+      if ((isAbruptMovement || isStalledMovement) && timeSinceLastWarning > warningCooldown) {
         console.warn("Suspicious mouse behavior detected");
+        lastBehaviorWarningRef.current = now;
       }
     }
 
@@ -514,19 +520,24 @@ export default function SessionManager({
     const customFetch = async function (...args: any[]) {
       const requestOptions = (args[1] as RequestInit) || {};
       const headers = new Headers(requestOptions.headers);
+      const requestUrlString =
+        args[0] instanceof Request ? args[0].url : String(args[0]);
+      const requestUrl = new URL(requestUrlString, window.location.href);
 
-      // Add security headers
-      if (token && !headers.has("X-Security-Token")) {
-        headers.set("X-Session-Active", "true");
-        headers.set("X-Last-Activity", lastActivityRef.current.toString());
+      const isSameOrigin = requestUrl.origin === window.location.origin;
+
+      if (isSameOrigin) {
+        // Add security headers only for same-origin requests
+        if (token && !headers.has("X-Security-Token")) {
+          headers.set("X-Session-Active", "true");
+          headers.set("X-Last-Activity", lastActivityRef.current.toString());
+        }
       }
 
-      // Enhanced request options with security headers
-      const enhancedOptions = {
+      const enhancedOptions: RequestInit = {
         ...requestOptions,
         headers,
-        credentials: "same-origin" as RequestCredentials,
-        mode: "cors" as RequestMode,
+        ...(isSameOrigin ? { credentials: "same-origin" as RequestCredentials } : {}),
       };
 
       try {
