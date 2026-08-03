@@ -5,6 +5,8 @@ import ProfileCard from "./ProfileCard";
 import SummarySidebar from "./SummarySidebar";
 import DocumentGallery from "./DocumentGallery";
 import VerificationCard from "./VerificationCard";
+import ElectionList from "../elections/ElectionList";
+import FaceVerification from "../../pages/FaceVerification";
 import FamilyTable from "./FamilyTable";
 import Timeline from "./Timeline";
 import DocumentViewerModal from "./DocumentViewerModal";
@@ -45,9 +47,12 @@ export default function VoterDashboard({
 }) {
   const { profile, loading, error, reload } = useProfile(token);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [currentElection, setCurrentElection] = useState<any | null>(null);
+  const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "documents" | "family" | "timeline"
+    "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
   >("overview");
   const [notificationCount, setNotificationCount] = useState(3);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -165,6 +170,24 @@ export default function VoterDashboard({
 
             {/* Desktop navigation */}
             <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab("elections")}
+                className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
+                  activeTab === "elections" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                Elections
+              </button>
+
+              <button
+                onClick={() => setActiveTab("myVotes")}
+                className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
+                  activeTab === "myVotes" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                My Votes
+              </button>
+
               <ThemeToggle theme={theme} setTheme={setTheme} />
 
               <button className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
@@ -231,13 +254,15 @@ export default function VoterDashboard({
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Mobile Tab Navigation */}
-        <div className="lg:hidden mb-6 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700">
-          <div className="grid grid-cols-4 gap-1">
+          <div className="lg:hidden mb-6 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="grid grid-cols-6 gap-1">
             {[
               { id: "overview", label: "Overview", icon: User },
               { id: "documents", label: "Docs", icon: FileText },
               { id: "family", label: "Family", icon: Users },
               { id: "timeline", label: "History", icon: Clock },
+              { id: "elections", label: "Elections", icon: Activity },
+              { id: "myVotes", label: "My Votes", icon: CheckCircle2 },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -273,6 +298,27 @@ export default function VoterDashboard({
                 />
               </div>
             </div>
+
+            {activeTab === "elections" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">Elections</h3>
+                <ElectionList
+                  token={token}
+                  onVote={(e: any, c: any) => {
+                    setCurrentElection(e);
+                    setCurrentCandidate(c);
+                    setShowFaceModal(true);
+                  }}
+                />
+              </div>
+            )}
+
+            {activeTab === "myVotes" && (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">My Votes</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Your voting history and receipts will appear here.</p>
+              </div>
+            )}
 
             <div
               className={`${activeTab === "documents" ? "block" : "hidden lg:block"}`}
@@ -357,6 +403,39 @@ export default function VoterDashboard({
         url={viewerUrl}
         onClose={() => setViewerUrl(null)}
       />
+
+      {showFaceModal && currentElection && currentCandidate && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="font-semibold">Verify and Cast Vote</h4>
+              <button onClick={() => setShowFaceModal(false)} className="text-slate-500">Close</button>
+            </div>
+            <FaceVerification
+              token={token}
+              electionId={currentElection.id}
+              candidateLabel={currentCandidate.label}
+              onBack={() => setShowFaceModal(false)}
+              onVerified={async (result: any) => {
+                try {
+                  // Call vote endpoint
+                  const { castVote } = await import("../../services/electionService");
+                  await castVote(token, {
+                    electionId: currentElection.id,
+                    candidateId: currentCandidate.id,
+                    faceVerificationId: result.verificationId,
+                  });
+                  setShowFaceModal(false);
+                  alert("Vote cast successfully.");
+                } catch (err: any) {
+                  console.error(err);
+                  alert(err?.message || "Failed to cast vote.");
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

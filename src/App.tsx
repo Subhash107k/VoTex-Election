@@ -228,7 +228,7 @@ export default function App() {
 
   const getHomePath = (role: User["role"]) => {
     const homeByRole: Record<User["role"], string> = {
-      Voter: "/voter",
+      Voter: "/votexDashboard",
       Candidate: "/candidate",
       Administrator: "/admin",
       "Super Administrator": "/admin",
@@ -251,6 +251,7 @@ export default function App() {
         "/forgot_password",
         "/forgot-password",
         "/admin/login",
+        "/votexDashboard",
       ]);
 
       if (authPages.has(currentPath)) {
@@ -259,7 +260,7 @@ export default function App() {
       return;
     }
 
-    if (!loading && /^(\/admin|\/voter|\/candidate)/.test(currentPath)) {
+    if (!loading && /^(\/admin|\/voter|\/candidate|\/votexDashboard)/.test(currentPath)) {
       setCurrentPath(
         currentPath.startsWith("/admin") ? "/admin/login" : "/login",
       );

@@ -1852,7 +1852,7 @@ const getUserAccessState = (user: any) => {
   };
 };
 
-app.post("/api/vote", authenticateToken, verifyFace, (req: any, res) => {
+app.post("/api/vote", authenticateToken, verifyFace, async (req: any, res) => {
   try {
     const { electionId, candidateId, fingerprintImage } = req.body;
     const ip =
@@ -2072,8 +2072,35 @@ app.post("/api/vote", authenticateToken, verifyFace, (req: any, res) => {
       digitalSignature,
     };
 
-    votes.push(newVote);
-    Database.saveVotes(votes);
+    try {
+      // Attempt atomic insert into persistent store. If Mongo is available,
+      // this will leverage the unique index on (electionId, anonymousVoterHash)
+      // to prevent race-conditions leading to duplicate voting.
+      const inserted = await Database.insertOne<Vote>("votes", newVote);
+      if (!inserted) {
+        // Fallback to in-memory append when DB insert wasn't acknowledged
+        votes.push(newVote);
+        Database.saveVotes(votes);
+      }
+    } catch (err: any) {
+      // Handle duplicate-key errors coming from MongoDB (E11000)
+      if (err?.code === 11000 || /E11000|duplicate key/i.test(err?.message || "")) {
+        Database.addAuditLog(
+          req.user.id,
+          req.user.email,
+          `Voting rejected for election "${election.title}": duplicate vote attempt detected`,
+          ip,
+          userAgent,
+        );
+        return res.status(409).json({
+          error: "VOTING_LOCKED",
+          message: "You have already voted. Multiple voting is not allowed.",
+        });
+      }
+      // For other DB errors, log and return server error
+      console.error("Error inserting vote:", err);
+      return res.status(500).json({ error: "Failed to record vote" });
+    }
     if (req.faceVerification?.id) {
       FaceVerificationService.consume(req.faceVerification.id);
     }

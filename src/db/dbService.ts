@@ -609,13 +609,17 @@ export class Database {
     collectionName: string,
     document: T,
   ): Promise<T | null> {
+    const collection = this.getCollection<T>(collectionName);
     try {
-      const collection = this.getCollection<T>(collectionName);
       const result = await collection.insertOne(
         document as OptionalUnlessRequiredId<T>,
       );
       return result.acknowledged ? document : null;
-    } catch (error) {
+    } catch (error: any) {
+      // If duplicate key error, rethrow so callers can handle atomically
+      if (error?.code === 11000 || error?.name === "MongoServerError") {
+        throw error;
+      }
       console.error(`Error inserting into ${collectionName}:`, error);
       return null;
     }
@@ -1658,7 +1662,15 @@ export class Database {
     try {
       if (this.db) {
         for (const p of profiles) {
-          await this.upsertOne("user_profiles", { id: p.id }, p);
+          // Use `userId` as the upsert filter because the collection
+          // enforces a unique index on `userId`. Using `id` could
+          // attempt to insert a new document with a duplicate
+          // `userId` when `id` differs, causing E11000 errors.
+          await this.upsertOne(
+            "user_profiles",
+            ({ userId: p.userId } as unknown) as Filter<UserProfile>,
+            p,
+          );
         }
       }
       this.inMemStore.set("user_profiles", profiles);
