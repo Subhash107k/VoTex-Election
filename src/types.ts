@@ -14,6 +14,7 @@ export interface User {
     | "Support Staff"
     | "Candidate";
   nationalID: string;
+  citizenshipNumber?: string;
   mobile: string;
   dob?: string;
   gender?: string;

@@ -1,16 +1,13 @@
-import React, { useEffect, useState } from "react";
-import type { ThemeMode } from "../../types/auth.ts";
+import React, { useState } from "react";
 import ProfileHeader from "./ProfileHeader";
 import ProfileCard from "./ProfileCard";
 import SummarySidebar from "./SummarySidebar";
 import DocumentGallery from "./DocumentGallery";
-import VerificationCard from "./VerificationCard";
 import ElectionList from "../elections/ElectionList";
 import FaceVerification from "../../pages/FaceVerification";
 import FamilyTable from "./FamilyTable";
 import Timeline from "./Timeline";
 import DocumentViewerModal from "./DocumentViewerModal";
-import ThemeToggle from "../ui/ThemeToggle.tsx";
 import useProfile from "../../hooks/useProfile";
 import {
   Bell,
@@ -18,9 +15,7 @@ import {
   Shield,
   User,
   FileText,
-  Download,
   RefreshCw,
-  ChevronRight,
   Menu,
   X,
   Activity,
@@ -28,22 +23,16 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
-  Fingerprint,
-  Eye,
 } from "lucide-react";
 
 export default function VoterDashboard({
   token,
-  user,
   onLogout,
-  theme,
-  setTheme,
+  setCurrentPath,
 }: {
   token: string;
-  user?: any;
   onLogout: () => void;
-  theme: ThemeMode;
-  setTheme: (theme: ThemeMode) => void;
+  setCurrentPath: (path: string) => void;
 }) {
   const { profile, loading, error, reload } = useProfile(token);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -54,7 +43,7 @@ export default function VoterDashboard({
   const [activeTab, setActiveTab] = useState<
     "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
   >("overview");
-  const [notificationCount, setNotificationCount] = useState(3);
+  const notificationCount = 3;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -87,12 +76,12 @@ export default function VoterDashboard({
   };
 
   const handleEditProfile = () => {
-    window.location.href = "/profile/edit";
+    setCurrentPath("/profile/edit");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400"></div>
@@ -108,7 +97,7 @@ export default function VoterDashboard({
 
   if (error) {
     return (
-      <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="min-h-screen p-6 bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
         <div className="max-w-md mx-auto mt-20">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-red-200 dark:border-red-900/50 p-6 backdrop-blur-sm">
             <div className="flex items-center gap-3 mb-4">
@@ -133,14 +122,14 @@ export default function VoterDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
       {/* Top Navigation Bar */}
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-700/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
                   <Shield className="w-6 h-6 text-white" />
                 </div>
                 <div className="hidden sm:block">
@@ -173,7 +162,9 @@ export default function VoterDashboard({
               <button
                 onClick={() => setActiveTab("elections")}
                 className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
-                  activeTab === "elections" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "text-slate-600 dark:text-slate-400"
+                  activeTab === "elections"
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600"
+                    : "text-slate-600 dark:text-slate-400"
                 }`}
               >
                 Elections
@@ -182,13 +173,13 @@ export default function VoterDashboard({
               <button
                 onClick={() => setActiveTab("myVotes")}
                 className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
-                  activeTab === "myVotes" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600" : "text-slate-600 dark:text-slate-400"
+                  activeTab === "myVotes"
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600"
+                    : "text-slate-600 dark:text-slate-400"
                 }`}
               >
                 My Votes
               </button>
-
-              <ThemeToggle theme={theme} setTheme={setTheme} />
 
               <button className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
                 <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors" />
@@ -224,7 +215,6 @@ export default function VoterDashboard({
           {mobileMenuOpen && (
             <div className="sm:hidden border-t border-slate-200 dark:border-slate-700 py-3 space-y-2">
               <div className="flex items-center justify-between px-2">
-                <ThemeToggle theme={theme} setTheme={setTheme} />
                 <div className="flex gap-2">
                   <button className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                     <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400" />
@@ -254,7 +244,7 @@ export default function VoterDashboard({
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Mobile Tab Navigation */}
-          <div className="lg:hidden mb-6 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="lg:hidden mb-6 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="grid grid-cols-6 gap-1">
             {[
               { id: "overview", label: "Overview", icon: User },
@@ -291,17 +281,13 @@ export default function VoterDashboard({
               <div className="xl:col-span-2">
                 <ProfileCard profile={profile} />
               </div>
-              <div>
-                <VerificationCard
-                  biometric={profile?.biometric}
-                  verificationReport={profile?.verificationReport}
-                />
-              </div>
             </div>
 
             {activeTab === "elections" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">Elections</h3>
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">
+                  Elections
+                </h3>
                 <ElectionList
                   token={token}
                   onVote={(e: any, c: any) => {
@@ -315,8 +301,12 @@ export default function VoterDashboard({
 
             {activeTab === "myVotes" && (
               <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">My Votes</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Your voting history and receipts will appear here.</p>
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">
+                  My Votes
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Your voting history and receipts will appear here.
+                </p>
               </div>
             )}
 
@@ -364,7 +354,7 @@ export default function VoterDashboard({
                           key={a.id}
                           className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
                         >
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shrink-0">
                             <Activity className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -409,7 +399,12 @@ export default function VoterDashboard({
           <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-4">
             <div className="flex justify-between items-center mb-3">
               <h4 className="font-semibold">Verify and Cast Vote</h4>
-              <button onClick={() => setShowFaceModal(false)} className="text-slate-500">Close</button>
+              <button
+                onClick={() => setShowFaceModal(false)}
+                className="text-slate-500"
+              >
+                Close
+              </button>
             </div>
             <FaceVerification
               token={token}
@@ -419,7 +414,8 @@ export default function VoterDashboard({
               onVerified={async (result: any) => {
                 try {
                   // Call vote endpoint
-                  const { castVote } = await import("../../services/electionService");
+                  const { castVote } =
+                    await import("../../services/electionService");
                   await castVote(token, {
                     electionId: currentElection.id,
                     candidateId: currentCandidate.id,

@@ -1,16 +1,229 @@
-import React, { useRef, useState } from "react";
-import {
-  AlertTriangle,
-  Download,
-  ExternalLink,
-  FileText,
-  Image as ImageIcon,
-  Upload,
-  X,
-} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Image as ImageIcon, PenTool, Upload, X } from "lucide-react";
 
-export type CitizenshipPreviewStatus =
-  "idle" | "uploading" | "verified" | "error";
+/**
+ * Shared design tokens
+ * Both components below live in the same visual system as the
+ * biometric capture card: near-black panels, hairline gray borders,
+ * a teal accent for primary/active states, and small mono-uppercase
+ * micro-labels for structure.
+ */
+const CARD = "rounded-2xl border border-gray-800 bg-gray-950 p-4";
+const MICRO_LABEL =
+  "text-[9px] font-mono font-bold uppercase tracking-wider text-gray-500";
+const PRIMARY_BUTTON =
+  "inline-flex items-center gap-1.5 rounded-lg bg-teal-500/90 px-4 py-1.5 text-[10px] font-bold uppercase text-gray-950 hover:bg-teal-400";
+const GHOST_BUTTON =
+  "inline-flex items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-900 px-3 py-1.5 text-[9px] font-bold uppercase text-gray-300 hover:text-white";
+const DESTRUCTIVE_TEXT =
+  "text-[9px] font-bold uppercase text-red-400 hover:underline";
+
+/* --------------------------------------------------------------------- */
+/* SignaturePad                                                          */
+/* --------------------------------------------------------------------- */
+
+interface SignaturePadProps {
+  signatureImage: string;
+  onSignatureChange: (value: string) => void;
+  onClear: () => void;
+  onError?: (message: string) => void;
+}
+
+export function SignaturePad({
+  signatureImage,
+  onSignatureChange,
+  onClear,
+  onError,
+}: SignaturePadProps) {
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const getCanvasContext = () => sigCanvasRef.current?.getContext("2d") ?? null;
+
+  const clearCanvas = () => {
+    const canvas = sigCanvasRef.current;
+    const ctx = getCanvasContext();
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const drawSignatureImage = (value: string) => {
+    const canvas = sigCanvasRef.current;
+    const ctx = getCanvasContext();
+    if (!canvas || !ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!value) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(
+        (canvas.width - 20) / img.width,
+        (canvas.height - 20) / img.height,
+      );
+      const nw = img.width * ratio;
+      const nh = img.height * ratio;
+      ctx.drawImage(
+        img,
+        (canvas.width - nw) / 2,
+        (canvas.height - nh) / 2,
+        nw,
+        nh,
+      );
+    };
+    img.src = value;
+  };
+
+  useEffect(() => {
+    const ctx = getCanvasContext();
+    if (ctx) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+    }
+  }, []);
+
+  useEffect(() => {
+    drawSignatureImage(signatureImage);
+  }, [signatureImage]);
+
+  const getCanvasCoordinates = (
+    e:
+      React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    // Bug fix: the touch branch was reading e.touches[0].touches[0].clientY,
+    // which doesn't exist on a Touch object — it always fell through to
+    // undefined and drew at (x, NaN). Both axes now read off e.touches[0].
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    return {
+      x: ((clientX - rect.left) / rect.width) * canvas.width,
+      y: ((clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  const startDrawing = (
+    e:
+      React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
+    if (!sigCanvasRef.current) return;
+    setIsDrawing(true);
+    const ctx = getCanvasContext();
+    if (ctx) {
+      ctx.beginPath();
+      const { x, y } = getCanvasCoordinates(e);
+      ctx.moveTo(x, y);
+    }
+  };
+
+  const draw = (
+    e:
+      React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
+    if (!isDrawing || !sigCanvasRef.current) return;
+    e.preventDefault();
+    const ctx = getCanvasContext();
+    if (ctx) {
+      const { x, y } = getCanvasCoordinates(e);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (sigCanvasRef.current) {
+      onSignatureChange(sigCanvasRef.current.toDataURL("image/png"));
+    }
+  };
+
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      onError?.("Signature file must be less than 2 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      onSignatureChange(base64);
+      drawSignatureImage(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClear = () => {
+    clearCanvas();
+    onClear();
+  };
+
+  return (
+    <div
+      className={`${CARD} flex flex-col items-center justify-between text-center`}
+    >
+      <div className="mb-1 flex w-full items-center justify-between">
+        <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
+          <PenTool className="h-3 w-3 text-teal-300" />
+          Signature Pad
+        </span>
+        <button
+          type="button"
+          onClick={handleClear}
+          className={DESTRUCTIVE_TEXT}
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="relative w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-900 shadow-inner">
+        <canvas
+          ref={sigCanvasRef}
+          width={640}
+          height={180}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+          className="block h-37.5 w-full cursor-crosshair touch-none sm:h-42.5"
+          aria-label="Digital signature drawing area"
+        />
+        <div className="pointer-events-none absolute bottom-8 left-6 right-6 border-b border-dashed border-gray-700/80" />
+        <span className="pointer-events-none absolute bottom-2 left-6 text-[9px] font-mono uppercase tracking-[0.18em] text-gray-600">
+          Sign here
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-col items-center gap-1.5">
+        <span className={MICRO_LABEL}>Draw above or</span>
+        <label
+          className={`${GHOST_BUTTON} cursor-pointer select-none text-teal-300`}
+        >
+          <Upload className="h-3 w-3" />
+          Upload signature card
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleSignatureUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------------- */
+/* CitizenshipUploadPreview                                              */
+/* --------------------------------------------------------------------- */
 
 interface CitizenshipUploadPreviewProps {
   label: string;
@@ -19,11 +232,9 @@ interface CitizenshipUploadPreviewProps {
   fileUrl?: string;
   fileName?: string;
   uploadedAt?: string;
-  status?: CitizenshipPreviewStatus;
-  errorMessage?: string;
+  accent?: "emerald" | "indigo" | string;
   accept?: string;
   maxSizeBytes?: number;
-  accent?: "emerald" | "indigo";
   onFileChange?: (file: File) => void;
   onRemove?: () => void;
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -34,56 +245,20 @@ interface CitizenshipUploadPreviewProps {
 }
 
 const ALLOWED_TYPES = [
-  "image/jpeg",
   "image/png",
-  "image/webp",
+  "image/jpeg",
+  "image/jpg",
   "application/pdf",
 ];
 
-const accentMap = {
-  emerald: {
-    chip: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
-    accentText: "text-emerald-400/90",
-    button:
-      "border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15",
-    highlight:
-      "bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_55%)]",
-  },
-  indigo: {
-    chip: "border-indigo-500/20 bg-indigo-500/10 text-indigo-400",
-    accentText: "text-indigo-400/90",
-    button:
-      "border-indigo-500/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/15",
-    highlight:
-      "bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_55%)]",
-  },
-};
-
-const validateFile = (file: File, maxSizeBytes: number) => {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return "Only JPG, JPEG, PNG, WEBP, or PDF files are supported.";
-  }
-
-  if (file.size > maxSizeBytes) {
-    const sizeMB = (maxSizeBytes / (1024 * 1024)).toFixed(0);
-    return `File must be smaller than ${sizeMB}MB.`;
-  }
-
-  return "";
-};
-
-export default function CitizenshipUploadPreview({
+export function CitizenshipUploadPreview({
   label,
   subtitle,
   description,
   fileUrl,
-  fileName,
-  uploadedAt,
-  status = "idle",
-  errorMessage,
-  accept = "image/jpeg,image/png,image/webp,application/pdf",
-  maxSizeBytes = 2 * 1024 * 1024,
   accent = "emerald",
+  accept = "image/png,image/jpeg,image/jpg",
+  maxSizeBytes = 5 * 1024 * 1024,
   onFileChange,
   onRemove,
   onDrop,
@@ -92,217 +267,137 @@ export default function CitizenshipUploadPreview({
   readOnly = false,
   className = "",
 }: CitizenshipUploadPreviewProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [localError, setLocalError] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  const [dragActive, setDragActive] = useState(false);
 
-  const styles = accentMap[accent];
-  const hasPreview = Boolean(fileUrl);
-  const isPdf = Boolean(
-    fileUrl?.startsWith("data:application/pdf") || fileUrl?.endsWith(".pdf"),
-  );
-  const currentStatus =
-    status === "error" ? "error" : hasPreview ? "verified" : "idle";
+  const validateFile = (file: File) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return "Only PNG, JPG and JPEG images are allowed.";
+    }
+    if (file.size > maxSizeBytes) {
+      return `Maximum file size is ${Math.round(maxSizeBytes / (1024 * 1024))}MB.`;
+    }
+    return "";
+  };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const validationError = validateFile(file, maxSizeBytes);
-    if (validationError) {
-      setLocalError(validationError);
+  const handleFile = (file: File) => {
+    const validation = validateFile(file);
+    if (validation) {
+      setError(validation);
       return;
     }
-
-    setLocalError("");
-    setIsUploading(true);
-    if (onFileChange) {
-      onFileChange(file);
-    }
-    event.target.value = "";
-    setTimeout(() => setIsUploading(false), 250);
+    setError("");
+    onFileChange?.(file);
   };
 
-  const handleRemove = () => {
-    setLocalError("");
-    if (onRemove) {
-      onRemove();
-    }
+  const accentClasses = {
+    emerald: "text-teal-300",
+    indigo: "text-indigo-300",
   };
 
-  const handleOpen = () => {
-    if (!fileUrl) return;
-    window.open(fileUrl, "_blank", "noopener,noreferrer");
-  };
+  const accentClass =
+    accentClasses[accent as keyof typeof accentClasses] ?? "text-teal-300";
 
   return (
-    <div
-      className={`group relative w-full overflow-hidden rounded-3xl border border-gray-800/80 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_18px_45px_-28px_rgba(0,0,0,0.8)] ${className}`}
-    >
-      <div className={`absolute inset-0 ${styles.highlight}`} />
+    <div className={`${CARD} ${className}`}>
+      <div className="mb-3">
+        <div className="mb-2 flex items-center gap-1.5">
+          <ImageIcon className={`h-3.5 w-3.5 ${accentClass}`} />
+          <h3 className={MICRO_LABEL}>{label}</h3>
+        </div>
+        {subtitle && (
+          <p className="text-[10px] uppercase tracking-[0.28em] text-gray-500">
+            {subtitle}
+          </p>
+        )}
+        {description && (
+          <p className="mt-2 text-[10px] leading-relaxed text-gray-400">
+            {description}
+          </p>
+        )}
+      </div>
 
-      <div className="relative grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] xl:grid-cols-[minmax(0,0.5fr)_minmax(0,1.5fr)] 2xl:grid-cols-[minmax(0,0.45fr)_minmax(0,1.55fr)]">
+      {fileUrl ? (
         <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p
-                className={`text-[10px] font-semibold uppercase tracking-[0.3em] ${styles.accentText}`}
-              >
-                {subtitle || "Document"}
-              </p>
-              <h4 className="mt-1 text-sm font-semibold text-white">{label}</h4>
-            </div>
-            <div className={`rounded-2xl border p-2 ${styles.chip}`}>
-              <FileText className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {description && (
-            <div className="rounded-2xl border border-gray-800/80 bg-slate-900/70 p-3 text-[11px] leading-relaxed text-slate-300">
-              {description}
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-gray-800/80 bg-slate-900/70 p-3 text-[10px] text-slate-300">
-            <div className="mb-2 flex items-center justify-between text-[9px] uppercase tracking-[0.24em] text-slate-500">
-              <span>File</span>
-              <span>Details</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Name</span>
-                <span className="text-slate-200">
-                  {fileName || "Not uploaded"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Status</span>
-                <span className="text-slate-200">
-                  {currentStatus === "verified"
-                    ? "Ready"
-                    : currentStatus === "error"
-                      ? "Error"
-                      : "Pending"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">Upload</span>
-                <span className="text-slate-200">
-                  {uploadedAt || "Not yet"}
-                </span>
-              </div>
-            </div>
+          <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
+            <img
+              src={fileUrl}
+              alt={label}
+              className="h-64 w-full object-contain"
+            />
           </div>
 
           {!readOnly && (
-            <div className="flex flex-wrap gap-2">
-              <label
-                className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] transition ${styles.button}`}
+            <button
+              type="button"
+              onClick={onRemove}
+              className={`${GHOST_BUTTON} text-red-400 hover:text-red-300`}
+            >
+              <X className="h-3 w-3" />
+              Remove
+            </button>
+          )}
+        </div>
+      ) : (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!readOnly) setDragActive(true);
+            onDragOver?.(e);
+          }}
+          onDragLeave={() => {
+            setDragActive(false);
+            onDragLeave?.();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragActive(false);
+            onDrop?.(e);
+          }}
+          className={`rounded-xl border-2 border-dashed p-8 text-center transition ${
+            dragActive ? "border-teal-300/70 bg-teal-300/10" : "border-gray-800"
+          }`}
+        >
+          <ImageIcon className="mx-auto mb-3 h-10 w-10 text-gray-600" />
+          <p className="text-xs text-gray-300">Drag and drop your image here</p>
+          <p className="mt-1 text-[10px] text-gray-500">
+            PNG, JPG or JPEG (max {Math.round(maxSizeBytes / (1024 * 1024))}MB)
+          </p>
+
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className={`${PRIMARY_BUTTON} mt-4`}
               >
                 <Upload className="h-3.5 w-3.5" />
-                {hasPreview ? "Replace" : "Upload"}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={accept}
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-
-              {hasPreview && onRemove && (
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-300 transition hover:bg-rose-500/15"
-                >
-                  <X className="h-3.5 w-3.5" /> Remove
-                </button>
-              )}
-            </div>
+                Upload image
+              </button>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={accept}
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                }}
+              />
+            </>
           )}
 
-          {(localError || errorMessage) && (
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-[10px] text-amber-300">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>{localError || errorMessage}</span>
-              </div>
-            </div>
+          {error && (
+            <p
+              role="alert"
+              className="mt-3 text-[10px] font-semibold text-rose-400"
+            >
+              {error}
+            </p>
           )}
         </div>
-
-        <div className="space-y-3">
-          <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-2xl border border-slate-800/80 bg-white/95 p-3 shadow-inner dark:bg-slate-950/90 md:min-h-[260px] lg:min-h-[300px] xl:min-h-[360px] 2xl:min-h-[420px]">
-            {isUploading ? (
-              <div className="flex w-full flex-col items-center justify-center gap-3 text-center text-slate-500">
-                <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-700 border-t-emerald-400" />
-                <span className="text-[10px] uppercase tracking-[0.25em] text-slate-500">
-                  Preparing preview...
-                </span>
-              </div>
-            ) : hasPreview ? (
-              <div className="flex h-full w-full flex-col gap-3">
-                <div className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950">
-                  {isPdf ? (
-                    <iframe
-                      src={fileUrl}
-                      title={`${label} preview`}
-                      className="h-full min-h-[200px] w-full rounded-lg border-0 bg-white dark:bg-slate-950"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-white dark:bg-slate-950">
-                      <img
-                        src={fileUrl}
-                        alt={`${label} preview`}
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpen}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-300 transition hover:border-slate-700 hover:text-white"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Open
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fileUrl) {
-                        const anchor = document.createElement("a");
-                        anchor.href = fileUrl;
-                        anchor.download =
-                          fileName ||
-                          `${label.toLowerCase().replace(/\s+/g, "-")}.pdf`;
-                        anchor.click();
-                      }
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-300 transition hover:border-slate-700 hover:text-white"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Download
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex h-full min-h-[220px] w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-700/80 bg-slate-100/80 p-4 text-center text-slate-600 dark:bg-slate-950/70 dark:text-slate-500 md:min-h-[260px] lg:min-h-[300px] xl:min-h-[360px] 2xl:min-h-[420px]">
-                <div className="mb-3 rounded-full border border-slate-300 bg-white p-2 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                  <ImageIcon className="h-4 w-4" />
-                </div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  No document uploaded yet
-                </span>
-                <span className="mt-1 text-[10px] uppercase tracking-[0.25em] text-slate-500">
-                  {isPdf ? "PDF preview" : "Image preview"}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

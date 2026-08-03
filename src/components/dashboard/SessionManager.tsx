@@ -330,7 +330,10 @@ export default function SessionManager({
       const isAbruptMovement = avgSpeed > 500 || maxDistance > 200;
       const isStalledMovement = avgSpeed < 0.3 && distances.length > 8;
 
-      if ((isAbruptMovement || isStalledMovement) && timeSinceLastWarning > warningCooldown) {
+      if (
+        (isAbruptMovement || isStalledMovement) &&
+        timeSinceLastWarning > warningCooldown
+      ) {
         console.warn("Suspicious mouse behavior detected");
         lastBehaviorWarningRef.current = now;
       }
@@ -537,7 +540,9 @@ export default function SessionManager({
       const enhancedOptions: RequestInit = {
         ...requestOptions,
         headers,
-        ...(isSameOrigin ? { credentials: "same-origin" as RequestCredentials } : {}),
+        ...(isSameOrigin
+          ? { credentials: "same-origin" as RequestCredentials }
+          : {}),
       };
 
       try {
@@ -650,67 +655,6 @@ export default function SessionManager({
 
   return (
     <>
-      {/* Security Status Bar */}
-      <div className="fixed top-0 left-0 right-0 z-[10001] bg-slate-900/95 backdrop-blur-sm border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-slate-400">Security Score:</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      securityScore >= 80
-                        ? "bg-emerald-500"
-                        : securityScore >= 50
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                    }`}
-                    style={{ width: `${securityScore}%` }}
-                  />
-                </div>
-                <span
-                  className={`font-bold ${
-                    securityScore >= 80
-                      ? "text-emerald-400"
-                      : securityScore >= 50
-                        ? "text-amber-400"
-                        : "text-red-400"
-                  }`}
-                >
-                  {securityScore}%
-                </span>
-              </div>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 text-slate-500">
-              <span>|</span>
-              <Clock className="w-3 h-3" />
-              <span>Active: {formatTime(lastActivity)}</span>
-              {biometricLockEnabled && (
-                <>
-                  <span>|</span>
-                  <Fingerprint className="w-3 h-3 text-emerald-400" />
-                  <span className="text-emerald-400">Biometric Ready</span>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSecurityPanel(!showSecurityPanel)}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <Activity className="w-3 h-3" />
-              <span className="hidden sm:inline">Security</span>
-              <ChevronRight
-                className={`w-3 h-3 transition-transform ${showSecurityPanel ? "rotate-90" : ""}`}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Security Panel Dropdown */}
       {showSecurityPanel && (
         <div className="fixed top-10 right-4 z-[10002] w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl animate-in slide-in-from-top-2 duration-200">

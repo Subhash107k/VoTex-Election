@@ -28,9 +28,6 @@ const AdminLoginPage = lazy(
   () => import("./components/Admin/AdminLoginPage.tsx"),
 );
 const AdminPanel = lazy(() => import("./components/Admin/AdminPanel.tsx"));
-const CompleteProfile = lazy(
-  () => import("./components/dashboard/CompleteProfile.tsx"),
-);
 const PublicLanding = lazy(
   () => import("./components/dashboard/PublicLanding.tsx"),
 );
@@ -46,6 +43,9 @@ const CandidateDashboard = lazy(() =>
   import("./components/dashboard/CandidateDashboard.tsx").then((module) => ({
     default: module.CandidateDashboard,
   })),
+);
+const CompleteProfile = lazy(
+  () => import("./components/dashboard/CompleteProfile.tsx"),
 );
 
 const TOKEN_STORAGE_KEY = "votex_token";
@@ -260,7 +260,10 @@ export default function App() {
       return;
     }
 
-    if (!loading && /^(\/admin|\/voter|\/candidate|\/votexDashboard)/.test(currentPath)) {
+    if (
+      !loading &&
+      /^(\/admin|\/voter|\/candidate|\/votexDashboard)/.test(currentPath)
+    ) {
       setCurrentPath(
         currentPath.startsWith("/admin") ? "/admin/login" : "/login",
       );
@@ -353,7 +356,11 @@ export default function App() {
       const profileResult = await getCurrentUser(authResult.token);
       showToast("Signed in successfully.");
       saveSession(authResult.token, profileResult.user);
-      setCurrentPath(getHomePath(profileResult.user.role));
+      setCurrentPath(
+        profileResult.user.role === "Voter"
+          ? "/votexDashboard"
+          : getHomePath(profileResult.user.role),
+      );
     } catch (error) {
       showToast(getErrorMessage(error), "error");
     } finally {
@@ -394,20 +401,20 @@ export default function App() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[var(--surface-page)] font-sans leading-relaxed text-[var(--text-primary)]">
+    <div className="relative flex min-h-screen flex-col bg-(--surface-page) font-sans leading-relaxed text-(--text-primary)">
       <Toast toast={toast} />
 
       <ErrorBoundary>
         <Suspense
           fallback={
-            <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] text-sm font-semibold text-[var(--text-secondary)]">
+            <main className="flex min-h-screen items-center justify-center bg-(--surface-page) text-sm font-semibold text-(--text-secondary)">
               Loading application…
             </main>
           }
         >
           {loading && token && !currentUser ? (
-            <main className="flex min-h-screen items-center justify-center bg-[var(--surface-page)] px-6 text-[var(--text-primary)]">
-              <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-5 py-4 shadow-lg">
+            <main className="flex min-h-screen items-center justify-center bg-(--surface-page) px-6 text-(--text-primary)">
+              <div className="flex items-center gap-3 rounded-2xl border border-(--border-subtle) bg-(--surface-card) px-5 py-4 shadow-lg">
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
                 <span className="text-sm font-semibold">
                   Restoring your secure session…
@@ -415,7 +422,7 @@ export default function App() {
               </div>
             </main>
           ) : currentUser && token ? (
-            currentUser.role === "Voter" && !currentUser.isProfileComplete ? (
+            currentUser.role === "Voter" && currentPath === "/profile/edit" ? (
               <CompleteProfile
                 token={token}
                 user={currentUser}
@@ -429,8 +436,7 @@ export default function App() {
                 token={token}
                 user={currentUser}
                 onLogout={handleLogout}
-                theme={theme}
-                setTheme={setTheme}
+                setCurrentPath={setCurrentPath}
               />
             ) : currentUser.role === "Candidate" ? (
               <CandidateDashboard

@@ -11,24 +11,24 @@ import {
   CheckCircle,
   ArrowRight,
   ArrowLeft,
-  PenTool,
   RefreshCw,
   AlertTriangle,
   Heart,
   CreditCard,
   Users,
   BadgePlus,
-  Fingerprint,
   Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 const BiometricScanner = React.lazy(() => import("./BiometricScanner.tsx"));
 import SearchableSelect from "./SearchableSelect.tsx";
-import ThemeToggle from "../ui/ThemeToggle.tsx";
 import Stepper from "../ui/Stepper.tsx";
-import CitizenshipUploadPreview from "../documents/CitizenshipUploadPreview.tsx";
+import {
+  CitizenshipUploadPreview,
+  SignaturePad,
+} from "../documents/CitizenshipUploadPreview.tsx";
+import FingerprintCaptureCard from "./FingerprintCaptureCard.tsx";
 import FinalPreviewDashboard from "./FinalPreviewDashboard.tsx";
-import { usePersistentTheme } from "../../hooks/usePersistentTheme.ts";
 import type { ThemeMode } from "../../types/auth.ts";
 import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
 import NepaliDate from "nepali-date-converter";
@@ -47,12 +47,7 @@ export default function CompleteProfile({
   user,
   onLogout,
   onComplete,
-  theme: propsTheme,
-  setTheme: propsSetTheme,
 }: CompleteProfileProps) {
-  const { theme: localTheme, setTheme: localSetTheme } = usePersistentTheme();
-  const currentTheme = propsTheme || localTheme;
-  const setCurrentTheme = propsSetTheme || localSetTheme;
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -444,7 +439,7 @@ export default function CompleteProfile({
   // ----------------------------------------------------
   // STEP 3 FIELDS: CITIZENSHIP CARD & DIGITAL SIGNATURE
   // ----------------------------------------------------
-  const [citizenshipNumber, setCitizenshipNumber] = useState("");
+  const citizenshipNumber = user?.citizenshipNumber || "";
   const [citizenshipFrontImage, setCitizenshipFrontImage] =
     useState<string>("");
   const [citizenshipBackImage, setCitizenshipBackImage] = useState<string>("");
@@ -463,7 +458,7 @@ export default function CompleteProfile({
   const [maritalStatus, setMaritalStatus] = useState("Single");
   const [educationStatus, setEducationStatus] = useState("");
   const [bloodGroup, setBloodGroup] = useState("");
-  const [nationality, setNationality] = useState("Nepali");
+  const [nationality] = useState("Nepali");
 
   const [fatherName, setFatherName] = useState("");
   const [fatherNameNepali, setFatherNameNepali] = useState("");
@@ -571,7 +566,7 @@ export default function CompleteProfile({
       const base64 = dataUrl.split(",")[1] || "";
       const padding = (base64.match(/=+$/) || [""])[0].length;
       return Math.ceil((base64.length * 3) / 4) - padding;
-    } catch (e) {
+    } catch {
       return Infinity;
     }
   };
@@ -685,7 +680,7 @@ export default function CompleteProfile({
         setFingerprintStatus("clear");
         setFingerprintMatchUser("");
       }
-    } catch (error) {
+    } catch {
       // If API fails, allow user to proceed with manual review
       setFingerprintStatus("clear");
       console.warn(
@@ -727,7 +722,7 @@ export default function CompleteProfile({
         await fingerprintVideoRef.current.play();
       }
       setFingerprintCameraActive(true);
-    } catch (error: any) {
+    } catch {
       setIsFingerprinting(false);
       triggerToast(
         "Camera access was blocked. You can still upload a fingerprint image manually.",
@@ -813,131 +808,21 @@ export default function CompleteProfile({
     }
   };
 
-  // Custom function to process uploaded signature file
-  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        return triggerToast("Signature file must be less than 2 MB.", true);
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        setSignatureImage(base64);
-
-        // Also render drawing representation onto signature canvas context on next tick
-        if (sigCanvasRef.current) {
-          const canvas = sigCanvasRef.current;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const img = new Image();
-            img.onload = () => {
-              const ratio = Math.min(
-                (canvas.width - 20) / img.width,
-                (canvas.height - 20) / img.height,
-              );
-              const nw = img.width * ratio;
-              const nh = img.height * ratio;
-              const x = (canvas.width - nw) / 2;
-              const y = (canvas.height - nh) / 2;
-              ctx.drawImage(img, x, y, nw, nh);
-            };
-            img.src = base64;
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Signature PAD Canvas drawing
-  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-
-  useEffect(() => {
-    if (step === 3 && sigCanvasRef.current) {
-      const canvas = sigCanvasRef.current;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-      }
-    }
-  }, [step]);
-
-  const getCanvasCoordinates = (
-    e:
-      | React.MouseEvent<HTMLCanvasElement>
-      | React.TouchEvent<HTMLCanvasElement>,
-  ) => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    return {
-      x: ((clientX - rect.left) / rect.width) * canvas.width,
-      y: ((clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  const startDrawing = (
-    e:
-      | React.MouseEvent<HTMLCanvasElement>
-      | React.TouchEvent<HTMLCanvasElement>,
-  ) => {
-    if (!sigCanvasRef.current) return;
-    setIsDrawing(true);
-    const canvas = sigCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.beginPath();
-      const { x, y } = getCanvasCoordinates(e);
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const draw = (
-    e:
-      | React.MouseEvent<HTMLCanvasElement>
-      | React.TouchEvent<HTMLCanvasElement>,
-  ) => {
-    if (!isDrawing || !sigCanvasRef.current) return;
-    e.preventDefault();
-    const canvas = sigCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      const { x, y } = getCanvasCoordinates(e);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-  };
-
-  const stopDrawing = () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-    // Save drawn canvas state as base64
-    if (sigCanvasRef.current) {
-      setSignatureImage(sigCanvasRef.current.toDataURL("image/png"));
-    }
-  };
-
-  const clearSignature = () => {
-    if (sigCanvasRef.current) {
-      const canvas = sigCanvasRef.current;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        setSignatureImage("");
-      }
-    }
-  };
-
   const handleCitizenshipFileUpload = (file: File, side: "front" | "back") => {
-    if (file.size > 2 * 1024 * 1024) {
-      return triggerToast("Document file must be less than 2 MB.", true);
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      return triggerToast(
+        "Only PNG, JPG, JPEG, or PDF files are supported.",
+        true,
+      );
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return triggerToast("Document file must be less than 10 MB.", true);
     }
 
     const reader = new FileReader();
@@ -1333,8 +1218,6 @@ export default function CompleteProfile({
                   setProfilePhoto(draft.profilePhoto);
                   setProfilePhotoPreviewUrl(draft.profilePhoto);
                 }
-                if (draft.citizenshipNumber)
-                  setCitizenshipNumber(draft.citizenshipNumber);
                 if (draft.citizenshipType)
                   setCitizenshipType(draft.citizenshipType);
                 if (draft.citizenshipIssueDate)
@@ -1440,8 +1323,6 @@ export default function CompleteProfile({
               setProfilePhoto(draft.profilePhoto);
               setProfilePhotoPreviewUrl(draft.profilePhoto);
             }
-            if (draft?.citizenshipNumber)
-              setCitizenshipNumber(draft.citizenshipNumber);
             if (draft?.citizenshipType)
               setCitizenshipType(draft.citizenshipType);
             if (draft?.citizenshipIssueDate)
@@ -1457,7 +1338,7 @@ export default function CompleteProfile({
             if (draft?.citizenshipFrontImage)
               setCitizenshipFrontImage(draft.citizenshipFrontImage);
             if (draft?.citizenshipBackImage)
-              setCitizenshipBackImage(draft.citizenshipBackImage);
+              setCitizenshipBackImage(draft.getgetshipBackImage);
             if (draft?.nidNumber) setNidNumber(draft.nidNumber);
             if (draft?.nidIssueDate) setNidIssueDate(draft.nidIssueDate);
             if (draft?.nidStatus) setNidStatus(draft.nidStatus);
@@ -1579,7 +1460,9 @@ export default function CompleteProfile({
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...((import.meta as any).env?.DEV ? { "X-VoTex-Dev-Bypass": "true" } : {}),
+          ...((import.meta as any).env?.DEV
+            ? { "X-VoTex-Dev-Bypass": "true" }
+            : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -1689,7 +1572,6 @@ export default function CompleteProfile({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle theme={currentTheme} setTheme={setCurrentTheme} />
             <button
               onClick={onLogout}
               className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
@@ -1852,6 +1734,36 @@ export default function CompleteProfile({
                       />
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center justify-between text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                    <span>Email</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                      <Lock className="w-3 h-3" /> Registered
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={user?.email || "Not provided"}
+                    disabled
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-10.5 disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center justify-between text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                    <span>Primary Phone</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                      <Lock className="w-3 h-3" /> Registered
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={user?.mobile || "Not provided"}
+                    disabled
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-10.5 disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
+                  />
                 </div>
               </div>
 
@@ -2864,10 +2776,10 @@ export default function CompleteProfile({
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. CZ-9018-0918"
+                    placeholder=""
                     value={citizenshipNumber}
-                    onChange={(e) => setCitizenshipNumber(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-emerald-500"
+                    readOnly
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-emerald-500 opacity-70 cursor-not-allowed"
                   />
                 </div>
 
@@ -2962,130 +2874,79 @@ export default function CompleteProfile({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-gray-950/40 border border-gray-800 rounded-2xl p-4 grid gap-4 md:grid-cols-[1.6fr_0.95fr]">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Upload className="w-4 h-4 text-amber-400" />
-                          <span className="text-white font-black text-xs uppercase tracking-wider">
-                            Citizenship Document Uploads *
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-gray-400 uppercase tracking-[0.24em] font-semibold">
-                          mobile · tablet · desktop ready
-                        </span>
-                      </div>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 auto-rows-fr">
+                  <CitizenshipUploadPreview
+                    label="Citizenship Front"
+                    subtitle="Citizen ID"
+                    description="Upload the front side of your citizenship document. Supported: PNG, JPG, JPEG, PDF. Max 10 MB."
+                    fileUrl={citizenshipFrontImage}
+                    fileName={citizenshipFrontFileName}
+                    uploadedAt={citizenshipFrontUploadedAt}
+                    accept="image/jpeg,image/jpg,image/png,application/pdf"
+                    maxSizeBytes={10 * 1024 * 1024}
+                    accent="emerald"
+                    onFileChange={(file) =>
+                      handleCitizenshipFileUpload(file, "front")
+                    }
+                    onDrop={(e: React.DragEvent<HTMLDivElement>) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files?.[0]) {
+                        handleCitizenshipFileUpload(
+                          e.dataTransfer.files[0],
+                          "front",
+                        );
+                      }
+                    }}
+                    onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
+                      e.preventDefault()
+                    }
+                    onDragLeave={() => {}}
+                    onRemove={() => {
+                      setCitizenshipFrontImage("");
+                      setCitizenshipFrontFileName("");
+                      setCitizenshipFrontUploadedAt("");
+                    }}
+                  />
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CitizenshipUploadPreview
-                          label="Citizenship Front"
-                          subtitle="Front Side"
-                          description="Upload the front side of your citizenship card for verification."
-                          fileUrl={citizenshipFrontImage}
-                          fileName={
-                            citizenshipFrontFileName ||
-                            (citizenshipFrontImage
-                              ? "Front Scan"
-                              : "Not uploaded")
-                          }
-                          uploadedAt={citizenshipFrontUploadedAt || "Not yet"}
-                          status={citizenshipFrontImage ? "verified" : "idle"}
-                          accept="image/jpeg,image/png,image/webp"
-                          maxSizeBytes={2 * 1024 * 1024}
-                          accent="emerald"
-                          onFileChange={(file) =>
-                            handleCitizenshipFileUpload(file, "front")
-                          }
-                          onRemove={() => {
-                            setCitizenshipFrontImage("");
-                            setCitizenshipFrontFileName("");
-                            setCitizenshipFrontUploadedAt("");
-                          }}
-                          className="w-full min-h-80 lg:min-h-95 xl:min-h-105 2xl:min-h-120"
-                        />
+                  <CitizenshipUploadPreview
+                    label="Citizenship Back"
+                    subtitle="Citizen ID"
+                    description="Upload the back side of your citizenship document. Supported: PNG, JPG, JPEG, PDF. Max 10 MB."
+                    fileUrl={citizenshipBackImage}
+                    fileName={citizenshipBackFileName}
+                    uploadedAt={citizenshipBackUploadedAt}
+                    accept="image/jpeg,image/jpg,image/png,application/pdf"
+                    maxSizeBytes={10 * 1024 * 1024}
+                    accent="indigo"
+                    onFileChange={(file) =>
+                      handleCitizenshipFileUpload(file, "back")
+                    }
+                    onDrop={(e: React.DragEvent<HTMLDivElement>) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files?.[0]) {
+                        handleCitizenshipFileUpload(
+                          e.dataTransfer.files[0],
+                          "back",
+                        );
+                      }
+                    }}
+                    onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
+                      e.preventDefault()
+                    }
+                    onDragLeave={() => {}}
+                    onRemove={() => {
+                      setCitizenshipBackImage("");
+                      setCitizenshipBackFileName("");
+                      setCitizenshipBackUploadedAt("");
+                    }}
+                  />
 
-                        <CitizenshipUploadPreview
-                          label="Citizenship Back"
-                          subtitle="Back Side"
-                          description="Upload the back side of your citizenship card for verification."
-                          fileUrl={citizenshipBackImage}
-                          fileName={
-                            citizenshipBackFileName ||
-                            (citizenshipBackImage
-                              ? "Back Scan"
-                              : "Not uploaded")
-                          }
-                          uploadedAt={citizenshipBackUploadedAt || "Not yet"}
-                          status={citizenshipBackImage ? "verified" : "idle"}
-                          accept="image/jpeg,image/png,image/webp"
-                          maxSizeBytes={2 * 1024 * 1024}
-                          accent="indigo"
-                          onFileChange={(file) =>
-                            handleCitizenshipFileUpload(file, "back")
-                          }
-                          onRemove={() => {
-                            setCitizenshipBackImage("");
-                            setCitizenshipBackFileName("");
-                            setCitizenshipBackUploadedAt("");
-                          }}
-                          className="w-full min-h-80 lg:min-h-95 xl:min-h-105 2xl:min-h-120"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between items-center text-center">
-                    <div className="flex justify-between items-center w-full mb-1">
-                      <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
-                        <PenTool className="w-3 h-3 text-emerald-400" />
-                        Signature Pad
-                      </span>
-                      <button
-                        type="button"
-                        onClick={clearSignature}
-                        className="text-[9px] text-red-400 hover:underline uppercase font-bold"
-                      >
-                        Clear
-                      </button>
-                    </div>
-
-                    <div className="relative w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-900 shadow-inner">
-                      <canvas
-                        ref={sigCanvasRef}
-                        width={640}
-                        height={180}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        onTouchStart={startDrawing}
-                        onTouchMove={draw}
-                        onTouchEnd={stopDrawing}
-                        className="block h-37.5 w-full cursor-crosshair touch-none sm:h-42.5"
-                        aria-label="Digital signature drawing area"
-                      />
-                      <div className="pointer-events-none absolute bottom-8 left-6 right-6 border-b border-dashed border-gray-700/80" />
-                      <span className="pointer-events-none absolute bottom-2 left-6 text-[9px] font-mono uppercase tracking-[0.18em] text-gray-600">
-                        Sign here
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col items-center gap-1.5">
-                      <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-gray-500">
-                        Draw above or
-                      </span>
-                      <label className="px-2.5 py-1 bg-gray-900 border border-gray-800 hover:border-gray-700 hover:bg-gray-800 text-[9px] uppercase font-bold text-sky-400 hover:text-white rounded cursor-pointer select-none">
-                        Upload Signature Card
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleSignatureUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
+                  <SignaturePad
+                    signatureImage={signatureImage}
+                    onSignatureChange={setSignatureImage}
+                    onClear={() => setSignatureImage("")}
+                    onError={(message) => triggerToast(message, true)}
+                  />
                 </div>
               </div>
 
@@ -3241,195 +3102,28 @@ export default function CompleteProfile({
                 </div>
               </div>
 
-              {/* ==================================================== */}
-              {/* BIOMETRIC FINGERPRINT IDENTIFICATION PORTAL          */}
-              {/* ==================================================== */}
-              <div className="bg-gray-950/60 p-5 rounded-2xl border border-gray-800/80 space-y-4">
-                <div className="flex items-center justify-between border-b border-gray-800/60 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-emerald-400" />
-                    <span className="text-white font-black text-xs uppercase tracking-wider">
-                      Biometric Fingerprint Compliance Seal *
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-[10px] text-gray-400 leading-normal">
-                  Capture each finger separately in good light. Both images are
-                  previewed here and checked instantly against existing voter
-                  records before registration.
-                </p>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {(
-                    [
-                      ["left", "Left finger", fingerprintLeftImage],
-                      ["right", "Right finger", fingerprintRightImage],
-                    ] as const
-                  ).map(([side, label, image]) => (
-                    <button
-                      key={side}
-                      type="button"
-                      onClick={() => setFingerprintCaptureSide(side)}
-                      className={`relative min-h-28 overflow-hidden rounded-xl border p-2 text-left transition ${
-                        fingerprintCaptureSide === side
-                          ? "border-emerald-400 bg-emerald-400/10"
-                          : "border-gray-800 bg-gray-950 hover:border-gray-700"
-                      }`}
-                    >
-                      {image ? (
-                        <img
-                          src={image}
-                          alt={`${label} fingerprint preview`}
-                          className="h-20.5 w-full rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-20.5 items-center justify-center rounded-lg border border-dashed border-gray-800 text-gray-600">
-                          <Fingerprint className="h-7 w-7" />
-                        </div>
-                      )}
-                      <span className="mt-1 block text-[9px] font-bold uppercase tracking-wider text-gray-300">
-                        {label} {image ? "captured" : "required"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-                  {/* Fingerprint Touch Sensor Module */}
-                  <div className="md:col-span-4 flex flex-col items-center justify-center bg-gray-950 border border-gray-800 p-4 rounded-2xl relative overflow-hidden select-none">
-                    <div className="relative w-full aspect-4/3 rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden mb-3">
-                      {fingerprintCameraActive ? (
-                        <video
-                          ref={fingerprintVideoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
-                      ) : fingerprintImage ? (
-                        <img
-                          src={fingerprintImage}
-                          alt="Fingerprint capture preview"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-center px-4 text-gray-500">
-                          <Fingerprint className="w-9 h-9 mb-2 text-emerald-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                            Live preview will appear here
-                          </span>
-                          <span className="text-[8px] mt-1 text-gray-600">
-                            Select a side, then align that finger in the frame
-                          </span>
-                        </div>
-                      )}
-                      {fingerprintCameraActive && (
-                        <div className="absolute inset-3 border-2 border-emerald-400/50 rounded-2xl pointer-events-none" />
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap justify-center gap-2 w-full">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          startFingerprintTouchScan(fingerprintCaptureSide)
-                        }
-                        className="flex-1 min-w-22.5 py-1.5 bg-emerald-600/90 text-[9px] text-white font-bold uppercase rounded-lg hover:bg-emerald-500 cursor-pointer select-none"
-                      >
-                        {fingerprintCameraActive
-                          ? "Camera Live"
-                          : `Capture ${fingerprintCaptureSide} finger`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={captureFingerprintFromCamera}
-                        disabled={!fingerprintCameraActive}
-                        className="flex-1 min-w-22.5 py-1.5 bg-gray-900 border border-gray-800 text-[9px] text-gray-300 font-bold uppercase rounded-lg hover:text-white cursor-pointer select-none disabled:opacity-40"
-                      >
-                        Capture Frame
-                      </button>
-                    </div>
-
-                    <label className="mt-2 w-full px-3 py-1.5 bg-gray-900 border border-gray-800 text-[9px] uppercase font-bold text-gray-300 rounded hover:text-white cursor-pointer select-none text-center">
-                      Upload {fingerprintCaptureSide} fingerprint
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={(e) =>
-                          handleFingerprintImageUpload(
-                            e,
-                            fingerprintCaptureSide,
-                          )
-                        }
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
-                  {/* Fingerprint Status Display */}
-                  <div className="md:col-span-8 space-y-2">
-                    <span className="text-[9px] font-mono font-bold text-gray-500 uppercase tracking-widest block">
-                      Biometrics Status:
-                    </span>
-                    <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 min-h-25">
-                      {fingerprintStatus === "checking" && (
-                        <div className="flex items-center gap-2 text-yellow-400">
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span className="text-xs">
-                            Checking biometric database...
-                          </span>
-                        </div>
-                      )}
-                      {fingerprintStatus === "clear" && (
-                        <div className="flex items-center gap-2 text-emerald-400">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-xs">
-                            Fingerprint appears unique and ready for
-                            registration.
-                          </span>
-                        </div>
-                      )}
-                      {fingerprintStatus === "duplicate" && (
-                        <div className="flex items-center gap-2 text-rose-400">
-                          <AlertTriangle className="w-4 h-4" />
-                          <span className="text-xs">
-                            Potential duplicate fingerprint match for{" "}
-                            {fingerprintMatchUser}.
-                          </span>
-                        </div>
-                      )}
-                      {fingerprintStatus === "idle" && (
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Fingerprint className="w-4 h-4" />
-                          <span className="text-xs">
-                            Capture a sharp image of both fingers for a clean
-                            registration.
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {fingerprintImage && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFingerprintImage("");
-                          setFingerprintLeftImage("");
-                          setFingerprintRightImage("");
-                          setFingerprintStatus("idle");
-                          setFingerprintMatchUser("");
-                          stopFingerprintCamera();
-                        }}
-                        className="px-3 py-1.5 bg-gray-900 border border-gray-800 text-[9px] text-red-400 font-bold uppercase rounded-lg hover:bg-gray-800 cursor-pointer select-none"
-                      >
-                        Reset Biometric
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <FingerprintCaptureCard
+                leftPreview={fingerprintLeftImage}
+                rightPreview={fingerprintRightImage}
+                fingerprintImage={fingerprintImage}
+                fingerprintCameraActive={fingerprintCameraActive}
+                fingerprintVideoRef={fingerprintVideoRef}
+                selectedSide={fingerprintCaptureSide}
+                biometricStatus={fingerprintStatus}
+                fingerprintMatchUser={fingerprintMatchUser}
+                onSelectSide={setFingerprintCaptureSide}
+                onCapture={(side) => startFingerprintTouchScan(side)}
+                onCaptureFrame={captureFingerprintFromCamera}
+                onUpload={(side, e) => handleFingerprintImageUpload(e, side)}
+                onReset={() => {
+                  setFingerprintImage("");
+                  setFingerprintLeftImage("");
+                  setFingerprintRightImage("");
+                  setFingerprintStatus("idle");
+                  setFingerprintMatchUser("");
+                  stopFingerprintCamera();
+                }}
+              />
 
               <div className="flex justify-between pt-4">
                 <button

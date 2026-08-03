@@ -85,7 +85,9 @@ const normalizeMobileComparisonValue = (value: string) => {
 };
 
 const areSameMobile = (a: string, b: string) => {
-  return normalizeMobileComparisonValue(a) === normalizeMobileComparisonValue(b);
+  return (
+    normalizeMobileComparisonValue(a) === normalizeMobileComparisonValue(b)
+  );
 };
 
 const normalizeEmailValue = (val?: string) =>
@@ -1161,6 +1163,7 @@ export const authController = {
           email: user.email,
           role: user.role,
           nationalID: user.nationalID || "",
+          citizenshipNumber: user.citizenshipNumber || "",
           mobile: user.mobile,
           dob: user.dob,
           gender: user.gender,
@@ -1187,6 +1190,7 @@ export const authController = {
         email: req.user.email,
         role: req.user.role,
         nationalID: req.user.nationalID || "",
+        citizenshipNumber: req.user.citizenshipNumber || "",
         mobile: req.user.mobile,
         dob: req.user.dob,
         gender: req.user.gender,
@@ -1751,6 +1755,7 @@ export const authController = {
           email: matchedUser.email,
           role: matchedUser.role,
           nationalID: matchedUser.nationalID,
+          citizenshipNumber: matchedUser.citizenshipNumber,
           mobile: matchedUser.mobile,
           dob: matchedUser.dob,
           gender: matchedUser.gender,

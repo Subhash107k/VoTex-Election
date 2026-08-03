@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface PasswordFieldProps {
   label: string;
@@ -38,9 +38,8 @@ export default function PasswordField({
           autoComplete={autoComplete}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={`w-full rounded-xl border px-3 py-2.5 pl-9 pr-10 text-xs sm:text-sm ${inputBg}`}
+          className={`w-full rounded-xl border px-3 py-2.5 pr-10 text-xs sm:text-sm ${inputBg}`}
         />
-        <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
         <button
           type="button"
           onClick={() => setIsPasswordVisible((current) => !current)}

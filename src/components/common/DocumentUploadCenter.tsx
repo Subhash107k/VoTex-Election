@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ShieldCheck } from "lucide-react";
-import CitizenshipUploadPreview from "../documents/CitizenshipUploadPreview.tsx";
+import { CitizenshipUploadPreview } from "../documents/CitizenshipUploadPreview.tsx";
 
 export interface DocumentItem {
   id: string;

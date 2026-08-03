@@ -71,7 +71,12 @@ function VisualCaptchaComponent({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    const bgGradient = ctx.createLinearGradient(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
     bgGradient.addColorStop(0, "#0f172a");
     bgGradient.addColorStop(1, "#1e293b");
     ctx.fillStyle = bgGradient;
@@ -94,7 +99,7 @@ function VisualCaptchaComponent({
         Math.random() * canvas.height,
         Math.random() * 1.5,
         0,
-        Math.PI * 2
+        Math.PI * 2,
       );
       ctx.fill();
     }
@@ -131,7 +136,7 @@ function VisualCaptchaComponent({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3 w-full">
       <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-inner flex items-center shrink-0">
         <canvas
           ref={canvasRef}
@@ -154,10 +159,10 @@ function VisualCaptchaComponent({
       <input
         type="text"
         required
-        placeholder="Answer"
+        placeholder="CAPTCHA"
         value={userInput}
         onChange={(e) => handleInputChange(e.target.value)}
-        className={`w-36 px-3 py-2 rounded-xl border text-xs font-mono font-bold tracking-wider uppercase ${inputBg}`}
+        className={`ml-auto min-w-[140px] w-44 px-3 py-2 rounded-xl border text-xs font-mono font-bold tracking-wider uppercase ${inputBg}`}
       />
 
       {userInput.trim() !== "" && (
@@ -256,13 +261,49 @@ export default function RegisterPage({
   // Anti-Bot & Single Account Guard States
   const [hpWebsite, setHpWebsite] = useState("");
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
-  const [alreadyHasAccount] = useState(() => {
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
+  
+  // Check account creation timing: 10 min cooldown + 20 min allowance window
+  const [accountTimingState] = useState(() => {
     try {
-      return localStorage.getItem("votex_account_created") === "true";
+      const lastCreatedStr = localStorage.getItem("votex_account_created_at");
+      if (!lastCreatedStr) return { blocked: false, nextAllowedTime: null, allowanceEndsAt: null };
+      
+      const lastCreatedTime = parseInt(lastCreatedStr, 10);
+      const now = Date.now();
+      const timeSinceCreation = now - lastCreatedTime;
+      
+      const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+      const ALLOWANCE_MS = 20 * 60 * 1000; // 20 minutes
+      const TOTAL_CYCLE = COOLDOWN_MS + ALLOWANCE_MS; // 30 minutes total
+      
+      if (timeSinceCreation < COOLDOWN_MS) {
+        // Still in cooldown period
+        return {
+          blocked: true,
+          nextAllowedTime: lastCreatedTime + COOLDOWN_MS,
+          allowanceEndsAt: null,
+          reason: "cooldown"
+        };
+      } else if (timeSinceCreation < TOTAL_CYCLE) {
+        // In allowance window
+        return {
+          blocked: false,
+          nextAllowedTime: null,
+          allowanceEndsAt: lastCreatedTime + TOTAL_CYCLE,
+          reason: "allowed"
+        };
+      } else {
+        // Cycle complete, back to normal
+        return { blocked: false, nextAllowedTime: null, allowanceEndsAt: null };
+      }
     } catch {
-      return false;
+      return { blocked: false, nextAllowedTime: null, allowanceEndsAt: null };
     }
   });
+  
+  const [alreadyHasAccount] = useState(() => accountTimingState.blocked);
+  const [timingInfo] = useState(accountTimingState);
 
   const handleCaptchaVerifyChange = useCallback((valid: boolean) => {
     setIsCaptchaVerified(valid);
@@ -302,7 +343,9 @@ export default function RegisterPage({
   }, [smsCountdown]);
 
   const isValidEmailAddress = (value: string) => {
-    const trimmed = String(value || "").trim().toLowerCase();
+    const trimmed = String(value || "")
+      .trim()
+      .toLowerCase();
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(trimmed);
   };
@@ -342,7 +385,10 @@ export default function RegisterPage({
       if (!regForm.email) {
         nextStatus.email = { status: "idle" };
       } else if (!isValidEmailAddress(regForm.email)) {
-        nextStatus.email = { status: "invalid", message: "Invalid email format. Must be e.g. name@domain.com" };
+        nextStatus.email = {
+          status: "invalid",
+          message: "Invalid email format. Must be e.g. name@domain.com",
+        };
       } else {
         nextStatus.email = { status: "checking" };
         queryParams.email = regForm.email;
@@ -351,11 +397,22 @@ export default function RegisterPage({
       if (!regForm.username) {
         nextStatus.username = { status: "idle" };
       } else if (regForm.username.length < 3) {
-        nextStatus.username = { status: "invalid", message: "Username must be at least 3 characters." };
+        nextStatus.username = {
+          status: "invalid",
+          message: "Username must be at least 3 characters.",
+        };
       } else if (!/^[a-zA-Z0-9]+$/.test(regForm.username)) {
-        nextStatus.username = { status: "invalid", message: "Username must contain only letters and numbers (no special characters)." };
+        nextStatus.username = {
+          status: "invalid",
+          message:
+            "Username must contain only letters and numbers (no special characters).",
+        };
       } else if (!/^(?=.*[a-zA-Z])(?=.*[0-9])/.test(regForm.username)) {
-        nextStatus.username = { status: "invalid", message: "Username must contain both letters and numbers (e.g. voter123)." };
+        nextStatus.username = {
+          status: "invalid",
+          message:
+            "Username must contain both letters and numbers (e.g. voter123).",
+        };
       } else {
         nextStatus.username = { status: "checking" };
         queryParams.username = regForm.username;
@@ -364,7 +421,10 @@ export default function RegisterPage({
       if (!regForm.mobile) {
         nextStatus.phone = { status: "idle" };
       } else if (!isValidNepaliMobile(regForm.mobile)) {
-        nextStatus.phone = { status: "invalid", message: "Invalid Nepali mobile number." };
+        nextStatus.phone = {
+          status: "invalid",
+          message: "Invalid Nepali mobile number.",
+        };
       } else {
         nextStatus.phone = { status: "checking" };
         queryParams.phone = regForm.mobile;
@@ -372,8 +432,11 @@ export default function RegisterPage({
 
       if (!regForm.nationalID) {
         nextStatus.nid = { status: "idle" };
-      } else if (regForm.nationalID.trim().length < 5) {
-        nextStatus.nid = { status: "invalid", message: "National ID must be at least 5 characters." };
+      } else if (regForm.nationalID.trim().length < 6) {
+        nextStatus.nid = {
+          status: "invalid",
+          message: "National ID must be at least 6 characters.",
+        };
       } else {
         nextStatus.nid = { status: "checking" };
         queryParams.nid = regForm.nationalID;
@@ -382,7 +445,10 @@ export default function RegisterPage({
       if (!regForm.citizenshipNumber) {
         nextStatus.citizenship = { status: "idle" };
       } else if (regForm.citizenshipNumber.trim().length < 5) {
-        nextStatus.citizenship = { status: "invalid", message: "Citizenship number must be at least 5 characters." };
+        nextStatus.citizenship = {
+          status: "invalid",
+          message: "Citizenship number must be at least 5 characters.",
+        };
       } else {
         nextStatus.citizenship = { status: "checking" };
         queryParams.citizenship = regForm.citizenshipNumber;
@@ -402,27 +468,48 @@ export default function RegisterPage({
             if (queryParams.email) {
               updated.email = res.available.email
                 ? { status: "available", message: "Email available" }
-                : { status: "taken", message: res.message?.email || "Email already registered." };
+                : {
+                    status: "taken",
+                    message: res.message?.email || "Email already registered.",
+                  };
             }
             if (queryParams.username) {
               updated.username = res.available.username
                 ? { status: "available", message: "Username available" }
-                : { status: "taken", message: res.message?.username || "Username already taken." };
+                : {
+                    status: "taken",
+                    message: res.message?.username || "Username already taken.",
+                  };
             }
             if (queryParams.phone) {
               updated.phone = res.available.phone
                 ? { status: "available", message: "Phone number available" }
-                : { status: "taken", message: res.message?.phone || "Phone number already registered." };
+                : {
+                    status: "taken",
+                    message:
+                      res.message?.phone || "Phone number already registered.",
+                  };
             }
             if (queryParams.nid) {
               updated.nid = res.available.nid
                 ? { status: "available", message: "National ID available" }
-                : { status: "taken", message: res.message?.nid || "National ID already exists." };
+                : {
+                    status: "taken",
+                    message: res.message?.nid || "National ID already exists.",
+                  };
             }
             if (queryParams.citizenship) {
               updated.citizenship = res.available.citizenship
-                ? { status: "available", message: "Citizenship number available" }
-                : { status: "taken", message: res.message?.citizenship || "Citizenship number already exists." };
+                ? {
+                    status: "available",
+                    message: "Citizenship number available",
+                  }
+                : {
+                    status: "taken",
+                    message:
+                      res.message?.citizenship ||
+                      "Citizenship number already exists.",
+                  };
             }
             return updated;
           });
@@ -578,12 +665,26 @@ export default function RegisterPage({
   };
 
   const handleFormSubmit = (event: React.FormEvent) => {
-    if (!isEmailVerifiedLocal || !isSmsVerifiedLocal || !isIdentityAllAvailable) {
+    if (
+      !isEmailVerifiedLocal ||
+      !isSmsVerifiedLocal ||
+      !isIdentityAllAvailable
+    ) {
       event.preventDefault();
-      if (!isEmailVerifiedLocal) setEmailError("Please verify your email before registering.");
-      if (!isSmsVerifiedLocal) setSmsError("Please verify your mobile number before registering.");
+      if (!isEmailVerifiedLocal)
+        setEmailError("Please verify your email before registering.");
+      if (!isSmsVerifiedLocal)
+        setSmsError("Please verify your mobile number before registering.");
       return;
     }
+    // Save account creation timestamp for 10-min cooldown + 20-min allowance window
+    try {
+      localStorage.setItem("votex_account_created_at", Date.now().toString());
+    } catch {
+      console.warn("Failed to save account creation timestamp");
+    }
+    // Mark form as submitted (lock all fields)
+    setIsFormSubmitted(true);
     handleRegisterSubmit(event);
   };
 
@@ -625,9 +726,7 @@ export default function RegisterPage({
   };
 
   const isBotChallengePassed =
-    isCaptchaVerified &&
-    !hpWebsite &&
-    !alreadyHasAccount;
+    isCaptchaVerified && !hpWebsite && !alreadyHasAccount;
 
   const isIdentityAllAvailable =
     identityStatus.email.status === "available" &&
@@ -642,7 +741,9 @@ export default function RegisterPage({
     isBotChallengePassed;
 
   return (
-    <div className={`min-h-screen ${bgMain} flex flex-col justify-between relative transition-colors duration-300 font-sans`}>
+    <div
+      className={`min-h-screen ${bgMain} flex flex-col justify-between relative transition-colors duration-300 font-sans`}
+    >
       {/* Header */}
       <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
         <button
@@ -654,7 +755,9 @@ export default function RegisterPage({
             <Vote className="h-5 w-5 stroke-[2.5]" />
           </div>
           <div className="text-left">
-            <h1 className={`font-black text-base ${textTitle} leading-none tracking-tight`}>
+            <h1
+              className={`font-black text-base ${textTitle} leading-none tracking-tight`}
+            >
               VoTex Registration
             </h1>
             <span className="text-[10px] text-slate-500 font-mono tracking-wider block mt-0.5 uppercase font-bold">
@@ -670,7 +773,11 @@ export default function RegisterPage({
             aria-label="Toggle Theme"
             className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
           >
-            {isLight ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            {isLight ? (
+              <Moon className="h-4 w-4" />
+            ) : (
+              <Sun className="h-4 w-4" />
+            )}
           </button>
 
           <button
@@ -686,8 +793,9 @@ export default function RegisterPage({
 
       {/* Main Registration Form */}
       <main className="flex-1 flex items-center justify-center px-4 py-8 md:py-12">
-        <div className={`w-full max-w-2xl p-6 sm:p-8 rounded-3xl border ${bgCard} relative`}>
-          
+        <div
+          className={`w-full max-w-2xl p-6 sm:p-8 rounded-3xl border ${bgCard} relative`}
+        >
           {loading && (
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500 animate-pulse rounded-t-3xl" />
           )}
@@ -700,12 +808,15 @@ export default function RegisterPage({
               Create Your Verified Voter Profile
             </h2>
             <p className={`text-xs ${textMuted} mt-1`}>
-              Provide your details and verify your contact information to participate in digital elections.
+              Provide your details and verify your contact information to
+              participate in digital elections.
             </p>
           </div>
 
-          <form onSubmit={handleFormSubmit} className="flex flex-col gap-5 text-xs font-sans">
-            
+          <form
+            onSubmit={handleFormSubmit}
+            className="flex flex-col gap-5 text-xs font-sans"
+          >
             {/* Role Selection */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -747,7 +858,9 @@ export default function RegisterPage({
                   type="text"
                   required
                   value={regForm.fullName}
-                  onChange={(e) => setRegForm({ ...regForm, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, fullName: e.target.value })
+                  }
                   placeholder="Enter your full name"
                   className={`w-full px-3 py-2.5 rounded-xl border ${inputBg}`}
                 />
@@ -762,8 +875,13 @@ export default function RegisterPage({
                   required
                   placeholder="username"
                   value={regForm.username}
-                  onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
-                  aria-invalid={identityStatus.username.status === "taken" || identityStatus.username.status === "invalid"}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, username: e.target.value })
+                  }
+                  aria-invalid={
+                    identityStatus.username.status === "taken" ||
+                    identityStatus.username.status === "invalid"
+                  }
                   className={`w-full px-3 py-2.5 rounded-xl border ${inputBg}`}
                 />
                 {renderFieldStatus("username", "Username")}
@@ -772,20 +890,25 @@ export default function RegisterPage({
 
             {/* National ID & Citizenship */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
-                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                <label className="mb-1 block text-xs font-semibold text-slate-00 dark:text-slate-300">
                   National ID
                 </label>
                 <div className="relative">
-                  <CreditCard className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <input
                     type="text"
                     required
-                    placeholder="Entre your NID Number "
+                    placeholder="Enter your NID Number"
                     value={regForm.nationalID}
-                    onChange={(e) => setRegForm({ ...regForm, nationalID: e.target.value })}
-                    aria-invalid={identityStatus.nid.status === "taken" || identityStatus.nid.status === "invalid"}
-                    className={`w-full rounded-xl border px-3 py-2 pl-9 text-xs ${inputBg}`}
+                    onChange={(e) =>
+                      setRegForm({ ...regForm, nationalID: e.target.value })
+                    }
+                    disabled={isFormSubmitted}
+                    aria-invalid={
+                      identityStatus.nid.status === "taken" ||
+                      identityStatus.nid.status === "invalid"
+                    }
+                    className={`w-full rounded-xl border px-3 py-2.5 text-xs ${inputBg}`}
                   />
                 </div>
                 {renderFieldStatus("nid", "National ID")}
@@ -796,15 +919,22 @@ export default function RegisterPage({
                   Citizenship Number
                 </label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <input
                     type="text"
                     required
                     placeholder="Enter your Citizenship Number"
                     value={regForm.citizenshipNumber}
-                    onChange={(e) => setRegForm({ ...regForm, citizenshipNumber: e.target.value })}
-                    aria-invalid={identityStatus.citizenship.status === "taken" || identityStatus.citizenship.status === "invalid"}
-                    className={`w-full rounded-xl border px-3 py-2 pl-9 text-xs ${inputBg}`}
+                    onChange={(e) =>
+                      setRegForm({
+                        ...regForm,
+                        citizenshipNumber: e.target.value,
+                      })
+                    }
+                    aria-invalid={
+                      identityStatus.citizenship.status === "taken" ||
+                      identityStatus.citizenship.status === "invalid"
+                    }
+                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
                   />
                 </div>
                 {renderFieldStatus("citizenship", "Citizenship number")}
@@ -818,17 +948,20 @@ export default function RegisterPage({
                   Date of Birth
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <input
                     type="date"
                     required
                     max={maxRegisterDobString}
                     value={regForm.dob}
-                    onChange={(e) => setRegForm({ ...regForm, dob: e.target.value })}
-                    className={`w-full rounded-xl border px-3 py-2 pl-9 text-xs ${inputBg}`}
+                    onChange={(e) =>
+                      setRegForm({ ...regForm, dob: e.target.value })
+                    }
+                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
                   />
                 </div>
-                <p className={`mt-1 text-[10px] ${regForm.dob ? (dobAge !== null && dobAge >= 18 ? "text-emerald-400 font-semibold" : "text-rose-400") : "text-slate-400"}`}>
+                <p
+                  className={`mt-1 text-[10px] ${regForm.dob ? (dobAge !== null && dobAge >= 18 ? "text-emerald-400 font-semibold" : "text-rose-400") : "text-slate-400"}`}
+                >
                   {dobAgeMessage}
                 </p>
               </div>
@@ -840,7 +973,9 @@ export default function RegisterPage({
                 <select
                   required
                   value={regForm.gender}
-                  onChange={(e) => setRegForm({ ...regForm, gender: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, gender: e.target.value })
+                  }
                   className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
                 >
                   <option value="Male">Male</option>
@@ -854,14 +989,15 @@ export default function RegisterPage({
                   Occupation
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <input
                     type="text"
                     required
                     placeholder="e.g. Engineer"
                     value={regForm.occupation}
-                    onChange={(e) => setRegForm({ ...regForm, occupation: e.target.value })}
-                    className={`w-full rounded-xl border px-3 py-2 pl-9 text-xs ${inputBg}`}
+                    onChange={(e) =>
+                      setRegForm({ ...regForm, occupation: e.target.value })
+                    }
+                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
                   />
                 </div>
               </div>
@@ -892,42 +1028,63 @@ export default function RegisterPage({
                       required
                       placeholder="Enter your email "
                       value={regForm.email}
-                      onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
-                      disabled={isEmailVerifiedLocal}
-                      aria-invalid={identityStatus.email.status === "taken" || identityStatus.email.status === "invalid"}
+                      onChange={(e) =>
+                        setRegForm({ ...regForm, email: e.target.value })
+                      }
+                      disabled={isFormSubmitted || isEmailVerifiedLocal}
+                      aria-invalid={
+                        identityStatus.email.status === "taken" ||
+                        identityStatus.email.status === "invalid"
+                      }
                       className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
                     />
                     <button
                       type="button"
                       onClick={sendEmailCode}
-                      disabled={emailOtpLoading || emailCountdown > 0 || identityStatus.email.status === "taken"}
+                      disabled={
+                        emailOtpLoading ||
+                        emailCountdown > 0 ||
+                        identityStatus.email.status === "taken"
+                      }
                       className="px-3 bg-slate-800 text-slate-200 font-bold hover:text-white rounded-xl text-[10px] uppercase border border-slate-700 cursor-pointer shrink-0 disabled:opacity-40"
                     >
-                      {emailOtpLoading ? "Sending..." : emailCountdown > 0 ? `Resend (${emailCountdown}s)` : "Send OTP"}
+                      {emailOtpLoading
+                        ? "Sending..."
+                        : emailCountdown > 0
+                          ? `Resend (${emailCountdown}s)`
+                          : "Send OTP"}
                     </button>
                   </div>
                   {renderFieldStatus("email", "Email")}
-                  {emailError && <p className="text-[10px] text-rose-500 font-mono">{emailError}</p>}
-
-                  {(emailOtpLoading || isEmailOtpSent || emailCountdown > 0) && !isEmailVerifiedLocal && (
-                    <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter 6-digit email code"
-                        value={emailVerificationCode}
-                        onChange={(e) => setEmailVerificationCode(e.target.value)}
-                        className={`w-full rounded-xl border px-3 py-2 ${inputBg}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={verifyEmailCode}
-                        disabled={emailVerifyLoading}
-                        className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2 text-[10px] font-bold uppercase text-slate-950 transition hover:bg-emerald-600 cursor-pointer"
-                      >
-                        {emailVerifyLoading ? "Verifying..." : "Verify OTP"}
-                      </button>
-                    </div>
+                  {emailError && (
+                    <p className="text-[10px] text-rose-500 font-mono">
+                      {emailError}
+                    </p>
                   )}
+
+                  {(emailOtpLoading || isEmailOtpSent || emailCountdown > 0) &&
+                    !isEmailVerifiedLocal && (
+                      <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter 6-digit email code"
+                          value={emailVerificationCode}
+                          onChange={(e) =>
+                            setEmailVerificationCode(e.target.value)
+                          }
+                          disabled={isFormSubmitted}
+                          className={`w-full rounded-xl border px-3 py-2 ${inputBg}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={verifyEmailCode}
+                          disabled={emailVerifyLoading}
+                          className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2 text-[10px] font-bold uppercase text-slate-950 transition hover:bg-emerald-600 cursor-pointer"
+                        >
+                          {emailVerifyLoading ? "Verifying..." : "Verify OTP"}
+                        </button>
+                      </div>
+                    )}
                 </>
               ) : (
                 <p className="text-[11px] text-emerald-400 font-mono">
@@ -961,22 +1118,39 @@ export default function RegisterPage({
                       required
                       placeholder="+977 98XXXXXXXX"
                       value={regForm.mobile}
-                      onChange={(e) => setRegForm({ ...regForm, mobile: e.target.value })}
-                      disabled={isSmsVerifiedLocal}
-                      aria-invalid={identityStatus.phone.status === "taken" || identityStatus.phone.status === "invalid"}
+                      onChange={(e) =>
+                        setRegForm({ ...regForm, mobile: e.target.value })
+                      }
+                      disabled={isFormSubmitted || isSmsVerifiedLocal}
+                      aria-invalid={
+                        identityStatus.phone.status === "taken" ||
+                        identityStatus.phone.status === "invalid"
+                      }
                       className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}
                     />
                     <button
                       type="button"
                       onClick={sendSmsOtp}
-                      disabled={smsOtpLoading || smsCountdown > 0 || identityStatus.phone.status === "taken"}
+                      disabled={
+                        smsOtpLoading ||
+                        smsCountdown > 0 ||
+                        identityStatus.phone.status === "taken"
+                      }
                       className="px-3 bg-slate-800 text-slate-200 font-bold hover:text-white rounded-xl text-[10px] uppercase border border-slate-700 cursor-pointer shrink-0 disabled:opacity-40"
                     >
-                      {smsOtpLoading ? "Sending..." : smsCountdown > 0 ? `Resend (${smsCountdown}s)` : "Send OTP"}
+                      {smsOtpLoading
+                        ? "Sending..."
+                        : smsCountdown > 0
+                          ? `Resend (${smsCountdown}s)`
+                          : "Send OTP"}
                     </button>
                   </div>
                   {renderFieldStatus("phone", "Phone number")}
-                  {smsError && <p className="text-[10px] text-rose-500 font-mono">{smsError}</p>}
+                  {smsError && (
+                    <p className="text-[10px] text-rose-500 font-mono">
+                      {smsError}
+                    </p>
+                  )}
 
                   {isSmsOtpSent && !isSmsVerifiedLocal && (
                     <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex gap-2">
@@ -985,6 +1159,7 @@ export default function RegisterPage({
                         placeholder="Enter 6-digit SMS code"
                         value={smsVerificationCode}
                         onChange={(e) => setSmsVerificationCode(e.target.value)}
+                        disabled={isFormSubmitted}
                         className={`w-full rounded-xl border px-3 py-2 ${inputBg}`}
                       />
                       <button
@@ -1018,7 +1193,9 @@ export default function RegisterPage({
               <PasswordField
                 label="Confirm Password"
                 value={regForm.confirmPassword}
-                onChange={(confirmPassword) => setRegForm({ ...regForm, confirmPassword })}
+                onChange={(confirmPassword) =>
+                  setRegForm({ ...regForm, confirmPassword })
+                }
                 inputBg={inputBg}
                 autoComplete="new-password"
               />
@@ -1027,7 +1204,10 @@ export default function RegisterPage({
             <PasswordStrength password={regForm.password} />
 
             {/* Honeypot hidden input to trap automated spam bots */}
-            <div className="hidden opacity-0 pointer-events-none absolute -left-[9999px]" aria-hidden="true">
+            <div
+              className="hidden opacity-0 pointer-events-none absolute -left-[9999px]"
+              aria-hidden="true"
+            >
               <input
                 type="text"
                 name="b_website"
@@ -1052,12 +1232,22 @@ export default function RegisterPage({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                To block automated bots and enforce 1-time account registration per user, complete the security check.
+                To block automated bots and enforce 1-time account registration
+                per user, complete the security check.
               </p>
 
               {alreadyHasAccount ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
-                  <span>⚠️ An account has already been registered on this browser. Multiple account creations from the same session are blocked to prevent bot spam.</span>
+                  <span>
+                    ⚠️ An account has already been registered on this browser.
+                    Accounts can be created again in {Math.ceil((timingInfo.nextAllowedTime - Date.now()) / 1000 / 60)} minutes.
+                  </span>
+                </div>
+              ) : timingInfo.allowanceEndsAt && timingInfo.reason === "allowed" ? (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2">
+                  <span>
+                    ✓ Account creation is now allowed. You have {Math.ceil((timingInfo.allowanceEndsAt - Date.now()) / 1000 / 60)} minutes remaining to create another account.
+                  </span>
                 </div>
               ) : (
                 <VisualCaptchaComponent
@@ -1098,7 +1288,6 @@ export default function RegisterPage({
               </button>
             </p>
           </form>
-
         </div>
       </main>
 
