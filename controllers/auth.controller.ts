@@ -367,6 +367,59 @@ const deriveReviewScore = (seed: string, minimum: number, spread: number) => {
   return minimum + (value % (spread + 1));
 };
 
+export const validateProfileSubmissionInput = (payload: any) => {
+  const safe = payload || {};
+  const errors: Record<string, string> = {};
+
+  const fullName = String(safe.fullName ?? safe.name ?? "").trim();
+  const email = validateEmail(String(safe.email ?? ""));
+  const mobile = normalizeMobileValue(String(safe.mobile ?? safe.phone ?? ""));
+  const address = String(safe.address ?? safe.permanentAddress ?? "").trim();
+  const profilePhoto = String(safe.profilePhoto ?? safe.profilePicture ?? "").trim();
+  const dob = String(safe.dob ?? "").trim();
+  const gender = String(safe.gender ?? "").trim();
+
+  if (!fullName) errors.fullName = "Full name is required.";
+  if (!email) errors.email = "A valid email address is required.";
+  if (!mobile) errors.mobile = "Phone number is required.";
+  if (!address) errors.address = "Address is required.";
+  if (!dob) errors.dob = "Date of birth is required.";
+  if (!gender) errors.gender = "Gender is required.";
+
+  const normalized = {
+    id: safe.id || createId("prof"),
+    userId: safe.userId || "",
+    fullName,
+    email: email || "",
+    mobile,
+    address,
+    profilePhoto,
+    dob,
+    gender,
+    nationality: String(safe.nationality ?? "Nepali").trim() || "Nepali",
+    occupation: String(safe.occupation ?? "").trim(),
+    province: String(safe.province ?? "").trim(),
+    district: String(safe.district ?? "").trim(),
+    municipality: String(safe.municipality ?? "").trim(),
+    wardNumber: String(safe.wardNumber ?? "").trim(),
+    postalCode: String(safe.postalCode ?? "").trim(),
+    citizenshipNumber: String(safe.citizenshipNumber ?? "").trim(),
+    nidNumber: String(safe.nidNumber ?? "").trim(),
+    profilePicture: String(safe.profilePicture ?? profilePhoto).trim(),
+    createdAt: safe.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (Object.keys(errors).length > 0) {
+    const error = new Error("Profile validation failed.");
+    (error as any).status = 400;
+    (error as any).details = errors;
+    throw error;
+  }
+
+  return normalized;
+};
+
 export const authController = {
   async sendEmailCode(req: any, res: any) {
     try {
@@ -940,9 +993,13 @@ export const authController = {
         passwordHash: bcrypt.hashSync(password, 10),
         faceImage: "",
         role: targetRole,
-        isVerified: false,
+        isVerified: true,
         isApproved: false,
         isSuspended: false,
+        isEmailVerified: true,
+        isMobileVerified: true,
+        emailVerifiedAt: new Date().toISOString(),
+        mobileVerifiedAt: new Date().toISOString(),
         verificationSteps: {
           emailVerified: new Date().toISOString(),
           mobileVerified: new Date().toISOString(),
@@ -1426,12 +1483,40 @@ export const authController = {
         bloodGroup,
         nationality,
         nidNumber,
+        fullName,
+        email,
+        mobile,
+        phone,
+        name,
+        address,
       } = req.body;
+
+      const userId = req.user.id;
+      const validatedProfile = validateProfileSubmissionInput({
+        id: req.body.id,
+        userId,
+        fullName: fullName || name || req.user.fullName,
+        email: email || req.user.email,
+        mobile: mobile || phone || req.user.mobile,
+        address: address || permanentAddress || req.user.address,
+        profilePhoto: profilePhoto || req.user.profilePhoto || req.user.profilePicture,
+        dob,
+        gender,
+        occupation,
+        province,
+        district,
+        municipality,
+        wardNumber,
+        postalCode,
+        citizenshipNumber,
+        nidNumber,
+        profilePicture: profilePhoto || req.user.profilePhoto || req.user.profilePicture,
+      });
 
       if (
         !dob ||
         !gender ||
-        !permanentAddress ||
+        !(address || permanentAddress) ||
         !citizenshipNumber ||
         !citizenshipFrontImage ||
         !citizenshipBackImage ||
@@ -1443,16 +1528,30 @@ export const authController = {
         !fingerprintRightImage
       ) {
         return res.status(400).json({
+          success: false,
           error:
             "All required profile fields, citizenship images, signature, face capture, and fingerprint scan are mandatory.",
+          details: {
+            dob: !!dob,
+            gender: !!gender,
+            address: !!(address || permanentAddress),
+            citizenshipNumber: !!citizenshipNumber,
+            citizenshipFrontImage: !!citizenshipFrontImage,
+            citizenshipBackImage: !!citizenshipBackImage,
+            signatureImage: !!signatureImage,
+            faceImage: !!faceImage,
+            faceTemplate: !!faceTemplate,
+            fingerprintImage: !!fingerprintImage,
+            fingerprintLeftImage: !!fingerprintLeftImage,
+            fingerprintRightImage: !!fingerprintRightImage,
+          },
         });
       }
 
-      const userId = req.user.id;
       const users = await Database.getUsers();
       const userIdx = users.findIndex((u) => u.id === userId);
       if (userIdx === -1) {
-        return res.status(404).json({ error: "User profile not found." });
+        return res.status(404).json({ success: false, error: "User profile not found." });
       }
 
       const matchedUser = users[userIdx];
@@ -1503,9 +1602,13 @@ export const authController = {
             ? profiles[existingProfileIdx].id
             : createId("prof"),
         userId,
+        fullName: validatedProfile.fullName,
+        email: validatedProfile.email,
+        mobile: validatedProfile.mobile,
+        address: validatedProfile.address,
         dob,
         gender,
-        permanentAddress,
+        permanentAddress: address || permanentAddress || validatedProfile.address,
         temporaryAddress: temporaryAddress || "",
         province: province || "",
         district: district || "",
@@ -1513,11 +1616,13 @@ export const authController = {
         wardNumber: wardNumber || "",
         postalCode: postalCode || "",
         occupation: occupation || "",
-        profilePhoto: profilePhoto || faceImage,
+        profilePhoto: profilePhoto || faceImage || validatedProfile.profilePhoto,
+        profilePicture: profilePhoto || faceImage || validatedProfile.profilePicture,
         createdAt:
           existingProfileIdx >= 0
             ? profiles[existingProfileIdx].createdAt
             : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         permCountry: permCountry || "",
         permProvince: permProvince || "",
         permDistrict: permDistrict || "",
@@ -1551,6 +1656,9 @@ export const authController = {
         spouseMotherName: spouseMotherName || "",
         spouseMotherNameNepali: spouseMotherNameNepali || "",
         citizenshipNumber: citizenshipNumber || "",
+        citizenshipFrontImage: citizenshipFrontImage || "",
+        citizenshipBackImage: citizenshipBackImage || "",
+        signatureImage: signatureImage || "",
         citizenshipType: citizenshipType || "",
         citizenshipIssueDate: citizenshipIssueDate || "",
         citizenshipIssueDistrict: citizenshipIssueDistrict || "",
@@ -1568,7 +1676,7 @@ export const authController = {
         nidNumber: nidNumber || "",
       };
       if (existingProfileIdx >= 0) {
-        profiles[existingProfileIdx] = newProfile;
+        profiles[existingProfileIdx] = { ...profiles[existingProfileIdx], ...newProfile };
       } else {
         profiles.push(newProfile);
       }
@@ -1606,12 +1714,17 @@ export const authController = {
       faceVers.push(newFaceVer);
       await Database.saveFaceVerifications(faceVers);
 
+      matchedUser.fullName = validatedProfile.fullName || matchedUser.fullName;
+      matchedUser.email = validatedProfile.email || matchedUser.email;
+      matchedUser.mobile = validatedProfile.mobile || matchedUser.mobile;
       matchedUser.dob = dob;
       matchedUser.gender = gender as any;
-      matchedUser.address = permanentAddress;
+      matchedUser.address = address || permanentAddress || matchedUser.address;
       matchedUser.nationalID = citizenshipNumber;
       matchedUser.faceImage = faceImage;
       matchedUser.faceTemplate = faceTemplateArray;
+      matchedUser.profilePhoto = profilePhoto || matchedUser.profilePhoto;
+      matchedUser.profilePicture = profilePhoto || matchedUser.profilePicture;
       matchedUser.fingerprintImage = fingerprintImage || "";
       matchedUser.fingerprintLeftImage = fingerprintLeftImage || "";
       matchedUser.fingerprintRightImage = fingerprintRightImage || "";
@@ -1746,8 +1859,7 @@ export const authController = {
 
       const responsePayload = {
         success: true,
-        message:
-          "Voter credentials successfully queued for administrative review.",
+        message: "Profile saved successfully. Voter credentials successfully queued for administrative review.",
         user: {
           id: matchedUser.id,
           fullName: matchedUser.fullName,
@@ -1760,6 +1872,7 @@ export const authController = {
           dob: matchedUser.dob,
           gender: matchedUser.gender,
           address: matchedUser.address,
+          profilePhoto: matchedUser.profilePhoto || matchedUser.profilePicture || "",
           isVerified: !!matchedUser.isVerified,
           isApproved: false,
           isSuspended: !!matchedUser.isSuspended,
@@ -1767,6 +1880,7 @@ export const authController = {
           accountStatus: "Pending Verification",
           verificationReport: matchedUser.verificationReport,
         },
+        profile: newProfile,
       };
 
       // finalize idempotency record if provided
@@ -1809,7 +1923,11 @@ export const authController = {
       } catch {
         // ignore
       }
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        success: false,
+        error: err.message || "Profile submission failed.",
+        details: err.details || undefined,
+      });
     }
   },
 

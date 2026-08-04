@@ -428,6 +428,7 @@ export default function App() {
                 user={currentUser}
                 onLogout={handleLogout}
                 onComplete={setCurrentUser}
+                setCurrentPath={setCurrentPath}
                 theme={theme}
                 setTheme={setTheme}
               />

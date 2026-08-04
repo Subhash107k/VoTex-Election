@@ -123,7 +123,6 @@ export function SignaturePad({
       React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
   ) => {
     if (!isDrawing || !sigCanvasRef.current) return;
-    e.preventDefault();
     const ctx = getCanvasContext();
     if (ctx) {
       const { x, y } = getCanvasCoordinates(e);
@@ -231,6 +230,7 @@ interface CitizenshipUploadPreviewProps {
   description?: string;
   fileUrl?: string;
   fileName?: string;
+  status?: "idle" | "uploading" | "verified" | "error";
   uploadedAt?: string;
   accent?: "emerald" | "indigo" | string;
   accept?: string;
@@ -256,6 +256,8 @@ export function CitizenshipUploadPreview({
   subtitle,
   description,
   fileUrl,
+  fileName,
+  status,
   accent = "emerald",
   accept = "image/png,image/jpeg,image/jpg",
   maxSizeBytes = 5 * 1024 * 1024,
@@ -327,6 +329,15 @@ export function CitizenshipUploadPreview({
               className="h-64 w-full object-contain"
             />
           </div>
+
+          {(fileName || status) && (
+            <div className="flex items-center justify-between gap-2 text-[10px] text-gray-400">
+              <span className="truncate">{fileName || label}</span>
+              <span className="uppercase tracking-wider text-teal-300">
+                {status || "verified"}
+              </span>
+            </div>
+          )}
 
           {!readOnly && (
             <button

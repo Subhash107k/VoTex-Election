@@ -38,6 +38,7 @@ interface CompleteProfileProps {
   user: any;
   onLogout: () => void;
   onComplete: (updatedUser: any) => void;
+  setCurrentPath?: (path: string) => void;
   theme?: ThemeMode;
   setTheme?: (theme: ThemeMode) => void;
 }
@@ -47,11 +48,13 @@ export default function CompleteProfile({
   user,
   onLogout,
   onComplete,
+  setCurrentPath,
 }: CompleteProfileProps) {
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [completedUser, setCompletedUser] = useState<any | null>(null);
+  const [savedProfile, setSavedProfile] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -1485,11 +1488,11 @@ export default function CompleteProfile({
         "Democratic voter profile finalized! Security seal compiled.",
       );
 
-      // Navigate to step 6 (Success confirmation page)
       setStep(6);
-      // mark as submitted to lock further edits and prevent duplicates
-      setIsSubmitted(true);
-      setCompletedUser(data.user || null);
+      const savedUser = data.user || null;
+      const savedProfileData = data.profile || savedUser || null;
+      setCompletedUser(savedUser);
+      setSavedProfile(savedProfileData);
 
       try {
         const channel = new BroadcastChannel("votex_session_sync");
@@ -1505,9 +1508,10 @@ export default function CompleteProfile({
         // ignore storage errors
       }
 
-      setTimeout(() => {
-        onComplete(data.user);
-      }, 3500);
+      if (setCurrentPath) {
+        setCurrentPath("/");
+      }
+      onComplete(data.user);
     } catch (err: any) {
       triggerToast(err.message, true);
     } finally {
@@ -1524,6 +1528,45 @@ export default function CompleteProfile({
           <span className="text-xs">{successMsg}</span>
         </div>
       )}
+
+      {savedProfile && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-[min(92vw,560px)] rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-emerald-100 shadow-xl backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-emerald-300/60 bg-slate-800 shadow-inner">
+              <img
+                src={
+                  savedProfile.profilePhoto ||
+                  savedProfile.profilePicture ||
+                  completedUser?.profilePhoto ||
+                  completedUser?.profilePicture ||
+                  user?.profilePhoto ||
+                  user?.profilePicture ||
+                  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23f8fafc'/><g fill='%23959eab'><circle cx='75' cy='50' r='30'/><path d='M30 130c0-28 27-52 45-52s45 24 45 52H30z'/></g></svg>"
+                }
+                alt={
+                  savedProfile.fullName ||
+                  savedProfile.name ||
+                  completedUser?.fullName ||
+                  user?.fullName ||
+                  "Profile photo"
+                }
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                <span className="text-sm font-semibold">Profile saved successfully</span>
+              </div>
+              <div className="text-xs text-emerald-100/90 truncate">
+                {savedProfile.fullName || savedProfile.name || completedUser?.fullName || user?.fullName || "Profile"}
+                {savedProfile.email || completedUser?.email ? ` • ${savedProfile.email || completedUser?.email}` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {errorMsg && (
         <div className="fixed top-6 right-6 z-50 bg-red-600 border border-red-500 font-medium text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 shrink-0" />
@@ -1532,31 +1575,6 @@ export default function CompleteProfile({
       )}
 
       <div className="max-w-4xl w-full mx-auto bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl text-left relative transition-colors">
-        {isSubmitted && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-6">
-            <div className="w-full max-w-xl rounded-3xl border border-emerald-500/30 bg-gray-900/95 p-6 text-center shadow-2xl backdrop-blur-md">
-              <div className="text-emerald-300 font-black uppercase tracking-wider text-sm mb-2">
-                Submission Complete
-              </div>
-              <h3 className="text-white font-black text-lg mb-2">
-                Your registration has been submitted
-              </h3>
-              <p className="text-sm text-slate-400 mb-4">
-                The data you provided has been securely transmitted and is now
-                locked from further edits. Contact support if you need to
-                request changes.
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  onClick={() => onComplete(completedUser || user)}
-                  className="px-4 py-2 bg-emerald-500 text-gray-900 font-bold rounded-xl"
-                >
-                  View Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Custom Header with Theme Toggle & Logout option */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-800 pb-5 gap-4">
           <div>
@@ -3313,39 +3331,6 @@ export default function CompleteProfile({
             </motion.div>
           )}
 
-          {/* ==================================================== */}
-          {/* STEP 6: VERIFICATION COMPLETED AND AUTO-TRANSITION   */}
-          {/* ==================================================== */}
-          {step === 6 && (
-            <motion.div
-              key="step6"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="py-12 flex flex-col justify-center items-center text-center gap-4"
-            >
-              <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto animate-bounce shadow-[0_0_24px_rgba(16,185,129,0.2)]">
-                <ShieldCheck className="w-10 h-10" />
-              </div>
-
-              <h3 className="text-xl font-black text-white uppercase tracking-wider">
-                Profile Completed Successfully
-              </h3>
-
-              <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
-                Your account is now{" "}
-                <strong className="text-emerald-400 uppercase font-bold text-xs">
-                  fully activated
-                </strong>
-                , and you are eligible to participate in elections. Bridging
-                securely into the Voter Dashboard blocks...
-              </p>
-
-              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold uppercase mt-6 bg-gray-950/80 px-3 py-1.5 rounded-full border border-gray-900">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Routing to Active Dashboard Block...</span>
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </div>
 

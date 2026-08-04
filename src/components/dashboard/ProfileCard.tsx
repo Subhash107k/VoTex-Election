@@ -33,8 +33,11 @@ export default function ProfileCard({ profile }: { profile: any }) {
       <Row label="Gender" value={user.gender} />
       <Row label="Date of Birth" value={dob} />
       <Row label="Age" value={age} />
-      <Row label="Nationality" value={profile?.nationality} />
-      <Row label="Occupation" value={profile?.occupation} />
+      <Row
+        label="Nationality"
+        value={profile?.nationality || user?.nationality || "Nepali"}
+      />
+      <Row label="Occupation" value={profile?.occupation || user?.occupation} />
       <Row label="Email" value={user.email} />
       <Row label="Primary Phone" value={user.mobile} />
       <Row

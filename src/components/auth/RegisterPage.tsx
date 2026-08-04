@@ -1240,7 +1240,9 @@ export default function RegisterPage({
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
                   <span>
                     ⚠️ An account has already been registered on this browser.
-                    Accounts can be created again in {Math.ceil((timingInfo.nextAllowedTime - Date.now()) / 1000 / 60)} minutes.
+                    {timingInfo.nextAllowedTime
+                      ? ` Accounts can be created again in ${Math.max(0, Math.ceil((timingInfo.nextAllowedTime - Date.now()) / 1000 / 60))} minutes.`
+                      : " Please try again later."}
                   </span>
                 </div>
               ) : timingInfo.allowanceEndsAt && timingInfo.reason === "allowed" ? (

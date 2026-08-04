@@ -27,14 +27,29 @@ import {
 
 export default function VoterDashboard({
   token,
+  user,
   onLogout,
   setCurrentPath,
 }: {
   token: string;
+  user?: any;
   onLogout: () => void;
   setCurrentPath: (path: string) => void;
 }) {
   const { profile, loading, error, reload } = useProfile(token);
+  const safeProfile = profile || {
+    user: user || null,
+    profile: user || {},
+    documents: [],
+    family: [],
+    audit: [],
+    timeline: [],
+    status: user?.accountStatus || "Pending",
+    verificationStatus: user?.accountStatus || "Pending",
+    createdAt: user?.createdAt || new Date().toISOString(),
+    updatedAt: user?.updatedAt || user?.createdAt || new Date().toISOString(),
+    completion: user?.profileCompletionPercent || 0,
+  };
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [currentElection, setCurrentElection] = useState<any | null>(null);
@@ -275,11 +290,11 @@ export default function VoterDashboard({
           <section
             className={`lg:col-span-2 space-y-6 ${activeTab !== "overview" ? "hidden lg:block" : ""}`}
           >
-            <ProfileHeader profile={profile} />
+            <ProfileHeader profile={safeProfile} />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <div className="xl:col-span-2">
-                <ProfileCard profile={profile} />
+                <ProfileCard profile={safeProfile} />
               </div>
             </div>
 
@@ -314,7 +329,7 @@ export default function VoterDashboard({
               className={`${activeTab === "documents" ? "block" : "hidden lg:block"}`}
             >
               <DocumentGallery
-                documents={profile?.documents || []}
+                documents={safeProfile?.documents || []}
                 onView={(u?: string) => setViewerUrl(u || null)}
                 onDownload={handleDownload}
               />
@@ -323,14 +338,14 @@ export default function VoterDashboard({
             <div
               className={`${activeTab === "timeline" ? "block" : "hidden lg:block"}`}
             >
-              <Timeline items={profile?.timeline || []} />
+              <Timeline items={safeProfile?.timeline || []} />
             </div>
 
             <div
               className={`${activeTab === "family" ? "block" : "hidden lg:block"}`}
             >
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <FamilyTable family={profile?.family || []} />
+                <FamilyTable family={safeProfile?.family || []} />
                 <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
@@ -340,7 +355,7 @@ export default function VoterDashboard({
                       Audit History
                     </h3>
                   </div>
-                  {(profile?.audit || []).length === 0 ? (
+                  {(safeProfile?.audit || []).length === 0 ? (
                     <div className="text-center py-8">
                       <CheckCircle2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                       <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -349,7 +364,7 @@ export default function VoterDashboard({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {profile.audit.map((a: any) => (
+                      {safeProfile.audit.map((a: any) => (
                         <div
                           key={a.id}
                           className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"

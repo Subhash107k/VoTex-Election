@@ -7,6 +7,10 @@ export default function ProfileHeader({ profile }: { profile: any }) {
         <img
           src={
             profile?.photoUrl ||
+            profile?.profilePhoto ||
+            profile?.profilePicture ||
+            profile?.user?.profilePhoto ||
+            profile?.user?.profilePicture ||
             profile?.user?.faceImage ||
             "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23f8fafc'/><g fill='%23959eab'><circle cx='75' cy='50' r='30'/><path d='M30 130c0-28 27-52 45-52s45 24 45 52H30z'/></g></svg>"
           }
@@ -19,7 +23,7 @@ export default function ProfileHeader({ profile }: { profile: any }) {
       <div className="flex-1">
         <h1 className="text-2xl font-black">{profile?.user?.fullName}</h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          {profile?.user?.username || profile?.user?.email}
+          {profile?.user?.email || profile?.user?.username || "No email available"}
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">

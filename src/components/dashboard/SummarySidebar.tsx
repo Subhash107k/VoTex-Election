@@ -160,6 +160,34 @@ export default function SummarySidebar({
 
   const user = profile?.user || {};
   const completion = profile?.completion || 0;
+  const accountStatus = String(
+    user?.accountStatus ||
+      profile?.status ||
+      profile?.verificationStatus ||
+      "Pending",
+  );
+  const normalizedStatus = accountStatus.toLowerCase();
+  const isEligible =
+    user?.isApproved === true ||
+    user?.isVerified === true ||
+    normalizedStatus.includes("approved") ||
+    normalizedStatus.includes("active") ||
+    normalizedStatus.includes("verified") ||
+    Boolean(user?.isProfileComplete);
+  const assignedWard = [
+    profile?.wardNumber ? `Ward ${profile.wardNumber}` : "",
+    profile?.municipality || user?.municipality,
+    profile?.district || user?.district,
+    profile?.province || user?.province,
+  ]
+    .filter(Boolean)
+    .join(", ") || "Not Assigned";
+  const nextElection =
+    profile?.nextElection ||
+    profile?.election?.title ||
+    profile?.election?.nextElection ||
+    "Not scheduled";
+  const voterIdStatus = accountStatus;
   const verificationChecks = [
     {
       label: "Email",
@@ -333,10 +361,9 @@ export default function SummarySidebar({
 
         {expandedSections.has("election") && (
           <div className="px-5 pb-5 space-y-3">
-            {/* Eligibility Card */}
             <div
               className={`p-4 rounded-xl border-2 ${
-                profile?.election?.eligible
+                isEligible
                   ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20"
                   : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
               }`}
@@ -344,12 +371,12 @@ export default function SummarySidebar({
               <div className="flex items-center gap-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    profile?.election?.eligible
+                    isEligible
                       ? "bg-emerald-100 dark:bg-emerald-800"
                       : "bg-red-100 dark:bg-red-800"
                   }`}
                 >
-                  {profile?.election?.eligible ? (
+                  {isEligible ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -358,25 +385,22 @@ export default function SummarySidebar({
                 <div>
                   <p
                     className={`font-semibold ${
-                      profile?.election?.eligible
+                      isEligible
                         ? "text-emerald-700 dark:text-emerald-400"
                         : "text-red-700 dark:text-red-400"
                     }`}
                   >
-                    {profile?.election?.eligible
-                      ? "Eligible to Vote"
-                      : "Not Eligible"}
+                    {isEligible ? "Eligible to Vote" : "Not Eligible"}
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                    {profile?.election?.eligible
-                      ? "You can participate in elections"
-                      : "Please complete verification"}
+                    {isEligible
+                      ? `Status: ${accountStatus}`
+                      : `Status: ${accountStatus}`}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Ward Information */}
             <div className="space-y-2">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
                 <MapPin className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -385,7 +409,7 @@ export default function SummarySidebar({
                     Assigned Ward
                   </p>
                   <p className="font-semibold text-slate-800 dark:text-white">
-                    {profile?.election?.ward || "Not Assigned"}
+                    {assignedWard}
                   </p>
                 </div>
               </div>
@@ -397,7 +421,7 @@ export default function SummarySidebar({
                     Next Election
                   </p>
                   <p className="font-semibold text-slate-800 dark:text-white">
-                    {profile?.election?.nextElection || "TBD"}
+                    {nextElection}
                   </p>
                 </div>
               </div>
@@ -409,16 +433,13 @@ export default function SummarySidebar({
                     Voter ID Status
                   </p>
                   <p className="font-semibold text-slate-800 dark:text-white">
-                    {profile?.election?.voterIdStatus || "Pending"}
+                    {voterIdStatus}
                   </p>
                 </div>
-                <StatusBadge
-                  status={profile?.election?.voterIdStatus || "Pending"}
-                />
+                <StatusBadge status={voterIdStatus} />
               </div>
             </div>
 
-            {/* Voter Information Link */}
             <button className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
               <ExternalLink className="w-4 h-4" />
               View Voting Guidelines

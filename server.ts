@@ -372,6 +372,16 @@ app.get("/api/profile/my-profile", authenticateToken, (req: any, res: any) => {
     if (safeProfile) {
       if (safeProfile.profilePhoto)
         safeProfile.profilePhoto = rewriteImageUrl(safeProfile.profilePhoto);
+      if (safeProfile.citizenshipFrontImage)
+        safeProfile.citizenshipFrontImage = rewriteImageUrl(
+          safeProfile.citizenshipFrontImage,
+        );
+      if (safeProfile.citizenshipBackImage)
+        safeProfile.citizenshipBackImage = rewriteImageUrl(
+          safeProfile.citizenshipBackImage,
+        );
+      if (safeProfile.signatureImage)
+        safeProfile.signatureImage = rewriteImageUrl(safeProfile.signatureImage);
       if (safeProfile.nidFrontImage)
         safeProfile.nidFrontImage = rewriteImageUrl(safeProfile.nidFrontImage);
       if (safeProfile.nidBackImage)
