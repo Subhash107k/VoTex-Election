@@ -31,6 +31,7 @@ import FingerprintCaptureCard from "./FingerprintCaptureCard.tsx";
 import FinalPreviewDashboard from "./FinalPreviewDashboard.tsx";
 import type { ThemeMode } from "../../types/auth.ts";
 import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
+import { buildApiUrl } from "../../services/apiClient.ts";
 import NepaliDate from "nepali-date-converter";
 
 interface CompleteProfileProps {
@@ -57,6 +58,12 @@ export default function CompleteProfile({
   const [savedProfile, setSavedProfile] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const profileSyncChannelId = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `profile-sync-${Date.now()}`,
+  );
+  const profileFetchInFlightRef = useRef<Promise<void> | null>(null);
 
   const triggerToast = (msg: string, isError = false) => {
     if (isError) {
@@ -68,9 +75,7 @@ export default function CompleteProfile({
     }
   };
 
-  const DRAFT_STORAGE_KEY = "volex-complete-profile-draft";
-
-  const buildDraftPayload = () => ({
+  const buildProfileSnapshot = () => ({
     personal,
     permCountry,
     permProvince,
@@ -131,6 +136,160 @@ export default function CompleteProfile({
     faceTemplate,
     currentStep: step,
   });
+
+  const syncProfileFromServer = async () => {
+    if (!token) return;
+    if (profileFetchInFlightRef.current) {
+      return profileFetchInFlightRef.current;
+    }
+
+    const request = (async () => {
+      try {
+        const response = await fetch("/api/profile/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const profile = data?.profile;
+        if (profile) {
+          applyProfileSnapshot(profile);
+          setSavedProfile(profile);
+        }
+      } catch {
+        // Proceed with the form without preloading saved data.
+      }
+    })();
+
+    profileFetchInFlightRef.current = request;
+    try {
+      return await request;
+    } finally {
+      if (profileFetchInFlightRef.current === request) {
+        profileFetchInFlightRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    void syncProfileFromServer();
+  }, [token]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const channel = new BroadcastChannel("votex_session_sync");
+      const handleMessage = (event: MessageEvent) => {
+        if (
+          event?.data?.type === "PROFILE_REFRESH" &&
+          event?.data?.sourceId !== profileSyncChannelId.current
+        ) {
+          void syncProfileFromServer();
+        }
+      };
+      channel.addEventListener("message", handleMessage);
+
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === "votex_profile_refresh") {
+          void syncProfileFromServer();
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+
+      return () => {
+        channel.removeEventListener("message", handleMessage);
+        window.removeEventListener("storage", handleStorage);
+        channel.close();
+      };
+    } catch {
+      return undefined;
+    }
+  }, [token]);
+
+  const applyProfileSnapshot = (snapshot: any) => {
+    const profile = snapshot || {};
+    if (profile.personal) setPersonal(profile.personal);
+    if (profile.permCountry) setPermCountry(profile.permCountry);
+    if (profile.permProvince) setPermProvince(profile.permProvince);
+    if (profile.permDistrict) setPermDistrict(profile.permDistrict);
+    if (profile.permMunicipality) setPermMunicipality(profile.permMunicipality);
+    if (profile.permWardNumber) setPermWardNumber(profile.permWardNumber);
+    if (profile.permTole) setPermTole(profile.permTole);
+    if (profile.permStreetAddress)
+      setPermStreetAddress(profile.permStreetAddress);
+    if (profile.permPostalCode) setPermPostalCode(profile.permPostalCode);
+    if (profile.permCountryOther) setPermCountryOther(profile.permCountryOther);
+    if (profile.sameAsPermanent !== undefined)
+      setSameAsPermanent(profile.sameAsPermanent);
+    if (profile.tempCountry) setTempCountry(profile.tempCountry);
+    if (profile.tempProvince) setTempProvince(profile.tempProvince);
+    if (profile.tempDistrict) setTempDistrict(profile.tempDistrict);
+    if (profile.tempMunicipality) setTempMunicipality(profile.tempMunicipality);
+    if (profile.tempWardNumber) setTempWardNumber(profile.tempWardNumber);
+    if (profile.tempTole) setTempTole(profile.tempTole);
+    if (profile.tempStreetAddress)
+      setTempStreetAddress(profile.tempStreetAddress);
+    if (profile.tempPostalCode) setTempPostalCode(profile.tempPostalCode);
+    if (profile.tempCountryOther) setTempCountryOther(profile.tempCountryOther);
+    if (profile.fullNameNepali) setFullNameNepali(profile.fullNameNepali);
+    if (profile.maritalStatus) setMaritalStatus(profile.maritalStatus);
+    if (profile.educationStatus) setEducationStatus(profile.educationStatus);
+    if (profile.bloodGroup) setBloodGroup(profile.bloodGroup);
+    if (profile.fatherName) setFatherName(profile.fatherName);
+    if (profile.fatherNameNepali) setFatherNameNepali(profile.fatherNameNepali);
+    if (profile.motherName) setMotherName(profile.motherName);
+    if (profile.motherNameNepali) setMotherNameNepali(profile.motherNameNepali);
+    if (profile.grandfatherName) setGrandfatherName(profile.grandfatherName);
+    if (profile.grandfatherNameNepali)
+      setGrandfatherNameNepali(profile.grandfatherNameNepali);
+    if (profile.spouseName) setSpouseName(profile.spouseName);
+    if (profile.spouseNameNepali) setSpouseNameNepali(profile.spouseNameNepali);
+    if (profile.spouseFatherName) setSpouseFatherName(profile.spouseFatherName);
+    if (profile.spouseFatherNameNepali)
+      setSpouseFatherNameNepali(profile.spouseFatherNameNepali);
+    if (profile.spouseMotherName) setSpouseMotherName(profile.spouseMotherName);
+    if (profile.spouseMotherNameNepali)
+      setSpouseMotherNameNepali(profile.spouseMotherNameNepali);
+    if (profile.profilePhoto) {
+      setProfilePhoto(profile.profilePhoto);
+      setProfilePhotoPreviewUrl(profile.profilePhoto);
+    }
+    if (profile.citizenshipNumber)
+      setCitizenshipNumber(profile.citizenshipNumber);
+    if (profile.citizenshipType) setCitizenshipType(profile.citizenshipType);
+    if (profile.citizenshipIssueDate)
+      setCitizenshipIssueDate(profile.citizenshipIssueDate);
+    if (profile.citizenshipCalendar)
+      setCitizenshipCalendar(profile.citizenshipCalendar);
+    if (profile.citizenshipBsDate)
+      setCitizenshipBsDate(profile.citizenshipBsDate);
+    if (profile.citizenshipIssueDistrict)
+      setCitizenshipIssueDistrict(profile.citizenshipIssueDistrict);
+    if (profile.citizenshipIssueAuthority)
+      setCitizenshipIssueAuthority(profile.citizenshipIssueAuthority);
+    if (profile.citizenshipFrontImage)
+      setCitizenshipFrontImage(profile.citizenshipFrontImage);
+    if (profile.citizenshipBackImage)
+      setCitizenshipBackImage(profile.citizenshipBackImage);
+    if (profile.nidNumber) setNidNumber(profile.nidNumber);
+    if (profile.nidIssueDate) setNidIssueDate(profile.nidIssueDate);
+    if (profile.nidStatus) setNidStatus(profile.nidStatus);
+    if (profile.nidFrontImage) setNidFrontImage(profile.nidFrontImage);
+    if (profile.nidBackImage) setNidBackImage(profile.nidBackImage);
+    if (profile.signatureImage) setSignatureImage(profile.signatureImage);
+    if (profile.fingerprintImage) setFingerprintImage(profile.fingerprintImage);
+    if (profile.fingerprintLeftImage)
+      setFingerprintLeftImage(profile.fingerprintLeftImage);
+    if (profile.fingerprintRightImage)
+      setFingerprintRightImage(profile.fingerprintRightImage);
+    if (profile.faceImage) setFaceImage(profile.faceImage);
+    if (profile.faceTemplate) setFaceTemplate(profile.faceTemplate);
+    if (typeof profile.currentStep === "number") setStep(profile.currentStep);
+  };
 
   // ----------------------------------------------------
   // STEP 1 FIELDS: PERSONAL INFORMATION & EXTENDED ADDRESS SEPARATIONS
@@ -442,7 +601,17 @@ export default function CompleteProfile({
   // ----------------------------------------------------
   // STEP 3 FIELDS: CITIZENSHIP CARD & DIGITAL SIGNATURE
   // ----------------------------------------------------
-  const citizenshipNumber = user?.citizenshipNumber || "";
+  const [citizenshipNumber, setCitizenshipNumber] = useState<string>("");
+  useEffect(() => {
+    const nextValue =
+      user?.citizenshipNumber ||
+      savedProfile?.citizenshipNumber ||
+      completedUser?.citizenshipNumber ||
+      user?.nationalID ||
+      "";
+    setCitizenshipNumber(nextValue);
+  }, [user, savedProfile, completedUser]);
+
   const [citizenshipFrontImage, setCitizenshipFrontImage] =
     useState<string>("");
   const [citizenshipBackImage, setCitizenshipBackImage] = useState<string>("");
@@ -661,7 +830,7 @@ export default function CompleteProfile({
     setFingerprintStatus("checking");
 
     try {
-      const response = await fetch("/api/fingerprint/validate", {
+      const response = await fetch(buildApiUrl("/api/fingerprint/validate"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -855,52 +1024,73 @@ export default function CompleteProfile({
   const [mismatchesResolved, setMismatchesResolved] = useState(false);
 
   const checkMismatches = () => {
-    const list = [];
+    const list: any[] = [];
     if (mismatchesResolved) {
-      return [];
+      return list;
     }
 
-    // A. Full name comparison vs. mock NID Registry scanned data
-    const expectedNidName = user?.fullName
-      ? user.fullName.includes("Anderson")
-        ? "Thomas A. Anderson"
-        : user.fullName
-      : "Thomas Anderson";
-    if (user?.fullName && user.fullName !== expectedNidName) {
+    const normalizeString = (value: any) =>
+      String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ");
+
+    const savedSource = savedProfile || completedUser || user || {};
+    const savedFullName = normalizeString(
+      savedSource.fullName || savedSource.name || user?.fullName,
+    );
+    const savedFatherName = normalizeString(
+      savedSource.fatherName ||
+        savedSource.fatherNameNepali ||
+        user?.fatherName,
+    );
+    const savedWardNumber = normalizeString(
+      savedSource.permWardNumber ||
+        savedSource.wardNumber ||
+        user?.permWardNumber ||
+        user?.wardNumber,
+    );
+
+    if (
+      savedFullName &&
+      normalizeString(user?.fullName) &&
+      savedFullName !== normalizeString(user?.fullName)
+    ) {
       list.push({
         field: "Voter Full Name",
-        citizenshipVal: user.fullName,
-        nidVal: expectedNidName,
-        suggested: user.fullName,
+        citizenshipVal: normalizeString(user?.fullName),
+        nidVal: savedFullName,
+        suggested: savedFullName,
         key: "fullName",
       });
     }
 
-    // B. Father's Name
     if (fatherName) {
-      const expectedNidFather = fatherName.endsWith("Sr.")
-        ? fatherName
-        : fatherName + " Sr.";
-      if (fatherName !== expectedNidFather) {
+      const normalizedFather = normalizeString(fatherName);
+      const referenceFather = savedFatherName || normalizedFather;
+      if (
+        normalizedFather &&
+        referenceFather &&
+        normalizedFather !== referenceFather
+      ) {
         list.push({
           field: "Father's Legal Name",
-          citizenshipVal: fatherName,
-          nidVal: expectedNidFather,
-          suggested: fatherName,
+          citizenshipVal: normalizedFather,
+          nidVal: referenceFather,
+          suggested: referenceFather,
           key: "fatherName",
         });
       }
     }
 
-    // C. Permanent Ward Number
     if (permWardNumber) {
-      const wrongWard = String(parseInt(permWardNumber) + 1);
-      if (permWardNumber !== wrongWard) {
+      const normalizedWard = normalizeString(permWardNumber);
+      const referenceWard = savedWardNumber || normalizedWard;
+      if (normalizedWard && referenceWard && normalizedWard !== referenceWard) {
         list.push({
           field: "Permanent Ward Number",
-          citizenshipVal: permWardNumber,
-          nidVal: wrongWard,
-          suggested: permWardNumber,
+          citizenshipVal: normalizedWard,
+          nidVal: referenceWard,
+          suggested: referenceWard,
           key: "permWardNumber",
         });
       }
@@ -1069,16 +1259,17 @@ export default function CompleteProfile({
       }
     }
 
-    // Save & Continue Action: persist draft to backend
     setIsSavingStep(true);
     try {
-      // Save draft to backend
-      await saveDraft();
+      await saveProfileProgress({ showToast: false });
       const nextStepVal = step + 1;
       setStep(nextStepVal);
       triggerToast("✅ Profile progress advanced and saved.");
     } catch (error: any) {
-      triggerToast(error.message || "Failed to save progress", true);
+      console.warn("Could not save progress (identity may be locked):", error);
+      // Advance step even if auto-save fails to prevent getting stuck
+      const nextStepVal = step + 1;
+      setStep(nextStepVal);
     } finally {
       setIsSavingStep(false);
     }
@@ -1099,12 +1290,11 @@ export default function CompleteProfile({
     setStep(1);
   };
 
-  // Save draft function
-  const saveDraft = async () => {
-    const payload = buildDraftPayload();
+  const saveProfileProgress = async ({ showToast = true } = {}) => {
+    const payload = buildProfileSnapshot();
 
     try {
-      const response = await fetch("/api/profile/save-draft", {
+      const response = await fetch(buildApiUrl("/api/profile/save-progress"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1113,258 +1303,115 @@ export default function CompleteProfile({
         body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          try {
-            return await response.json();
-          } catch {
-            // Ignore malformed JSON and fall back to local persistence.
-          }
-        }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to save profile progress.");
       }
-    } catch {
-      // Ignore network or route errors and fall back to local persistence.
-    }
 
-    if (typeof window !== "undefined") {
+      if (data?.profile) {
+        setSavedProfile(data.profile);
+      }
+
+      if (showToast) {
+        triggerToast("✅ Profile progress saved to the secure database.");
+      }
+
       try {
-        localStorage.setItem(
-          DRAFT_STORAGE_KEY,
-          JSON.stringify({ draft: payload }),
-        );
+        const channel = new BroadcastChannel("votex_session_sync");
+        channel.postMessage({
+          type: "PROFILE_REFRESH",
+          source: "save-progress",
+          sourceId: profileSyncChannelId.current,
+        });
+        channel.close();
       } catch {
-        // Ignore storage errors.
+        // Ignore unsupported browser sync APIs.
       }
-    }
 
-    return { success: true, storedLocally: true };
+      return data;
+    } catch (error: any) {
+      if (showToast) {
+        triggerToast(error.message || "Failed to save profile progress.", true);
+      }
+      throw error;
+    }
   };
 
-  // Load draft on mount
   useEffect(() => {
-    const loadDraft = async () => {
+    const loadSavedProfile = async () => {
+      if (!token) return;
+
       try {
-        const response = await fetch("/api/profile/load-draft", {
+        const response = await fetch(buildApiUrl("/api/profile/me"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        if (response.ok) {
-          const contentType = response.headers.get("content-type") || "";
-          if (contentType.includes("application/json")) {
-            try {
-              const data = await response.json();
-              if (data?.draft) {
-                // Restore draft data
-                const draft = data.draft;
-                if (draft.personal) setPersonal(draft.personal);
-                if (draft.permCountry) setPermCountry(draft.permCountry);
-                if (draft.permProvince) setPermProvince(draft.permProvince);
-                if (draft.permDistrict) setPermDistrict(draft.permDistrict);
-                if (draft.permMunicipality)
-                  setPermMunicipality(draft.permMunicipality);
-                if (draft.permWardNumber)
-                  setPermWardNumber(draft.permWardNumber);
-                if (draft.permTole) setPermTole(draft.permTole);
-                if (draft.permStreetAddress)
-                  setPermStreetAddress(draft.permStreetAddress);
-                if (draft.permPostalCode)
-                  setPermPostalCode(draft.permPostalCode);
-                if (draft.permCountryOther)
-                  setPermCountryOther(draft.permCountryOther);
-                if (draft.sameAsPermanent !== undefined)
-                  setSameAsPermanent(draft.sameAsPermanent);
-                if (draft.tempCountry) setTempCountry(draft.tempCountry);
-                if (draft.tempProvince) setTempProvince(draft.tempProvince);
-                if (draft.tempDistrict) setTempDistrict(draft.tempDistrict);
-                if (draft.tempMunicipality)
-                  setTempMunicipality(draft.tempMunicipality);
-                if (draft.tempWardNumber)
-                  setTempWardNumber(draft.tempWardNumber);
-                if (draft.tempTole) setTempTole(draft.tempTole);
-                if (draft.tempStreetAddress)
-                  setTempStreetAddress(draft.tempStreetAddress);
-                if (draft.tempPostalCode)
-                  setTempPostalCode(draft.tempPostalCode);
-                if (draft.tempCountryOther)
-                  setTempCountryOther(draft.tempCountryOther);
-                if (draft.fullNameNepali)
-                  setFullNameNepali(draft.fullNameNepali);
-                if (draft.maritalStatus) setMaritalStatus(draft.maritalStatus);
-                if (draft.educationStatus)
-                  setEducationStatus(draft.educationStatus);
-                if (draft.bloodGroup) setBloodGroup(draft.bloodGroup);
-                if (draft.fatherName) setFatherName(draft.fatherName);
-                if (draft.fatherNameNepali)
-                  setFatherNameNepali(draft.fatherNameNepali);
-                if (draft.motherName) setMotherName(draft.motherName);
-                if (draft.motherNameNepali)
-                  setMotherNameNepali(draft.motherNameNepali);
-                if (draft.grandfatherName)
-                  setGrandfatherName(draft.grandfatherName);
-                if (draft.grandfatherNameNepali)
-                  setGrandfatherNameNepali(draft.grandfatherNameNepali);
-                if (draft.spouseName) setSpouseName(draft.spouseName);
-                if (draft.spouseNameNepali)
-                  setSpouseNameNepali(draft.spouseNameNepali);
-                if (draft.spouseFatherName)
-                  setSpouseFatherName(draft.spouseFatherName);
-                if (draft.spouseFatherNameNepali)
-                  setSpouseFatherNameNepali(draft.spouseFatherNameNepali);
-                if (draft.spouseMotherName)
-                  setSpouseMotherName(draft.spouseMotherName);
-                if (draft.spouseMotherNameNepali)
-                  setSpouseMotherNameNepali(draft.spouseMotherNameNepali);
-                if (draft.profilePhoto) {
-                  setProfilePhoto(draft.profilePhoto);
-                  setProfilePhotoPreviewUrl(draft.profilePhoto);
-                }
-                if (draft.citizenshipType)
-                  setCitizenshipType(draft.citizenshipType);
-                if (draft.citizenshipIssueDate)
-                  setCitizenshipIssueDate(draft.citizenshipIssueDate);
-                if (draft.citizenshipCalendar)
-                  setCitizenshipCalendar(draft.citizenshipCalendar);
-                if (draft.citizenshipBsDate)
-                  setCitizenshipBsDate(draft.citizenshipBsDate);
-                if (draft.citizenshipIssueDistrict)
-                  setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
-                if (draft.citizenshipIssueAuthority)
-                  setCitizenshipIssueAuthority(draft.citizenshipIssueAuthority);
-                if (draft.citizenshipFrontImage)
-                  setCitizenshipFrontImage(draft.citizenshipFrontImage);
-                if (draft.citizenshipBackImage)
-                  setCitizenshipBackImage(draft.citizenshipBackImage);
-                if (draft.nidNumber) setNidNumber(draft.nidNumber);
-                if (draft.nidIssueDate) setNidIssueDate(draft.nidIssueDate);
-                if (draft.nidStatus) setNidStatus(draft.nidStatus);
-                if (draft.nidFrontImage) setNidFrontImage(draft.nidFrontImage);
-                if (draft.nidBackImage) setNidBackImage(draft.nidBackImage);
-                if (draft.signatureImage)
-                  setSignatureImage(draft.signatureImage);
-                if (draft.fingerprintImage)
-                  setFingerprintImage(draft.fingerprintImage);
-                if (draft.fingerprintLeftImage)
-                  setFingerprintLeftImage(draft.fingerprintLeftImage);
-                if (draft.fingerprintRightImage)
-                  setFingerprintRightImage(draft.fingerprintRightImage);
-                if (draft.faceImage) setFaceImage(draft.faceImage);
-                if (draft.faceTemplate) setFaceTemplate(draft.faceTemplate);
-                if (draft.currentStep) setStep(draft.currentStep);
-              }
-            } catch {
-              // Ignore malformed server responses and try local storage.
-            }
-          }
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const profile = data?.profile;
+        if (profile) {
+          applyProfileSnapshot(profile);
+          setSavedProfile(profile);
         }
       } catch {
-        // Ignore draft restoration errors and proceed with the form.
-      }
-
-      if (typeof window !== "undefined") {
-        try {
-          const storedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
-          if (storedDraft) {
-            const parsed = JSON.parse(storedDraft);
-            const draft = parsed?.draft;
-            if (draft?.personal) setPersonal(draft.personal);
-            if (draft?.permCountry) setPermCountry(draft.permCountry);
-            if (draft?.permProvince) setPermProvince(draft.permProvince);
-            if (draft?.permDistrict) setPermDistrict(draft.permDistrict);
-            if (draft?.permMunicipality)
-              setPermMunicipality(draft.permMunicipality);
-            if (draft?.permWardNumber) setPermWardNumber(draft.permWardNumber);
-            if (draft?.permTole) setPermTole(draft.permTole);
-            if (draft?.permStreetAddress)
-              setPermStreetAddress(draft.permStreetAddress);
-            if (draft?.permPostalCode) setPermPostalCode(draft.permPostalCode);
-            if (draft?.permCountryOther)
-              setPermCountryOther(draft.permCountryOther);
-            if (draft?.sameAsPermanent !== undefined)
-              setSameAsPermanent(draft.sameAsPermanent);
-            if (draft?.tempCountry) setTempCountry(draft.tempCountry);
-            if (draft?.tempProvince) setTempProvince(draft.tempProvince);
-            if (draft?.tempDistrict) setTempDistrict(draft.tempDistrict);
-            if (draft?.tempMunicipality)
-              setTempMunicipality(draft.tempMunicipality);
-            if (draft?.tempWardNumber) setTempWardNumber(draft.tempWardNumber);
-            if (draft?.tempTole) setTempTole(draft.tempTole);
-            if (draft?.tempStreetAddress)
-              setTempStreetAddress(draft.tempStreetAddress);
-            if (draft?.tempPostalCode) setTempPostalCode(draft.tempPostalCode);
-            if (draft?.tempCountryOther)
-              setTempCountryOther(draft.tempCountryOther);
-            if (draft?.fullNameNepali) setFullNameNepali(draft.fullNameNepali);
-            if (draft?.maritalStatus) setMaritalStatus(draft.maritalStatus);
-            if (draft?.educationStatus)
-              setEducationStatus(draft.educationStatus);
-            if (draft?.bloodGroup) setBloodGroup(draft.bloodGroup);
-            if (draft?.fatherName) setFatherName(draft.fatherName);
-            if (draft?.fatherNameNepali)
-              setFatherNameNepali(draft.fatherNameNepali);
-            if (draft?.motherName) setMotherName(draft.motherName);
-            if (draft?.motherNameNepali)
-              setMotherNameNepali(draft.motherNameNepali);
-            if (draft?.grandfatherName)
-              setGrandfatherName(draft.grandfatherName);
-            if (draft?.grandfatherNameNepali)
-              setGrandfatherNameNepali(draft.grandfatherNameNepali);
-            if (draft?.spouseName) setSpouseName(draft.spouseName);
-            if (draft?.spouseNameNepali)
-              setSpouseNameNepali(draft.spouseNameNepali);
-            if (draft?.spouseFatherName)
-              setSpouseFatherName(draft.spouseFatherName);
-            if (draft?.spouseFatherNameNepali)
-              setSpouseFatherNameNepali(draft.spouseFatherNameNepali);
-            if (draft?.spouseMotherName)
-              setSpouseMotherName(draft.spouseMotherName);
-            if (draft?.spouseMotherNameNepali)
-              setSpouseMotherNameNepali(draft.spouseMotherNameNepali);
-            if (draft?.profilePhoto) {
-              setProfilePhoto(draft.profilePhoto);
-              setProfilePhotoPreviewUrl(draft.profilePhoto);
-            }
-            if (draft?.citizenshipType)
-              setCitizenshipType(draft.citizenshipType);
-            if (draft?.citizenshipIssueDate)
-              setCitizenshipIssueDate(draft.citizenshipIssueDate);
-            if (draft?.citizenshipCalendar)
-              setCitizenshipCalendar(draft.citizenshipCalendar);
-            if (draft?.citizenshipBsDate)
-              setCitizenshipBsDate(draft.citizenshipBsDate);
-            if (draft?.citizenshipIssueDistrict)
-              setCitizenshipIssueDistrict(draft.citizenshipIssueDistrict);
-            if (draft?.citizenshipIssueAuthority)
-              setCitizenshipIssueAuthority(draft.citizenshipIssueAuthority);
-            if (draft?.citizenshipFrontImage)
-              setCitizenshipFrontImage(draft.citizenshipFrontImage);
-            if (draft?.citizenshipBackImage)
-              setCitizenshipBackImage(draft.getgetshipBackImage);
-            if (draft?.nidNumber) setNidNumber(draft.nidNumber);
-            if (draft?.nidIssueDate) setNidIssueDate(draft.nidIssueDate);
-            if (draft?.nidStatus) setNidStatus(draft.nidStatus);
-            if (draft?.nidFrontImage) setNidFrontImage(draft.nidFrontImage);
-            if (draft?.nidBackImage) setNidBackImage(draft.nidBackImage);
-            if (draft?.signatureImage) setSignatureImage(draft.signatureImage);
-            if (draft?.fingerprintImage)
-              setFingerprintImage(draft.fingerprintImage);
-            if (draft?.fingerprintLeftImage)
-              setFingerprintLeftImage(draft.fingerprintLeftImage);
-            if (draft?.fingerprintRightImage)
-              setFingerprintRightImage(draft.fingerprintRightImage);
-            if (draft?.faceImage) setFaceImage(draft.faceImage);
-            if (draft?.faceTemplate) setFaceTemplate(draft.faceTemplate);
-            if (draft?.currentStep) setStep(draft.currentStep);
-          }
-        } catch {
-          // Ignore storage errors.
-        }
+        // Proceed with the form without preloading saved data.
       }
     };
 
-    loadDraft();
+    loadSavedProfile();
+  }, [token]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncProfileFromServer = async () => {
+      if (!token) return;
+      try {
+        const response = await fetch(buildApiUrl("/api/profile/me"), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data?.profile) {
+          applyProfileSnapshot(data.profile);
+          setSavedProfile(data.profile);
+        }
+      } catch {
+        // Ignore sync errors and keep working with the current form state.
+      }
+    };
+
+    try {
+      const channel = new BroadcastChannel("votex_session_sync");
+      const handleMessage = (event: MessageEvent) => {
+        if (event?.data?.type === "PROFILE_REFRESH") {
+          void syncProfileFromServer();
+        }
+      };
+      channel.addEventListener("message", handleMessage);
+
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === "votex_profile_refresh") {
+          void syncProfileFromServer();
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+
+      return () => {
+        channel.removeEventListener("message", handleMessage);
+        window.removeEventListener("storage", handleStorage);
+        channel.close();
+      };
+    } catch {
+      return undefined;
+    }
   }, [token]);
 
   // ----------------------------------------------------
@@ -1458,7 +1505,7 @@ export default function CompleteProfile({
         isTemporarySameAsPermanent: sameAsPermanent,
       };
 
-      const res = await fetch("/api/profile/complete", {
+      const res = await fetch(buildApiUrl("/api/profile/complete"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1493,10 +1540,15 @@ export default function CompleteProfile({
       const savedProfileData = data.profile || savedUser || null;
       setCompletedUser(savedUser);
       setSavedProfile(savedProfileData);
+      setIsSubmitted(true);
 
       try {
         const channel = new BroadcastChannel("votex_session_sync");
-        channel.postMessage({ type: "PROFILE_REFRESH" });
+        channel.postMessage({
+          type: "PROFILE_REFRESH",
+          source: "complete-profile-submit",
+          sourceId: profileSyncChannelId.current,
+        });
         channel.close();
       } catch {
         // ignore if not available
@@ -1557,11 +1609,19 @@ export default function CompleteProfile({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                <span className="text-sm font-semibold">Profile saved successfully</span>
+                <span className="text-sm font-semibold">
+                  Profile saved successfully
+                </span>
               </div>
               <div className="text-xs text-emerald-100/90 truncate">
-                {savedProfile.fullName || savedProfile.name || completedUser?.fullName || user?.fullName || "Profile"}
-                {savedProfile.email || completedUser?.email ? ` • ${savedProfile.email || completedUser?.email}` : ""}
+                {savedProfile.fullName ||
+                  savedProfile.name ||
+                  completedUser?.fullName ||
+                  user?.fullName ||
+                  "Profile"}
+                {savedProfile.email || completedUser?.email
+                  ? ` • ${savedProfile.email || completedUser?.email}`
+                  : ""}
               </div>
             </div>
           </div>
@@ -1590,6 +1650,12 @@ export default function CompleteProfile({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPath?.("/votexDashboard")}
+              className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-emerald-500/20 transition-colors cursor-pointer"
+            >
+              Back to Dashboard
+            </button>
             <button
               onClick={onLogout}
               className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
@@ -1687,7 +1753,6 @@ export default function CompleteProfile({
                     )}
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
                     {isDobLocked ? (
                       <div className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white font-bold min-h-10.5 flex items-center justify-between">
                         <span>{personal.dob}</span>
@@ -1730,7 +1795,6 @@ export default function CompleteProfile({
                     )}
                   </label>
                   <div className="relative">
-                    <Briefcase className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
                     {isOccupationLocked ? (
                       <div className="w-full bg-gray-950 border border-gray-800 rounded-xl px-9 py-2 text-xs text-white font-bold min-h-10.5 flex items-center">
                         {user?.occupation || "Not provided"}
@@ -1815,13 +1879,13 @@ export default function CompleteProfile({
                   </div>
 
                   <div>
-                    <label className="block text-gray-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px]">
                       Marital Status *
                     </label>
                     <select
                       value={maritalStatus}
                       onChange={(e) => setMaritalStatus(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-8.5"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-10.5 transition-colors appearance-none"
                     >
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
@@ -1844,13 +1908,13 @@ export default function CompleteProfile({
                   </div>
 
                   <div>
-                    <label className="block text-gray-400 font-bold uppercase mb-1">
+                    <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px]">
                       Blood Group
                     </label>
                     <select
                       value={bloodGroup}
                       onChange={(e) => setBloodGroup(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 h-8.5"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 min-h-10.5 transition-colors appearance-none"
                     >
                       <option value="">Select Blood Group</option>
                       <option value="A+">A+</option>
@@ -3320,7 +3384,6 @@ export default function CompleteProfile({
                 acceptLegal={acceptLegal}
                 onBack={handlePrev}
                 onEditProfile={handleEditProfile}
-                onSaveDraft={saveDraft}
                 onSubmit={handleSubmit}
                 onToggleCertified={setIsCertified}
                 onToggleLegal={setAcceptLegal}
@@ -3330,7 +3393,6 @@ export default function CompleteProfile({
               />
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
 

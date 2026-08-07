@@ -10,12 +10,51 @@ import {
   UserCheck,
   Shield,
   ChevronRight,
+  RefreshCw,
+  Mail,
+  Home,
 } from "lucide-react";
+
+const MATCH_THRESHOLD = 0.75;
+const SUPPORT_EMAIL = "support@votex.gov.np";
+const DASHBOARD_PATH = "/votexDashboard";
 
 export default function VerificationCard({
   biometric,
   verificationReport,
+  onRetry,
+  onContactAdmin,
+  onGoToDashboard,
 }: any) {
+  const openContactAdmin = () => {
+    if (typeof onContactAdmin === "function") {
+      onContactAdmin();
+      return;
+    }
+
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+      "VoTex verification support",
+    )}`;
+  };
+
+  const goToDashboard = () => {
+    if (typeof onGoToDashboard === "function") {
+      onGoToDashboard();
+      return;
+    }
+
+    window.location.href = DASHBOARD_PATH;
+  };
+
+  const retryVerification = () => {
+    if (typeof onRetry === "function") {
+      onRetry();
+      return;
+    }
+
+    window.location.reload();
+  };
+
   const getStatusConfig = (status: string) => {
     const normalizedStatus = status?.toLowerCase() || "";
 
@@ -64,17 +103,31 @@ export default function VerificationCard({
     };
   };
 
+  const getScoreStatus = (score?: number, status?: string) => {
+    if (typeof status === "string" && status.trim()) {
+      return status;
+    }
+
+    if (typeof score !== "number") {
+      return "Pending";
+    }
+
+    return score >= MATCH_THRESHOLD ? "Verified" : "Failed";
+  };
+
   const verificationSteps = [
     {
       id: "face",
       label: "Facial Recognition",
       icon: User,
-      status:
-        biometric?.face?.status ||
-        (verificationReport?.faceMatchScore ? "Verified" : "Pending"),
-      detail: verificationReport?.faceMatchScore
-        ? `${Math.round(verificationReport.faceMatchScore * 100)}% match`
-        : undefined,
+      status: getScoreStatus(
+        verificationReport?.faceMatchScore,
+        biometric?.face?.status,
+      ),
+      detail:
+        typeof verificationReport?.faceMatchScore === "number"
+          ? `${Math.round(verificationReport.faceMatchScore * 100)}% match`
+          : undefined,
       timestamp:
         biometric?.face?.verifiedAt || verificationReport?.faceVerifiedAt,
     },
@@ -82,39 +135,63 @@ export default function VerificationCard({
       id: "fingerprint",
       label: "Fingerprint",
       icon: Fingerprint,
-      status: biometric?.fingerprint?.status || "Pending",
-      detail: biometric?.fingerprint?.score
-        ? `${Math.round(biometric.fingerprint.score * 100)}% match`
-        : undefined,
+      status: getScoreStatus(
+        biometric?.fingerprint?.score,
+        biometric?.fingerprint?.status,
+      ),
+      detail:
+        typeof biometric?.fingerprint?.score === "number"
+          ? `${Math.round(biometric.fingerprint.score * 100)}% match`
+          : undefined,
       timestamp: biometric?.fingerprint?.verifiedAt,
     },
     {
       id: "document",
       label: "Document Verification",
       icon: FileText,
-      status: verificationReport?.documentScore ? "Verified" : "Pending",
-      detail: verificationReport?.documentScore
-        ? `${Math.round(verificationReport.documentScore * 100)}% match`
-        : undefined,
+      status: getScoreStatus(
+        verificationReport?.documentScore,
+        verificationReport?.documentStatus,
+      ),
+      detail:
+        typeof verificationReport?.documentScore === "number"
+          ? `${Math.round(verificationReport.documentScore * 100)}% match`
+          : undefined,
       timestamp: verificationReport?.documentVerifiedAt,
     },
     {
       id: "profile",
       label: "Profile Status",
       icon: UserCheck,
-      status: verificationReport?.profileStatus || "Pending",
-      detail: verificationReport?.profileCompletion
-        ? `${verificationReport.profileCompletion}% complete`
-        : undefined,
+      status:
+        verificationReport?.profileStatus ||
+        (typeof verificationReport?.profileCompletion === "number"
+          ? verificationReport.profileCompletion >= 100
+            ? "Verified"
+            : "Pending"
+          : "Pending"),
+      detail:
+        typeof verificationReport?.profileCompletion === "number"
+          ? `${verificationReport.profileCompletion}% complete`
+          : undefined,
       timestamp: verificationReport?.profileLastUpdated,
     },
   ];
 
-  const overallStatus = verificationSteps.every((step) =>
+  const verifiedStepCount = verificationSteps.filter((step) =>
     step.status?.toLowerCase().includes("verified"),
-  )
-    ? "verified"
-    : "partial";
+  ).length;
+  const hasFailedStep = verificationSteps.some(
+    (step) =>
+      step.status?.toLowerCase().includes("failed") ||
+      step.status?.toLowerCase().includes("error"),
+  );
+  const overallStatus = hasFailedStep
+    ? "failed"
+    : verifiedStepCount === verificationSteps.length
+      ? "verified"
+      : "partial";
+  const progressWidth = (verifiedStepCount / verificationSteps.length) * 100;
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
@@ -133,7 +210,9 @@ export default function VerificationCard({
                 className={`w-5 h-5 ${
                   overallStatus === "verified"
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-amber-600 dark:text-amber-400"
+                    : overallStatus === "failed"
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-amber-600 dark:text-amber-400"
                 }`}
               />
             </div>
@@ -152,15 +231,25 @@ export default function VerificationCard({
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
               overallStatus === "verified"
                 ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
-                : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                : overallStatus === "failed"
+                  ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
             }`}
           >
             <div
               className={`w-1.5 h-1.5 rounded-full ${
-                overallStatus === "verified" ? "bg-emerald-500" : "bg-amber-500"
+                overallStatus === "verified"
+                  ? "bg-emerald-500"
+                  : overallStatus === "failed"
+                    ? "bg-red-500"
+                    : "bg-amber-500"
               }`}
             />
-            {overallStatus === "verified" ? "Verified" : "In Progress"}
+            {overallStatus === "verified"
+              ? "Verified"
+              : overallStatus === "failed"
+                ? "Verification Failed"
+                : "In Progress"}
           </span>
         </div>
 
@@ -171,12 +260,7 @@ export default function VerificationCard({
               Overall Progress
             </span>
             <span className="text-slate-600 dark:text-slate-400 font-semibold">
-              {
-                verificationSteps.filter((step) =>
-                  step.status?.toLowerCase().includes("verified"),
-                ).length
-              }
-              /{verificationSteps.length}
+              {verifiedStepCount}/{verificationSteps.length}
             </span>
           </div>
           <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -184,21 +268,58 @@ export default function VerificationCard({
               className={`h-full rounded-full transition-all duration-500 ${
                 overallStatus === "verified"
                   ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                  : "bg-gradient-to-r from-amber-500 to-amber-400"
+                  : overallStatus === "failed"
+                    ? "bg-gradient-to-r from-red-500 to-red-400"
+                    : "bg-gradient-to-r from-amber-500 to-amber-400"
               }`}
               style={{
-                width: `${
-                  (verificationSteps.filter((step) =>
-                    step.status?.toLowerCase().includes("verified"),
-                  ).length /
-                    verificationSteps.length) *
-                  100
-                }%`,
+                width: progressWidth + "%",
               }}
             />
           </div>
         </div>
       </div>
+
+      {overallStatus === "failed" && (
+        <div className="mx-5 mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+          <div className="flex items-start gap-3">
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-black">Verification failed</div>
+              <p className="mt-1 text-xs font-medium text-red-700 dark:text-red-200/80">
+                The submitted data did not match. Retry verification, contact
+                admin, or return to the dashboard.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={retryVerification}
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry Verification
+                </button>
+                <button
+                  type="button"
+                  onClick={openContactAdmin}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/40 dark:bg-slate-900/40 dark:text-red-200"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Contact Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={goToDashboard}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  Go to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Verification Steps */}
       <div className="p-2">
@@ -258,10 +379,31 @@ export default function VerificationCard({
 
       {/* Footer */}
       <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700/50">
-        <button className="w-full text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
-          View Detailed Report
-          <ChevronRight className="w-3 h-3" />
-        </button>
+        {overallStatus !== "failed" ? (
+          <button className="w-full text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
+            View Detailed Report
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={retryVerification}
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={goToDashboard}
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <Home className="w-3.5 h-3.5" />
+              Dashboard
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

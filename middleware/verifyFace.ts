@@ -90,6 +90,17 @@ export async function verifyFace(
       });
     }
 
+    // Mandatory profile completion check
+    const userRecord = Database.getUsers().find((u) => u.id === authReq.user.id);
+    if (!userRecord || !userRecord.isProfileComplete) {
+      return res.status(403).json({
+        error: "PROFILE_INCOMPLETE",
+        message: "Mandatory profile completion is required before face verification and voting.",
+        code: "ERR_PROFILE_INCOMPLETE",
+        requestId,
+      });
+    }
+
     if (!election.isActive) {
       return res.status(400).json({
         error: "ELECTION_INACTIVE",

@@ -103,7 +103,6 @@ interface FinalPreviewDashboardProps {
   acceptLegal: boolean;
   onBack: () => void;
   onEditProfile: () => void;
-  onSaveDraft: () => Promise<any> | void;
   onSubmit: () => Promise<void> | void;
   onToggleCertified: (value: boolean) => void;
   onToggleLegal: (value: boolean) => void;
@@ -340,7 +339,6 @@ const Sidebar = memo(function Sidebar({
   isSubmitted,
   onBack,
   onEditProfile,
-  onSaveDraft,
   onSubmit,
   onToggleCertified,
   onToggleLegal,
@@ -355,7 +353,6 @@ const Sidebar = memo(function Sidebar({
   isSubmitted?: boolean;
   onBack: () => void;
   onEditProfile: () => void;
-  onSaveDraft: () => Promise<any> | void;
   onSubmit: () => Promise<void> | void;
   onToggleCertified: (value: boolean) => void;
   onToggleLegal: (value: boolean) => void;
@@ -463,15 +460,6 @@ const Sidebar = memo(function Sidebar({
             Edit Profile
           </button>
 
-          <button
-            type="button"
-            onClick={onSaveDraft}
-            disabled={isSubmitted}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-          >
-            <Download className="w-4 h-4" />
-            Save as Draft
-          </button>
 
           <button
             type="button"
@@ -558,7 +546,6 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     acceptLegal,
     onBack,
     onEditProfile,
-    onSaveDraft,
     onSubmit,
     onToggleCertified,
     onToggleLegal,
@@ -797,7 +784,6 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
               isSubmitted={props.isSubmitted}
               onBack={onBack}
               onEditProfile={onEditProfile}
-              onSaveDraft={onSaveDraft}
               onSubmit={onSubmit}
               onToggleCertified={onToggleCertified}
               onToggleLegal={onToggleLegal}

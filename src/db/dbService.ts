@@ -53,6 +53,9 @@ export interface User {
   tokenVersion?: number;
   accountStatus?: string;
   isProfileComplete?: boolean;
+  faceVerified?: boolean;
+  faceVerifiedAt?: string;
+  faceMatchConfidence?: number;
   lastLoginAt?: string;
   failedLoginAttempts?: number;
   lockoutUntil?: number;
@@ -143,10 +146,36 @@ export interface UserProfile {
   nidNumber?: string;
   nidIssueDate?: string;
   nidStatus?: string;
+  voterIdNumber?: string;
+  passportNumber?: string;
+  educationLevel?: string;
+  emergencyContact?: {
+    fullName?: string;
+    relationship?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
+  faceEmbedding?: number[];
+  faceImage?: string;
+  faceVerificationStatus?: string;
+  isProfileComplete?: boolean;
+  auditLogs?: Array<{
+    id: string;
+    action: string;
+    timestamp: string;
+    previousValues?: any;
+    newValues?: any;
+    userId: string;
+    device?: string;
+    browser?: string;
+    ipAddress?: string;
+  }>;
   nidFrontImage?: string;
   nidBackImage?: string;
   citizenshipFrontImage?: string;
   citizenshipBackImage?: string;
+  signatureImage?: string;
 
   profilePhoto?: string;
   createdAt?: string;
@@ -343,16 +372,7 @@ export interface Faq {
   status: "Published" | "Draft";
 }
 
-export interface ProfileDraft {
-  id: string;
-  userId: string;
-  draftStatus: "Draft" | "Complete";
-  currentStep: number;
-  formData: any;
-  lastSavedAt: string;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 export interface NewsletterSubscriber {
   id?: string;
@@ -371,6 +391,20 @@ export interface NewsletterSubscriber {
   lastNotification?: string;
   verifiedAt?: string;
   updatedAt?: string;
+}
+
+export interface ContactRequest {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+  status: "New" | "Replied";
+  reply: string;
+  repliedAt?: string;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 // ============================================
@@ -568,14 +602,24 @@ export class Database {
     try {
       if (!this.db) return;
 
-      const [users, elections, candidates, votes, notifications, faqs] =
-        await Promise.all([
+      const [
+        users,
+        elections,
+        candidates,
+        votes,
+        notifications,
+        faqs,
+        newsletterSubscribers,
+        contactRequests,
+      ] = await Promise.all([
           this.findAll<User>("users"),
           this.findAll<Election>("elections"),
           this.findAll<Candidate>("candidates"),
           this.findAll<Vote>("votes"),
           this.findAll<any>("notifications"),
           this.findAll<any>("faqs"),
+          this.findAll<NewsletterSubscriber>("newsletter_subscribers"),
+          this.findAll<ContactRequest>("contact_requests"),
         ]);
 
       this.inMemStore.set("users", users);
@@ -584,6 +628,8 @@ export class Database {
       this.inMemStore.set("votes", votes);
       this.inMemStore.set("notifications", notifications);
       this.inMemStore.set("faqs", faqs);
+      this.inMemStore.set("newsletter_subscribers", newsletterSubscribers);
+      this.inMemStore.set("contact_requests", contactRequests);
 
       console.log("✅ Loaded database cache from MongoDB");
     } catch (error) {
@@ -694,38 +740,31 @@ export class Database {
   }
 
   private static ensureSeedData(): void {
-    if (process.env.NODE_ENV === "production") return;
+    if (process.env.NODE_ENV === "production" || process.env.USE_MOCK_DATA === "false") return;
 
     const hasUsers = (this.inMemStore.get("users") || []).length > 0;
-    if (hasUsers) return;
+    const hasProfiles = (this.inMemStore.get("user_profiles") || []).length > 0;
+    
+    // In dev mode, if we don't have profiles but we have users, we should re-seed the detailed mock data.
+    if (hasUsers && hasProfiles) return;
 
     const passwordHash = bcrypt.hashSync("Password123!", 12);
+    
+    // Sample Voters
     const seedUsers: User[] = [
       {
-        id: "usr_seed_admin",
-        fullName: "System Administrator",
-        username: "admin",
-        nationalID: "ADMIN001",
-        email: "admin@votex.gov",
-        mobile: "+9779800000000",
-        passwordHash,
-        role: "Administrator",
-        isVerified: true,
-        isApproved: true,
-        isSuspended: false,
-        isProfileComplete: true,
-        accountStatus: "Approved",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        tokenVersion: 0,
+        id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001",
+        email: "admin@votex.gov", mobile: "+9779800000000", passwordHash, role: "Administrator",
+        isVerified: true, isApproved: true, isSuspended: false, isProfileComplete: true, accountStatus: "Approved",
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), tokenVersion: 0,
       },
-      {
-        id: "usr_seed_voter",
-        fullName: "Demo Voter",
-        username: "voter",
-        nationalID: "VOTER001",
-        email: "voter@votex.gov",
-        mobile: "+9779800000001",
+      ...Array.from({ length: 5 }).map((_, i) => ({
+        id: `usr_seed_voter_${i + 1}`,
+        fullName: `Sample Voter ${i + 1}`,
+        username: `voter${i + 1}`,
+        nationalID: `VOTER00${i + 1}`,
+        email: `voter${i + 1}@votex.gov`,
+        mobile: `+977980000000${i + 1}`,
         passwordHash,
         role: "Voter",
         isVerified: true,
@@ -736,15 +775,73 @@ export class Database {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         tokenVersion: 0,
-      },
+        faceImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==", // Dummy face image base64
+        fingerprintImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+        profilePhoto: "https://ui-avatars.com/api/?name=Voter+" + (i + 1),
+      })),
     ];
+
+    const seedUserProfiles: UserProfile[] = seedUsers.filter(u => u.role === "Voter").map((u, i) => ({
+      id: `prof_seed_${i + 1}`,
+      userId: u.id,
+      fullName: u.fullName,
+      fullNameNepali: `नमूना मतदाता ${i + 1}`,
+      dob: `199${i}-01-01`,
+      gender: i % 2 === 0 ? "Male" : "Female",
+      occupation: "Software Engineer",
+      maritalStatus: "Single",
+      educationStatus: "Bachelor's Degree",
+      bloodGroup: "O+",
+      nationality: "Nepalese",
+      permCountry: "Nepal",
+      permProvince: "Bagmati",
+      permDistrict: "Kathmandu",
+      permMunicipality: "Kathmandu Metropolitan City",
+      permWardNumber: "10",
+      permTole: "Baneshwor",
+      isTemporarySameAsPermanent: true,
+      fatherName: `Father of Voter ${i + 1}`,
+      fatherNameNepali: `बुबा ${i + 1}`,
+      motherName: `Mother of Voter ${i + 1}`,
+      motherNameNepali: `आमा ${i + 1}`,
+      grandfatherName: `Grandfather of Voter ${i + 1}`,
+      grandfatherNameNepali: `हजुरबुबा ${i + 1}`,
+      citizenshipNumber: `12345-6789-${i}`,
+      citizenshipType: "Descendant",
+      citizenshipIssueDate: "2015-05-15",
+      citizenshipIssueDistrict: "Kathmandu",
+      nidNumber: `NID-987654321-${i}`,
+      createdAt: new Date().toISOString(),
+    }));
+
+    const seedIdentityDocuments: IdentityDocument[] = seedUsers.filter(u => u.role === "Voter").map((u, i) => ({
+      id: `doc_seed_${i + 1}`,
+      userId: u.id,
+      documentType: "Citizenship",
+      documentNumber: `12345-6789-${i}`,
+      fileUrl: "dummy-url",
+      verificationStatus: "verified",
+      createdAt: new Date().toISOString(),
+      citizenshipFrontImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+      citizenshipBackImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    }));
+
+    const seedFaceVerifications: FaceVerification[] = seedUsers.filter(u => u.role === "Voter").map((u, i) => ({
+      id: `face_seed_${i + 1}`,
+      userId: u.id,
+      verificationStatus: "verified",
+      matchScore: 99.1,
+      livenessScore: 98.5,
+      verifiedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      faceImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    }));
 
     const seedElections: Election[] = [
       {
         id: "elect_seed_2026",
         title: "National Digital Election 2026",
-        description:
-          "A secure demo election for public onboarding and testing.",
+        description: "A secure demo election for public onboarding and testing.",
         status: "Active",
         isActive: true,
         type: "General Election",
@@ -756,54 +853,78 @@ export class Database {
       },
     ];
 
+    const seedParties: any[] = [
+      { id: "party_nc", name: "Nepali Congress", symbol: "Tree", logo: "https://upload.wikimedia.org/wikipedia/commons/4/4b/Nepali_Congress_Election_Symbol.png" },
+      { id: "party_uml", name: "CPN-UML", symbol: "Sun", logo: "https://upload.wikimedia.org/wikipedia/commons/7/7b/Election_Symbol_of_the_Communist_Party_of_Nepal_%28Unified_Marxist-Leninist%29.png" },
+      { id: "party_maoist", name: "CPN-Maoist Centre", symbol: "Hammer and Sickle", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Hammer_and_sickle_inside_circle.svg" },
+      { id: "party_rsp", name: "Rastriya Swatantra Party", symbol: "Bell", logo: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Bell_election_symbol_of_RSP.png" },
+      { id: "party_rpp", name: "Rastriya Prajatantra Party", symbol: "Cow", logo: "https://upload.wikimedia.org/wikipedia/commons/4/43/Flag_of_RPP.svg" },
+    ];
+
     const seedCandidates: Candidate[] = [
       {
-        id: "cand_seed_1",
-        electionId: seedElections[0].id,
-        name: "Asha Adhikari",
-        party: "People's Alliance",
-        biography: "Community-focused public servant.",
-        manifestoText: "Improving access to secure digital civic services.",
-        photoUrl: "",
-        status: "Approved",
-        voteCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        id: "cand_seed_1", electionId: seedElections[0].id, name: "Gagan Thapa", party: "Nepali Congress",
+        biography: "Youth leader and community-focused public servant. Known for advocating democratic reforms.", manifestoText: "Improving access to secure digital civic services.",
+        photoUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Gagan_Thapa.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        dateOfBirth: "1976-07-16", gender: "Male", profession: "Politician", education: "Masters in Political Science",
+        contactNumber: "+9779800000010", emailAddress: "gagan.thapa@nc.org.np", permanentAddress: "Kathmandu, Nepal"
       },
       {
-        id: "cand_seed_2",
-        electionId: seedElections[0].id,
-        name: "Ravi Sharma",
-        party: "National Reform Party",
-        biography: "Technology and transparency advocate.",
-        manifestoText: "Building transparent and accessible elections.",
-        photoUrl: "",
-        status: "Approved",
-        voteCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        id: "cand_seed_2", electionId: seedElections[0].id, name: "Gokarna Bista", party: "CPN-UML",
+        biography: "Technology and transparency advocate. Former minister of energy.", manifestoText: "Building transparent and accessible elections and eradicating load shedding.",
+        photoUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3f/Gokarna_Bista.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        dateOfBirth: "1965-07-01", gender: "Male", profession: "Politician", education: "Bachelors Degree",
+        contactNumber: "+9779800000011", emailAddress: "gokarna.bista@cpnuml.org", permanentAddress: "Gulmi, Nepal"
+      },
+      {
+        id: "cand_seed_3", electionId: seedElections[0].id, name: "Barshaman Pun", party: "CPN-Maoist Centre",
+        biography: "Advocating for rural development and digital equality.", manifestoText: "Connecting every village to the digital grid.",
+        photoUrl: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Barshaman_Pun.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        dateOfBirth: "1971-06-18", gender: "Male", profession: "Politician", education: "Bachelors Degree",
+        contactNumber: "+9779800000012", emailAddress: "barshaman.pun@cpmmaoist.org", permanentAddress: "Rolpa, Nepal"
+      },
+      {
+        id: "cand_seed_4", electionId: seedElections[0].id, name: "Swarnim Wagle", party: "Rastriya Swatantra Party",
+        biography: "Economic reform and transparency advocate. Prominent economist.", manifestoText: "Data-driven governance and anti-corruption.",
+        photoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Swarnim_Wagle.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        dateOfBirth: "1974-05-10", gender: "Male", profession: "Economist", education: "PhD in Economics",
+        contactNumber: "+9779800000013", emailAddress: "swarnim.wagle@rsp.org.np", permanentAddress: "Tanahun, Nepal"
+      },
+      {
+        id: "cand_seed_5", electionId: seedElections[0].id, name: "Rajendra Lingden", party: "Rastriya Prajatantra Party",
+        biography: "Traditional values with modern technological adoption.", manifestoText: "Preserving heritage while modernizing infrastructure.",
+        photoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Rajendra_Lingden.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        dateOfBirth: "1965-09-08", gender: "Male", profession: "Politician", education: "Masters in History",
+        contactNumber: "+9779800000014", emailAddress: "rajendra.lingden@rpp.org.np", permanentAddress: "Jhapa, Nepal"
       },
     ];
 
     this.inMemStore.set("users", seedUsers);
-    this.inMemStore.set("user_profiles", []);
-    this.inMemStore.set("identity_documents", []);
-    this.inMemStore.set("face_verifications", []);
+    this.inMemStore.set("user_profiles", seedUserProfiles);
+    this.inMemStore.set("identity_documents", seedIdentityDocuments);
+    this.inMemStore.set("face_verifications", seedFaceVerifications);
     this.inMemStore.set("elections", seedElections);
     this.inMemStore.set("candidates", seedCandidates);
+    this.inMemStore.set("parties", seedParties);
     this.inMemStore.set("votes", []);
     this.inMemStore.set("notifications", []);
     this.inMemStore.set("faqs", []);
-    this.inMemStore.set("profile_drafts", []);
+
     this.inMemStore.set("system_config", {});
     this.inMemStore.set("dispatch_logs", []);
     this.inMemStore.set("newsletter_subscribers", []);
+    this.inMemStore.set("contact_requests", []);
     this.inMemStore.set("user_preferences", {});
+    this.inMemStore.set("profile_drafts", {});
     this.inMemStore.set("idempotency_records", {});
 
     void this.saveUsers(seedUsers);
+    void this.saveUserProfiles(seedUserProfiles);
+    void this.saveIdentityDocuments(seedIdentityDocuments);
+    void this.saveFaceVerifications(seedFaceVerifications);
     void this.saveElections(seedElections);
     void this.saveCandidates(seedCandidates);
+    void this.savePoliticalParties(seedParties);
   }
 
   // ============================================
@@ -925,12 +1046,49 @@ export class Database {
     userId: string,
     updates: Partial<UserProfile>,
   ): Promise<boolean> {
-    updates.updatedAt = new Date().toISOString();
-    return this.updateOne<UserProfile>(
-      "user_profiles",
-      { userId } as Filter<UserProfile>,
-      { $set: updates },
-    );
+    const result = await this.upsertUserProfile(userId, updates);
+    return Boolean(result);
+  }
+
+  static async upsertUserProfile(
+    userId: string,
+    updates: Partial<UserProfile>,
+  ): Promise<UserProfile> {
+    const profiles = this.getUserProfiles();
+    const existingIndex = profiles.findIndex((p: any) => p.userId === userId);
+    const now = new Date().toISOString();
+    let updatedProfile: UserProfile;
+
+    if (existingIndex >= 0) {
+      updatedProfile = {
+        ...profiles[existingIndex],
+        ...updates,
+        userId,
+        updatedAt: now,
+      };
+      profiles[existingIndex] = updatedProfile;
+    } else {
+      updatedProfile = {
+        id: this.createId("prof"),
+        userId,
+        createdAt: now,
+        updatedAt: now,
+        ...updates,
+      } as UserProfile;
+      profiles.push(updatedProfile);
+    }
+
+    this.inMemStore.set("user_profiles", profiles);
+
+    if (this.db) {
+      await this.upsertOne(
+        "user_profiles",
+        { userId } as Filter<UserProfile>,
+        updatedProfile,
+      );
+    }
+
+    return updatedProfile;
   }
 
   // ============================================
@@ -1386,66 +1544,6 @@ export class Database {
     return this.insertOne<Faq>("faqs", faq);
   }
 
-  // ============================================
-  // Profile Drafts
-  // ============================================
-
-  static getProfileDrafts(filter: Partial<ProfileDraft> = {}): ProfileDraft[] {
-    this.ensureSeedData();
-    const drafts = (this.inMemStore.get("profile_drafts") ||
-      []) as ProfileDraft[];
-    return drafts.filter((draft: any) => {
-      return Object.entries(filter).every(
-        ([key, value]) => draft[key] === value,
-      );
-    });
-  }
-
-  static async getProfileDraftByUser(
-    userId: string,
-  ): Promise<ProfileDraft | null> {
-    return this.findOne<ProfileDraft>("profile_drafts", {
-      userId,
-    } as Filter<ProfileDraft>);
-  }
-
-  static saveProfileDrafts(drafts: ProfileDraft[]): boolean {
-    this.inMemStore.set("profile_drafts", drafts);
-    return true;
-  }
-
-  static async saveProfileDraft(
-    draftData: Partial<ProfileDraft>,
-  ): Promise<ProfileDraft | null> {
-    const existing = await this.getProfileDraftByUser(draftData.userId || "");
-
-    if (existing) {
-      await this.updateOne<ProfileDraft>(
-        "profile_drafts",
-        { userId: draftData.userId } as Filter<ProfileDraft>,
-        {
-          $set: {
-            ...draftData,
-            updatedAt: new Date().toISOString(),
-          },
-        },
-      );
-      return this.getProfileDraftByUser(draftData.userId || "");
-    }
-
-    const draft: ProfileDraft = {
-      id: this.createId("draft"),
-      draftStatus: "Draft",
-      currentStep: 1,
-      formData: {},
-      lastSavedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...draftData,
-    } as ProfileDraft;
-
-    return this.insertOne<ProfileDraft>("profile_drafts", draft);
-  }
 
   // ============================================
   // JWT Token Utilities
@@ -1618,6 +1716,12 @@ export class Database {
         { key: { userId: 1, timestamp: -1 }, name: "notifications_user_time" },
       ]);
 
+      // Contact request indexes
+      await this.safeCreateIndexes(this.getCollection("contact_requests"), [
+        { key: { createdAt: -1 }, name: "contact_created_at" },
+        { key: { status: 1, createdAt: -1 }, name: "contact_status_created" },
+      ]);
+
       // Face verifications indexes
       await this.safeCreateIndexes(this.getCollection("face_verifications"), [
         { key: { userId: 1, electionId: 1 }, name: "face_user_election" },
@@ -1668,7 +1772,7 @@ export class Database {
           // `userId` when `id` differs, causing E11000 errors.
           await this.upsertOne(
             "user_profiles",
-            ({ userId: p.userId } as unknown) as Filter<UserProfile>,
+            { userId: p.userId } as unknown as Filter<UserProfile>,
             p,
           );
         }
@@ -1713,11 +1817,17 @@ export class Database {
     }
   }
 
-  static async savePoliticalParties(parties: PoliticalParty[]): Promise<boolean> {
+  static async savePoliticalParties(
+    parties: PoliticalParty[],
+  ): Promise<boolean> {
     try {
       if (this.db) {
         for (const party of parties) {
-          await this.upsertOne("political_parties", { code: party.code }, party);
+          await this.upsertOne(
+            "political_parties",
+            { code: party.code },
+            party,
+          );
         }
       }
       this.inMemStore.set("political_parties", parties);
@@ -1825,6 +1935,28 @@ export class Database {
     }
   }
 
+  static getContactRequests(): ContactRequest[] {
+    this.ensureSeedData();
+    return (this.inMemStore.get("contact_requests") || []) as ContactRequest[];
+  }
+
+  static async saveContactRequests(
+    requests: ContactRequest[],
+  ): Promise<boolean> {
+    try {
+      if (this.db) {
+        for (const request of requests) {
+          await this.upsertOne("contact_requests", { id: request.id }, request);
+        }
+      }
+      this.inMemStore.set("contact_requests", requests);
+      return true;
+    } catch (error) {
+      console.error("Error saving contact requests:", error);
+      return false;
+    }
+  }
+
   static addTimelineEvent(
     message: string,
     level: "info" | "warning" | "error" | "success" | "alert" = "info",
@@ -1901,6 +2033,40 @@ export class Database {
       const store = this.inMemStore.get("user_preferences") || {};
       store[userId] = prefs;
       this.inMemStore.set("user_preferences", store);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async getProfileDraft(userId: string): Promise<any | null> {
+    if (this.db) {
+      const record = await this.findOne<any>("profile_drafts", { userId });
+      return record?.draft ?? null;
+    }
+    const store = this.inMemStore.get("profile_drafts") || {};
+    return store[userId] ?? null;
+  }
+
+  static async saveProfileDraft(
+    userId: string,
+    draft: Record<string, unknown>,
+  ): Promise<boolean> {
+    try {
+      const payload = {
+        ...draft,
+        updatedAt: new Date().toISOString(),
+      };
+      if (this.db) {
+        await this.upsertOne(
+          "profile_drafts",
+          { userId },
+          { userId, draft: payload, updatedAt: payload.updatedAt },
+        );
+      }
+      const store = this.inMemStore.get("profile_drafts") || {};
+      store[userId] = payload;
+      this.inMemStore.set("profile_drafts", store);
       return true;
     } catch {
       return false;

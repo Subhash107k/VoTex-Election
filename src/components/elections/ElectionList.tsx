@@ -14,7 +14,7 @@ export default function ElectionList({ token, onVote }: { token: string | null; 
       try {
         const items = await getElections(token);
         if (!active) return;
-        setElections(items.filter((e) => e.active !== false));
+        setElections(items.filter((e) => e.status === "Active" || e.active === true));
       } catch (err: any) {
         console.error(err);
         setError(err?.message || "Failed to load elections");
@@ -44,14 +44,40 @@ export default function ElectionList({ token, onVote }: { token: string | null; 
             </div>
             <div className="text-sm text-slate-400">{e.startsAt ? new Date(e.startsAt).toLocaleString() : ""}</div>
           </div>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             {(e.candidates || []).map((c) => (
-              <div key={c.id} className="p-3 border rounded-lg flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{c.label}</div>
+              <div key={c.id} className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                <div className="flex items-center gap-4">
+                  {/* Candidate Photo */}
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0">
+                    {c.photo ? (
+                      <img src={c.photo} alt={c.label} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">
+                        {c.label.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-800 dark:text-white text-lg">{c.label}</div>
+                    <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      {c.partyLogo && (
+                        <img src={c.partyLogo} alt={c.party} className="w-4 h-4 rounded-full" />
+                      )}
+                      <span>{c.party}</span>
+                      {c.symbol && (
+                        <>
+                          <span className="mx-1">•</span>
+                          <span>Symbol: {c.symbol}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <button onClick={() => onVote(e, c)} className="px-3 py-1 bg-emerald-600 text-white rounded-lg">Vote</button>
+                  <button onClick={() => onVote(e, c)} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-md transition-colors">
+                    Vote
+                  </button>
                 </div>
               </div>
             ))}

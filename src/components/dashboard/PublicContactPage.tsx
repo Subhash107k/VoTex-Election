@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   Mail,
   MapPin,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 
 import type { ThemeMode } from "../../types/auth.ts";
+import { jsonRequestOptions, requestJson } from "../../services/apiClient.ts";
 
 interface PublicContactPageProps {
   handleNav: (path: string) => void;
@@ -28,6 +30,7 @@ export default function PublicContactPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [supportCode, setSupportCode] = useState("10000");
+  const [submitError, setSubmitError] = useState("");
 
   const isLight = theme === "light";
   const bgCard = isLight
@@ -42,13 +45,27 @@ export default function PublicContactPage({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
-      setSupportCode(String(10000 + (Date.now() % 90000)));
+    setSubmitError("");
+
+    try {
+      const response = await requestJson<{ supportCode?: string }>(
+        "/api/contact-requests",
+        jsonRequestOptions("POST", formData),
+      );
+
+      setSupportCode(response.supportCode || "10000");
       setSubmitted(true);
       setFormData({ name: "", email: "", subject: "", message: "" });
-      setSubmitting(false);
       setTimeout(() => setSubmitted(false), 5000);
-    }, 1000);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to send your message. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -175,10 +192,17 @@ export default function PublicContactPage({
                 </div>
               )}
 
+              {submitError ? (
+                <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 p-3 text-sm font-semibold text-rose-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {submitError}
+                </div>
+              ) : null}
+
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 font-bold uppercase tracking-wide text-slate-950 transition-opacity hover:opacity-90"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 font-bold uppercase tracking-wide text-slate-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
                   "Sending..."

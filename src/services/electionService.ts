@@ -7,7 +7,16 @@ export interface Election {
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
-  candidates?: Array<{ id: string; label: string }>;
+  status?: string;
+  candidates?: Array<{
+    id: string;
+    label: string;
+    photo?: string | null;
+    party?: string;
+    partyLogo?: string | null;
+    symbol?: string | null;
+    description?: string;
+  }>;
 }
 
 export async function getElections(token: string | null): Promise<Election[]> {

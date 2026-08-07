@@ -24,6 +24,9 @@ export interface User {
   isApproved?: boolean;
   isSuspended?: boolean;
   isProfileComplete?: boolean;
+  faceVerified?: boolean;
+  faceVerifiedAt?: string;
+  faceMatchConfidence?: number;
   accountStatus?:
     | "Pending"
     | "Active"
@@ -197,6 +200,20 @@ export interface NewsletterSubscriber {
   verificationToken?: string;
   verifiedAt?: string;
   updatedAt?: string;
+}
+
+export interface ContactRequest {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+  status: "New" | "Replied";
+  reply: string;
+  repliedAt?: string;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export interface DispatchLog {

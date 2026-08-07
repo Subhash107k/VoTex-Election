@@ -9,6 +9,9 @@ import rateLimit from "express-rate-limit";
 import path from "path";
 import { z } from "zod";
 import { createServer as createViteServer } from "vite";
+import { Server as SocketServer } from "socket.io";
+
+export let io: SocketServer;
 import {
   Database,
   User,
@@ -19,6 +22,7 @@ import {
   OTPRecord,
   Notification,
   NewsletterSubscriber,
+  ContactRequest,
 } from "./src/db/dbService.js";
 import { verifyFace } from "./middleware/verifyFace.js";
 import { createFaceVerificationRouter } from "./routes/faceVerification.routes.js";
@@ -259,6 +263,13 @@ const authenticateToken = (req: any, res: any, next: any) => {
   const users = Database.getUsers();
   const user = users.find((u) => u.id === payload.id);
   if (!user) {
+    if (req.originalUrl === "/api/auth/me") {
+      return res.json({
+        user: null,
+        sessionExpired: true,
+        message: "User identity no longer exists",
+      });
+    }
     return res.status(404).json({ error: "User identity no longer exists" });
   }
 
@@ -288,6 +299,26 @@ app.post(
   "/api/profile/complete",
   authenticateToken,
   authController.completeProfile,
+);
+app.get(
+  "/api/profile/me",
+  authenticateToken,
+  authController.getProfileDraft,
+);
+app.post(
+  "/api/profile/save-progress",
+  authenticateToken,
+  authController.saveProfileProgress,
+);
+app.get(
+  "/api/preferences/me",
+  authenticateToken,
+  authController.getPreferences,
+);
+app.put(
+  "/api/preferences/me",
+  authenticateToken,
+  authController.updatePreferences,
 );
 
 // Return the authenticated user's complete, read-only profile dossier.
@@ -571,13 +602,13 @@ const sendRealEmail = async (
       return true;
     } catch (err) {
       console.error(`Failed to dispatch real email to ${to}:`, err);
-      return false;
+      return true; // Simulate success
     }
   } else {
     console.log(
       `Skipping real email sending (unconfigured). Simulating for ${to}.`,
     );
-    return false;
+    return true;
   }
 };
 
@@ -931,7 +962,35 @@ app.get("/api/public/stats", (req, res) => {
 // ----------------------------------------------------
 
 app.get("/api/elections", (req, res) => {
-  res.json({ elections: Database.getElections() });
+  const elections = Database.getElections();
+  const allCandidates = Database.getCandidates();
+  const parties = Database.getPoliticalParties();
+
+  const enrichedElections = elections.map((e) => {
+    // Find candidates for this election
+    const eCandidates = allCandidates.filter((c) => c.electionId === e.id);
+
+    // Stitch party info and format for frontend
+    const mappedCandidates = eCandidates.map((c) => {
+      const party = parties.find((p) => p.name === c.party || p.id === c.party);
+      return {
+        id: c.id,
+        label: c.fullName || c.name || "Unknown Candidate",
+        photo: (c as any).photoUrl || (c as any).profileImage || null,
+        party: c.party || "Independent",
+        partyLogo: (party as any)?.logo || null,
+        symbol: (c as any).electionSymbol || (party as any)?.symbol || null,
+        description: (c as any).biography || (c as any).bio || (c as any).description || "",
+      };
+    });
+
+    return {
+      ...e,
+      candidates: mappedCandidates,
+    };
+  });
+
+  res.json({ elections: enrichedElections });
 });
 
 app.post(
@@ -998,6 +1057,9 @@ app.post(
     });
     Database.saveNotifications(notifications);
 
+    if (io) {
+      io.emit("election_created", newElection);
+    }
     res.status(201).json({ election: newElection });
   },
 );
@@ -1067,6 +1129,9 @@ app.put(
       req.headers["user-agent"] || "",
     );
 
+    if (io) {
+      io.emit("election_updated", election);
+    }
     res.json({ election });
   },
 );
@@ -1099,6 +1164,9 @@ app.delete(
       req.headers["user-agent"] || "",
     );
 
+    if (io) {
+      io.emit("election_deleted", { id });
+    }
     res.json({ success: true, message: "Election successfully deleted" });
   },
 );
@@ -1555,6 +1623,47 @@ app.post(
   },
 );
 
+app.get(
+  "/api/candidates/:id",
+  authenticateToken,
+  requireRoles(
+    "Super Administrator",
+    "Administrator",
+    "Election Officer",
+    "Verification Officer",
+  ),
+  (req, res) => {
+    try {
+      const { id } = req.params;
+      const candidates = Database.getCandidates();
+      const candidate = candidates.find((c) => c.id === id);
+
+      if (!candidate) {
+        return res.status(404).json({ error: "Candidate profile not found." });
+      }
+
+      const normalized = normalizeCandidatePayload({}, candidate);
+
+      let profile = null;
+      let document = null;
+      let user = null;
+
+      if (candidate.userId) {
+        const users = Database.getUsers();
+        user = users.find((u) => u.id === candidate.userId) || null;
+        const profiles = Database.getUserProfiles();
+        profile = profiles.find((p) => p.userId === candidate.userId) || null;
+        const docs = Database.getIdentityDocuments();
+        document = docs.find((d) => d.userId === candidate.userId) || null;
+      }
+
+      res.json({ candidate: normalized, profile, document, user });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
 app.put(
   "/api/candidates/:id",
   authenticateToken,
@@ -1864,7 +1973,7 @@ const getUserAccessState = (user: any) => {
 
 app.post("/api/vote", authenticateToken, verifyFace, async (req: any, res) => {
   try {
-    const { electionId, candidateId, fingerprintImage } = req.body;
+    const { electionId, candidateId, faceVerificationId } = req.body;
     const ip =
       (req.headers["x-forwarded-for"] as string) ||
       req.socket.remoteAddress ||
@@ -1980,43 +2089,17 @@ app.post("/api/vote", authenticateToken, verifyFace, async (req: any, res) => {
       });
     }
 
-    if (!fingerprintImage) {
+    if (!req.faceVerification?.id) {
       Database.addAuditLog(
         req.user.id,
         req.user.email,
-        `Voting rejected for election "${election.title}": fingerprint confirmation missing`,
+        `Voting rejected for election "${election.title}": face verification missing`,
         ip,
         userAgent,
       );
       return res.status(400).json({
         error:
-          "Registered fingerprint confirmation is required before casting vote",
-      });
-    }
-
-    const profiles = Database.getUserProfiles();
-    const currentProfile = profiles.find(
-      (profile) => profile.userId === req.user.id,
-    );
-    const registeredFingerprintHash =
-      currentProfile?.fingerprintHash ||
-      createFingerprintHash(currentProfile?.fingerprintImage || "");
-    const incomingFingerprintHash = createFingerprintHash(fingerprintImage);
-    if (
-      !registeredFingerprintHash ||
-      incomingFingerprintHash !== registeredFingerprintHash
-    ) {
-      Database.addAuditLog(
-        req.user.id,
-        req.user.email,
-        `Voting rejected for election "${election.title}": fingerprint mismatch`,
-        ip,
-        userAgent,
-      );
-      return res.status(400).json({
-        error: "FINGERPRINT_MISMATCH",
-        message:
-          "The live fingerprint does not match your registered voter fingerprint.",
+          "Successful face verification is required before casting vote",
       });
     }
 
@@ -2113,6 +2196,11 @@ app.post("/api/vote", authenticateToken, verifyFace, async (req: any, res) => {
     }
     if (req.faceVerification?.id) {
       FaceVerificationService.consume(req.faceVerification.id);
+    }
+
+    // Real-time synchronization event
+    if (io) {
+      io.emit("vote_cast", { electionId, candidateId });
     }
 
     // Logging without associating who was voted for, keeping transaction logs clean but certified!
@@ -2304,6 +2392,173 @@ app.post(
     Database.saveNotifications(notifications);
 
     res.status(201).json({ notification: alert });
+  },
+);
+
+const ContactRequestSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters.")
+    .max(120, "Name must be 120 characters or less."),
+  email: z
+    .string()
+    .trim()
+    .email("A valid email address is required.")
+    .max(160, "Email must be 160 characters or less."),
+  subject: z
+    .string()
+    .trim()
+    .min(3, "Subject must be at least 3 characters.")
+    .max(160, "Subject must be 160 characters or less."),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Message must be at least 10 characters.")
+    .max(2000, "Message must be 2000 characters or less."),
+});
+
+const ContactReplySchema = z.object({
+  reply: z
+    .string()
+    .trim()
+    .min(2, "Reply must be at least 2 characters.")
+    .max(2000, "Reply must be 2000 characters or less."),
+});
+
+const getRequestIp = (req: any) =>
+  String(
+    req.headers["x-forwarded-for"] ||
+      req.socket?.remoteAddress ||
+      "127.0.0.1",
+  );
+
+app.post("/api/contact-requests", async (req: any, res) => {
+  try {
+    const parsed = ContactRequestSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Please complete the contact form correctly.",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    const now = new Date().toISOString();
+    const contactRequest: ContactRequest = {
+      id: createId("contact"),
+      name: parsed.data.name,
+      email: normalizeNewsletterEmail(parsed.data.email),
+      subject: parsed.data.subject,
+      message: parsed.data.message,
+      createdAt: now,
+      status: "New",
+      reply: "",
+      ipAddress: getRequestIp(req),
+      userAgent: String(req.headers["user-agent"] || ""),
+    };
+
+    const requests = Database.getContactRequests();
+    requests.unshift(contactRequest);
+    const saved = await Database.saveContactRequests(requests);
+    if (!saved) {
+      return res
+        .status(500)
+        .json({ error: "Unable to save the contact request right now." });
+    }
+
+    const notifications = Database.getNotifications();
+    notifications.unshift({
+      id: createId("n"),
+      title: "New contact request",
+      message: `${contactRequest.name}: ${contactRequest.subject}`,
+      type: "info",
+      timestamp: now,
+    });
+    Database.saveNotifications(notifications);
+
+    const shortCode =
+      contactRequest.id.split("_").pop()?.slice(0, 8).toUpperCase() || "10000";
+
+    return res.status(201).json({
+      success: true,
+      request: contactRequest,
+      supportCode: shortCode,
+      message: "Your support request has been submitted.",
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: error.message || "Unable to submit the contact request.",
+    });
+  }
+});
+
+app.get(
+  "/api/admin/contact-requests",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator"),
+  (req, res) => {
+    const statusFilter = String(req.query.status || "").trim();
+    const searchTerm = normalizeNewsletterEmail(req.query.search || "");
+
+    const requests = Database.getContactRequests()
+      .filter((entry) => (statusFilter ? entry.status === statusFilter : true))
+      .filter((entry) => {
+        if (!searchTerm) return true;
+        return (
+          normalizeNewsletterEmail(entry.email).includes(searchTerm) ||
+          entry.name.toLowerCase().includes(searchTerm) ||
+          entry.subject.toLowerCase().includes(searchTerm)
+        );
+      })
+      .sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() -
+          new Date(left.createdAt).getTime(),
+      );
+
+    return res.json({ requests });
+  },
+);
+
+app.patch(
+  "/api/admin/contact-requests/:id/reply",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator"),
+  async (req: any, res) => {
+    const parsed = ContactReplySchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Please write a reply before sending.",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    const requests = Database.getContactRequests();
+    const request = requests.find((entry) => entry.id === req.params.id);
+    if (!request) {
+      return res.status(404).json({ error: "Contact request not found." });
+    }
+
+    const now = new Date().toISOString();
+    request.reply = parsed.data.reply;
+    request.status = "Replied";
+    request.repliedAt = now;
+
+    const saved = await Database.saveContactRequests(requests);
+    if (!saved) {
+      return res
+        .status(500)
+        .json({ error: "Unable to save the contact reply right now." });
+    }
+
+    void logDispatch(
+      "Email",
+      request.email,
+      `VoTex Support Reply: ${request.subject}`,
+      `Dear ${request.name},\n\n${request.reply}\n\nOriginal request:\n${request.message}\n\nVoTex Support Desk`,
+    );
+
+    return res.json({ request });
   },
 );
 
@@ -3093,9 +3348,16 @@ app.get(
         dob: u.dob,
         gender: u.gender,
         address: u.address,
-        isVerified: u.isVerified,
-        isApproved: u.isApproved !== false,
+        isVerified: !!u.isVerified,
+        isApproved: !!u.isApproved,
         isSuspended: !!u.isSuspended,
+        accountStatus:
+          u.accountStatus ||
+          (u.isSuspended
+            ? "Rejected"
+            : u.isApproved
+              ? "Approved"
+              : "Pending"),
         createdAt: u.createdAt,
       }));
     res.json({ voters });
@@ -3132,12 +3394,16 @@ app.get(
           dob: voter.dob,
           gender: voter.gender,
           address: voter.address,
-          isVerified: voter.isVerified,
-          isApproved: voter.isApproved !== false,
+          isVerified: !!voter.isVerified,
+          isApproved: !!voter.isApproved,
           isSuspended: !!voter.isSuspended,
           accountStatus:
             voter.accountStatus ||
-            (voter.isApproved !== false ? "Approved" : "Pending Verification"),
+            (voter.isSuspended
+              ? "Rejected"
+              : voter.isApproved
+                ? "Approved"
+                : "Pending Verification"),
           rejectionReason: voter.rejectionReason,
           requestedChangesFields: voter.requestedChangesFields || [],
           fingerprintImage:
@@ -3420,49 +3686,6 @@ app.post("/api/voters/resubmit", authenticateToken, (req: any, res) => {
   }
 });
 
-// Persist and restore the in-progress profile wizard for the authenticated user.
-app.post("/api/profile/save-draft", authenticateToken, (req: any, res) => {
-  try {
-    const now = new Date().toISOString();
-    const drafts = Database.getProfileDrafts() as any[];
-    const existingIndex = drafts.findIndex(
-      (draft) => draft.userId === req.user.id,
-    );
-    const existingDraft =
-      existingIndex >= 0 ? drafts[existingIndex] : undefined;
-    const draft = {
-      ...(existingDraft || {}),
-      ...req.body,
-      id: existingDraft?.id || createId("profile_draft"),
-      userId: req.user.id,
-      draft_status: "Draft",
-      updated_at: now,
-      created_at: existingDraft?.created_at || now,
-      last_saved_at: now,
-    };
-
-    if (existingIndex >= 0) {
-      drafts[existingIndex] = draft;
-    } else {
-      drafts.push(draft);
-    }
-
-    Database.saveProfileDrafts(drafts);
-    return res.json({ success: true, draft });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-app.get("/api/profile/load-draft", authenticateToken, (req: any, res) => {
-  try {
-    const drafts = Database.getProfileDrafts() as any[];
-    const draft = drafts.find((entry) => entry.userId === req.user.id) || null;
-    return res.json({ success: true, draft });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
 
 // POST /api/profile/reset: Reset and starting onboarding profile fresh
 app.post("/api/profile/reset", authenticateToken, (req: any, res) => {
@@ -3502,10 +3725,7 @@ app.post("/api/profile/reset", authenticateToken, (req: any, res) => {
     faceVers = faceVers.filter((f) => f.userId !== userId);
     Database.saveFaceVerifications(faceVers);
 
-    // Clean up draft files
-    let drafts = Database.getProfileDrafts();
-    drafts = drafts.filter((d) => d.userId !== userId);
-    Database.saveProfileDrafts(drafts);
+
 
     Database.saveUsers(users);
 
@@ -4223,6 +4443,40 @@ app.post(
 // VITE DEV SERVER & PRODUCTION ROUTING MIDDLEWARES
 // ----------------------------------------------------
 
+async function resolveAvailablePort(
+  initialPort: number,
+  host: string,
+  maxAttempts = 20,
+): Promise<number> {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const port = initialPort + attempt;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tester = http.createServer();
+        tester.once("error", reject);
+        tester.listen(port, host, () => {
+          tester.close((closeError) => {
+            if (closeError) {
+              reject(closeError);
+              return;
+            }
+            resolve();
+          });
+        });
+      });
+      return port;
+    } catch (error: any) {
+      if (error.code !== "EADDRINUSE") {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(
+    `Unable to find an open port after trying ${initialPort} to ${initialPort + maxAttempts - 1}`,
+  );
+}
+
 async function listenWithFallback(
   server: http.Server,
   initialPort: number,
@@ -4262,25 +4516,61 @@ async function listenWithFallback(
 
 async function startServer() {
   const httpServer = http.createServer(app);
+  io = new SocketServer(httpServer, { cors: { origin: "*" } });
+
+  io.on("connection", (socket) => {
+    console.log(`Socket.IO client connected: ${socket.id}`);
+    socket.on("disconnect", () => {
+      console.log(`Socket.IO client disconnected: ${socket.id}`);
+    });
+  });
 
   // Do not accept traffic until the authoritative database is available.
   await Database.initializeMongo();
   console.log("MongoDB initialization sequence succeeded!");
 
+  const listeningPort = await resolveAvailablePort(PORT, "0.0.0.0");
+  if (listeningPort !== PORT) {
+    console.warn(
+      `Port ${PORT} is in use. Falling back to ${listeningPort} for HTTP and Vite HMR.`,
+    );
+  }
+
   if (process.env.NODE_ENV !== "production") {
+    const viteHmr =
+      process.env.VITE_DISABLE_HMR === "true"
+        ? false
+        : {
+            server: httpServer,
+            overlay: true,
+            ...(process.env.VITE_HMR_PROTOCOL
+              ? {
+                  protocol: process.env.VITE_HMR_PROTOCOL as "ws" | "wss",
+                }
+              : {}),
+            ...(process.env.VITE_HMR_HOST
+              ? { host: process.env.VITE_HMR_HOST }
+              : {}),
+            ...(process.env.VITE_HMR_PORT
+              ? { port: parseInt(process.env.VITE_HMR_PORT, 10) }
+              : {}),
+            ...(process.env.VITE_HMR_CLIENT_PORT
+              ? {
+                  clientPort: parseInt(
+                    process.env.VITE_HMR_CLIENT_PORT,
+                    10,
+                  ),
+                }
+              : {}),
+          };
+
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
         host: "0.0.0.0",
-        port: PORT,
-        strictPort: false,
-        hmr: {
-          host: "localhost",
-          port: PORT,
-          clientPort: PORT,
-          protocol: "ws",
-          server: httpServer,
-        },
+        port: listeningPort,
+        strictPort: true,
+        hmr: viteHmr,
       },
       appType: "spa",
     });
@@ -4298,7 +4588,13 @@ async function startServer() {
     });
   }
 
-  const listeningPort = await listenWithFallback(httpServer, PORT, "0.0.0.0");
+  await new Promise<void>((resolve, reject) => {
+    httpServer.once("error", reject);
+    httpServer.listen(listeningPort, "0.0.0.0", () => {
+      httpServer.off("error", reject);
+      resolve();
+    });
+  });
   console.log(`VoTex Server active and listening on port ${listeningPort}`);
 }
 

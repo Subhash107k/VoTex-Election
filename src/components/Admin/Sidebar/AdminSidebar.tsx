@@ -15,6 +15,7 @@ import {
   Users,
   Vote,
   WalletCards,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ThemeMode } from "../../../types/auth.ts";
@@ -27,6 +28,8 @@ interface AdminSidebarProps {
   onToggleCollapsed: () => void;
   onLogout: () => void;
   theme: ThemeMode;
+  mobileMenuOpen?: boolean;
+  setMobileMenuOpen?: (open: boolean) => void;
 }
 
 const items: Array<{ id: string; label: string; icon: ReactNode }> = [
@@ -83,12 +86,16 @@ export default function AdminSidebar({
   onToggleCollapsed,
   onLogout,
   theme,
+  mobileMenuOpen,
+  setMobileMenuOpen,
 }: AdminSidebarProps) {
   const isLight = theme === "light";
 
   return (
     <aside
-      className={`flex shrink-0 flex-col border-b border-slate-200/70 bg-white/90 p-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 md:min-h-screen md:w-64 md:border-b-0 md:border-r ${collapsed ? "md:w-20" : "md:w-64"}`}
+      className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r border-slate-200/70 bg-white/90 p-3 backdrop-blur transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900/90 md:relative md:min-h-screen md:translate-x-0 ${
+        mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      } ${collapsed ? "md:w-20" : "md:w-64"} w-64`}
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -106,6 +113,15 @@ export default function AdminSidebar({
             </div>
           ) : null}
         </div>
+        {setMobileMenuOpen && (
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onToggleCollapsed}

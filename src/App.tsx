@@ -16,6 +16,7 @@ import {
   resetPassword,
   updateUserPreferences,
 } from "./services/authService.ts";
+import { ApiError } from "./services/apiClient.ts";
 import type {
   ForgotPasswordForm,
   ForgotPasswordStep,
@@ -92,6 +93,14 @@ function isSessionErrorMessage(message: string) {
   );
 }
 
+function isInvalidSessionError(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    [401, 403, 404].includes(error.status) &&
+    /token|session|identity|auth/i.test(error.message)
+  );
+}
+
 function calculateAge(dobString: string) {
   const dobDate = new Date(dobString);
   if (Number.isNaN(dobDate.getTime())) return 0;
@@ -127,10 +136,11 @@ export default function App() {
   );
   const [forgotStep, setForgotStep] = useState<ForgotPasswordStep>("request");
 
-  const clearSession = (reason?: string) => {
+  const clearSession = (reason?: string, redirectPath: string = "/") => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
     setCurrentUser(null);
+    setCurrentPath(redirectPath);
 
     if (reason) {
       localStorage.setItem(LOGOUT_REASON_KEY, reason);
@@ -149,9 +159,15 @@ export default function App() {
     try {
       setLoading(true);
       const data = await getCurrentUser(token);
+      if (!data.user) {
+        clearSession("Your session ended. Please sign in again.", "/login");
+        return;
+      }
       setCurrentUser(data.user);
     } catch (error) {
-      console.error(error);
+      if (!isInvalidSessionError(error)) {
+        console.error(error);
+      }
       clearSession("Your session ended. Please sign in again.");
       setCurrentPath("/login");
     } finally {
@@ -180,9 +196,15 @@ export default function App() {
       try {
         const data = await getCurrentUser(token);
         if (!active) return;
+        if (!data.user) {
+          clearSession("Your session ended. Please sign in again.", "/login");
+          return;
+        }
         setCurrentUser(data.user);
       } catch (error) {
-        console.error(error);
+        if (!isInvalidSessionError(error)) {
+          console.error(error);
+        }
         if (!active) return;
         clearSession("Your session ended. Please sign in again.");
         setCurrentPath("/login");
@@ -226,9 +248,11 @@ export default function App() {
     };
   }, [token, currentPath]);
 
-  const getHomePath = (role: User["role"]) => {
-    const homeByRole: Record<User["role"], string> = {
-      Voter: "/votexDashboard",
+  const getHomePath = (u: User) => {
+    if (u.role === "Voter") {
+      return u.isProfileComplete ? "/votexDashboard" : "/profile/edit";
+    }
+    const homeByRole: Record<string, string> = {
       Candidate: "/candidate",
       Administrator: "/admin",
       "Super Administrator": "/admin",
@@ -239,11 +263,16 @@ export default function App() {
       "Support Staff": "/admin",
     };
 
-    return homeByRole[role] ?? "/login";
+    return homeByRole[u.role] ?? "/login";
   };
 
   useEffect(() => {
     if (currentUser) {
+      if (currentUser.role === "Voter" && !currentUser.isProfileComplete && currentPath !== "/profile/edit") {
+        setCurrentPath("/profile/edit");
+        return;
+      }
+
       const authPages = new Set([
         "/",
         "/login",
@@ -251,11 +280,10 @@ export default function App() {
         "/forgot_password",
         "/forgot-password",
         "/admin/login",
-        "/votexDashboard",
       ]);
 
       if (authPages.has(currentPath)) {
-        setCurrentPath(getHomePath(currentUser.role));
+        setCurrentPath(getHomePath(currentUser));
       }
       return;
     }
@@ -354,13 +382,12 @@ export default function App() {
       setLoading(true);
       const authResult = await loginAccount(loginForm);
       const profileResult = await getCurrentUser(authResult.token);
+      if (!profileResult.user) {
+        throw new Error("Your session ended. Please sign in again.");
+      }
       showToast("Signed in successfully.");
       saveSession(authResult.token, profileResult.user);
-      setCurrentPath(
-        profileResult.user.role === "Voter"
-          ? "/votexDashboard"
-          : getHomePath(profileResult.user.role),
-      );
+      setCurrentPath(getHomePath(profileResult.user));
     } catch (error) {
       showToast(getErrorMessage(error), "error");
     } finally {
@@ -422,12 +449,15 @@ export default function App() {
               </div>
             </main>
           ) : currentUser && token ? (
-            currentUser.role === "Voter" && currentPath === "/profile/edit" ? (
+            currentUser.role === "Voter" && (!currentUser.isProfileComplete || currentPath === "/profile/edit") ? (
               <CompleteProfile
                 token={token}
                 user={currentUser}
                 onLogout={handleLogout}
-                onComplete={setCurrentUser}
+                onComplete={(updatedUser) => {
+                  setCurrentUser(updatedUser);
+                  setCurrentPath("/votexDashboard");
+                }}
                 setCurrentPath={setCurrentPath}
                 theme={theme}
                 setTheme={setTheme}

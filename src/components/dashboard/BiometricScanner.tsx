@@ -104,6 +104,16 @@ const LANDMARK_INDICES = {
   RIGHT_EYE_BOTTOM: 374,
 } as const;
 
+const MIN_VIDEO_READY_STATE = 2;
+
+const hasUsableVideoFrame = (
+  video: HTMLVideoElement | null,
+): video is HTMLVideoElement =>
+  !!video &&
+  video.readyState >= MIN_VIDEO_READY_STATE &&
+  video.videoWidth > 0 &&
+  video.videoHeight > 0;
+
 // ==================== Utility Functions ====================
 const calculateDistance = (
   a: FaceLandmarkPosition,
@@ -272,7 +282,7 @@ export default function BiometricScanner({
   const [eyesClosed, setEyesClosed] = useState(false);
   const [lighting, setLighting] = useState<LightingCondition>("Optimal");
   const [quality, setQuality] = useState<ImageQuality>("Optimal");
-  const [faceCount, setFaceCount] = useState(1);
+  const [faceCount, setFaceCount] = useState(0);
   const [backgroundPlane, setBackgroundPlane] =
     useState<BackgroundPlane>("Stable");
   const [facePlane, setFacePlane] = useState<FacePlane>("Unknown");
@@ -387,6 +397,12 @@ export default function BiometricScanner({
       setCameraActive(true);
       setIsSimulated(true);
       setScanStep("aligning");
+      setCountdown(null);
+      setFaceCount(0);
+      setValidationResults({});
+      setGuidanceMessage(
+        "Camera access is blocked. Allow camera permission or retry capture.",
+      );
       setBiometricsLog([
         "Hardware camera blocked or unavailable.",
         "BOOTING HIGH-FIDELITY BIOMETRIC HOLO-SIMULATION FRAMEWORK...",
@@ -421,7 +437,8 @@ export default function BiometricScanner({
   }, [mode]);
 
   useEffect(() => {
-    if (!cameraActive || scannerMode !== "face-api") return;
+    if (!cameraActive || isSimulated || !stream || scannerMode !== "face-api")
+      return;
 
     let isActive = true;
 
@@ -459,7 +476,7 @@ export default function BiometricScanner({
     return () => {
       isActive = false;
     };
-  }, [cameraActive, scannerMode]);
+  }, [cameraActive, isSimulated, stream, scannerMode]);
 
   // ==================== Validation Logic ====================
   const buildValidation = useCallback(
@@ -738,7 +755,7 @@ export default function BiometricScanner({
     async (
       predictions: faceLandmarksDetection.Face[],
     ): Promise<FaceCaptureResult | null> => {
-      if (!videoRef.current || !canvasRef.current) {
+      if (!hasUsableVideoFrame(videoRef.current) || !canvasRef.current) {
         return null;
       }
 
@@ -866,10 +883,11 @@ export default function BiometricScanner({
       "Performing passport-standard alignment and quality validation...",
     ]);
 
-    if (!videoRef.current) {
+    const video = videoRef.current;
+    if (!hasUsableVideoFrame(video)) {
       setBiometricsLog((prev) => [
         ...prev,
-        "⚠ Capture aborted: video feed unavailable.",
+        "⚠ Capture aborted: camera frame is unavailable. Enable camera access and retry.",
       ]);
       setScanStep("aligning");
       isProcessingRef.current = false;
@@ -880,7 +898,7 @@ export default function BiometricScanner({
       let predictions: faceLandmarksDetection.Face[] = [];
 
       if (detector) {
-        predictions = await detector.estimateFaces(videoRef.current, {
+        predictions = await detector.estimateFaces(video, {
           flipHorizontal: true,
         });
       }
@@ -937,7 +955,8 @@ export default function BiometricScanner({
 
   // ==================== Face Detection Loop ====================
   useEffect(() => {
-    if (!cameraActive || scannerMode !== "face-api" || !detector) return;
+    if (!cameraActive || isSimulated || !stream || scannerMode !== "face-api" || !detector)
+      return;
 
     let isActive = true;
 
@@ -945,7 +964,7 @@ export default function BiometricScanner({
       if (!isActive || !videoRef.current) return;
 
       const video = videoRef.current;
-      if (video.readyState < 2) {
+      if (!hasUsableVideoFrame(video)) {
         animationFrameRef.current = requestAnimationFrame(runDetection);
         return;
       }
@@ -1186,6 +1205,8 @@ export default function BiometricScanner({
     };
   }, [
     cameraActive,
+    isSimulated,
+    stream,
     scannerMode,
     detector,
     computeValidationState,
@@ -1255,6 +1276,8 @@ export default function BiometricScanner({
   useEffect(() => {
     if (
       !cameraActive ||
+      isSimulated ||
+      !stream ||
       scanStep === "registered" ||
       scanStep === "processing"
     ) {
@@ -1322,6 +1345,8 @@ export default function BiometricScanner({
   }, [
     isValidReady,
     cameraActive,
+    isSimulated,
+    stream,
     scanStep,
     countdown,
     handleAutoTriggerCapture,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import ProfileHeader from "./ProfileHeader";
 import ProfileCard from "./ProfileCard";
 import SummarySidebar from "./SummarySidebar";
@@ -8,21 +8,25 @@ import FaceVerification from "../../pages/FaceVerification";
 import FamilyTable from "./FamilyTable";
 import Timeline from "./Timeline";
 import DocumentViewerModal from "./DocumentViewerModal";
+import ComprehensiveProfile from "./ComprehensiveProfile";
+import DashboardStatsCards from "./DashboardStatsCards";
+import DashboardHeroBanner from "./DashboardHeroBanner";
+import VoterDashboardHeader from "./VoterDashboardHeader";
 import useProfile from "../../hooks/useProfile";
 import {
-  Bell,
-  LogOut,
-  Shield,
   User,
   FileText,
   RefreshCw,
-  Menu,
-  X,
   Activity,
   Clock,
   Users,
   CheckCircle2,
   AlertCircle,
+  Vote,
+  ShieldCheck,
+  Eye,
+  Edit,
+  X,
 } from "lucide-react";
 
 export default function VoterDashboard({
@@ -30,11 +34,15 @@ export default function VoterDashboard({
   user,
   onLogout,
   setCurrentPath,
+  theme,
+  setTheme,
 }: {
   token: string;
   user?: any;
   onLogout: () => void;
   setCurrentPath: (path: string) => void;
+  theme?: string;
+  setTheme?: (t: string) => void;
 }) {
   const { profile, loading, error, reload } = useProfile(token);
   const safeProfile = profile || {
@@ -48,23 +56,142 @@ export default function VoterDashboard({
     verificationStatus: user?.accountStatus || "Pending",
     createdAt: user?.createdAt || new Date().toISOString(),
     updatedAt: user?.updatedAt || user?.createdAt || new Date().toISOString(),
-    completion: user?.profileCompletionPercent || 0,
+    completion: user?.profileCompletionPercent || 100,
   };
+
+  const fallbackDocuments = useMemo(() => {
+    if (Array.isArray(safeProfile?.documents) && safeProfile.documents.length) {
+      return safeProfile.documents;
+    }
+
+    const profileSource = safeProfile?.profile || {};
+    const documentSource = safeProfile?.document || {};
+    const items: any[] = [];
+
+    const addDocument = (url?: string, label?: string, extra: any = {}) => {
+      if (!url) return;
+      items.push({
+        id: `${label || "document"}-${items.length}`,
+        url,
+        label: label || "Document",
+        ...extra,
+      });
+    };
+
+    addDocument(
+      profileSource.citizenshipFrontImage ||
+        documentSource.citizenshipFrontImage,
+      "Citizenship (Front)",
+      {
+        documentNumber:
+          profileSource.citizenshipNumber ||
+          documentSource.citizenshipNumber ||
+          user?.nationalID,
+        issueDate:
+          profileSource.citizenshipIssueDate || documentSource.issueDate,
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    addDocument(
+      profileSource.citizenshipBackImage || documentSource.citizenshipBackImage,
+      "Citizenship (Back)",
+      {
+        documentNumber:
+          profileSource.citizenshipNumber ||
+          documentSource.citizenshipNumber ||
+          user?.nationalID,
+        issueDate:
+          profileSource.citizenshipIssueDate || documentSource.issueDate,
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    addDocument(
+      profileSource.nidFrontImage || documentSource.nidFrontImage,
+      "National ID (Front)",
+      {
+        documentNumber: profileSource.nidNumber || user?.nationalID,
+        issueDate: profileSource.nidIssueDate || documentSource.issueDate,
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    addDocument(
+      profileSource.signatureImage || documentSource.signatureImage,
+      "Signature",
+      {
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    return items;
+  }, [safeProfile, user]);
+
+  const dashboardProfile = {
+    ...safeProfile,
+    documents: fallbackDocuments,
+    family: safeProfile?.family?.length
+      ? safeProfile.family
+      : Array.isArray(safeProfile?.profile?.familyMembers)
+        ? safeProfile.profile.familyMembers.map(
+            (member: any, index: number) => ({
+              id:
+                member?.id ||
+                member?._id ||
+                `${user?.id || "user"}-family-${index}`,
+              name: member?.name || member?.fullName || "Family Member",
+              relation: member?.relation || member?.relationship || "Other",
+              relationship: member?.relationship || member?.relation || "Other",
+              ...member,
+            }),
+          )
+        : [],
+  };
+
+  const renderProfile = dashboardProfile;
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [showFaceModal, setShowFaceModal] = useState(false);
+  const [showProfileDossier, setShowProfileDossier] = useState(false);
   const [currentElection, setCurrentElection] = useState<any | null>(null);
   const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
   >("overview");
-  const notificationCount = 3;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await reload();
-    setTimeout(() => setIsRefreshing(false), 1000);
+    setTimeout(() => setIsRefreshing(false), 800);
   };
 
   const handleDownload = async (url?: string, name?: string) => {
@@ -85,7 +212,7 @@ export default function VoterDashboard({
   };
 
   const handleDownloadAll = () => {
-    (profile?.documents || []).forEach((d: any) => {
+    (renderProfile?.documents || []).forEach((d: any) => {
       if (d?.url) handleDownload(d.url, d.label || d.id);
     });
   };
@@ -96,15 +223,15 @@ export default function VoterDashboard({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400"></div>
-            <Shield className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="h-16 w-16 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+            <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-7 w-7 text-blue-400" />
           </div>
-          <div className="text-lg font-medium text-slate-700 dark:text-slate-300 animate-pulse">
-            Loading your digital identity...
-          </div>
+          <p className="text-sm font-semibold text-slate-300 animate-pulse">
+            Loading secure voter dashboard...
+          </p>
         </div>
       </div>
     );
@@ -112,197 +239,156 @@ export default function VoterDashboard({
 
   if (error) {
     return (
-      <div className="min-h-screen p-6 bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-        <div className="max-w-md mx-auto mt-20">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-red-200 dark:border-red-900/50 p-6 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="font-semibold text-lg text-red-800 dark:text-red-300">
-                Authentication Error
-              </h3>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
+        <div className="max-w-md w-full rounded-3xl border border-red-500/30 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20">
+              <AlertCircle className="h-6 w-6 text-red-400" />
             </div>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">{error}</p>
-            <button
-              onClick={handleRefresh}
-              className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-slate-700 dark:text-slate-300 font-medium flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" /> Try Again
-            </button>
+            <div>
+              <h3 className="font-bold text-lg text-white">
+                Dashboard Sync Error
+              </h3>
+              <p className="text-xs text-slate-400">
+                Authentication token or network retry needed
+              </p>
+            </div>
           </div>
+          <p className="text-xs text-slate-300 mb-5 leading-relaxed">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="w-full py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry Sync
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
-      {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-700/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div className="hidden sm:block">
-                  <div className="font-bold text-lg text-slate-800 dark:text-white leading-tight">
-                    National Digital Identity
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Government Portal
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans transition-colors selection:bg-blue-500 selection:text-white">
+      {/* Top Navigation Header */}
+      <VoterDashboardHeader
+        user={user}
+        onLogout={onLogout}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        currentPath="/votexDashboard"
+        setCurrentPath={setCurrentPath}
+        theme={theme}
+        setTheme={setTheme}
+      />
 
-            {/* Mobile menu button */}
-            <div className="sm:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-                ) : (
-                  <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-                )}
-              </button>
-            </div>
+      {/* Main Container */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-6">
+        {/* Hero Welcome & Countdown Banner */}
+        <DashboardHeroBanner
+          user={user}
+          onVoteClick={() => setActiveTab("elections")}
+        />
 
-            {/* Desktop navigation */}
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                onClick={() => setActiveTab("elections")}
-                className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
-                  activeTab === "elections"
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600"
-                    : "text-slate-600 dark:text-slate-400"
-                }`}
-              >
-                Elections
-              </button>
+        {/* Real-time Statistics Cards */}
+        <DashboardStatsCards token={token} user={user} />
 
-              <button
-                onClick={() => setActiveTab("myVotes")}
-                className={`px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium ${
-                  activeTab === "myVotes"
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600"
-                    : "text-slate-600 dark:text-slate-400"
-                }`}
-              >
-                My Votes
-              </button>
-
-              <button className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
-                <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors" />
-                {notificationCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
-                    {notificationCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={handleRefresh}
-                className={`p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group ${isRefreshing ? "animate-spin" : ""}`}
-              >
-                <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors" />
-              </button>
-
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
-              >
-                <LogOut className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                  Sign Out
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="sm:hidden border-t border-slate-200 dark:border-slate-700 py-3 space-y-2">
-              <div className="flex items-center justify-between px-2">
-                <div className="flex gap-2">
-                  <button className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  </button>
-                  <button
-                    onClick={handleRefresh}
-                    className={`p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isRefreshing ? "animate-spin" : ""}`}
-                  >
-                    <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  </button>
-                </div>
-              </div>
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <LogOut className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                  Sign Out
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Mobile Tab Navigation */}
-        <div className="lg:hidden mb-6 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700">
-          <div className="grid grid-cols-6 gap-1">
+        {/* Tab Navigation Pill Selector (Mobile & Desktop) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-1.5 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {[
               { id: "overview", label: "Overview", icon: User },
-              { id: "documents", label: "Docs", icon: FileText },
-              { id: "family", label: "Family", icon: Users },
-              { id: "timeline", label: "History", icon: Clock },
-              { id: "elections", label: "Elections", icon: Activity },
-              { id: "myVotes", label: "My Votes", icon: CheckCircle2 },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`p-2 rounded-lg text-xs font-medium transition-all flex flex-col items-center gap-1 ${
-                  activeTab === tab.id
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
+              { id: "elections", label: "Active Elections", icon: Activity },
+              { id: "documents", label: "Documents Vault", icon: FileText },
+              { id: "family", label: "Family & Audit", icon: Users },
+              { id: "timeline", label: "Timeline History", icon: Clock },
+              {
+                id: "myVotes",
+                label: "My Ballots & Receipts",
+                icon: CheckCircle2,
+              },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
+                    active
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
+                      : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {/* Grid Content Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content Area */}
-          <section
-            className={`lg:col-span-2 space-y-6 ${activeTab !== "overview" ? "hidden lg:block" : ""}`}
-          >
-            <ProfileHeader profile={safeProfile} />
+          {/* Main Left Column */}
+          <section className="lg:col-span-2 space-y-6">
+            {/* Overview Tab Content */}
+            {activeTab === "overview" && (
+              <>
+                <ProfileHeader profile={renderProfile} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <div className="xl:col-span-2">
-                <ProfileCard profile={safeProfile} />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2">
+                    <ProfileCard profile={renderProfile} />
+                  </div>
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                          Security Dossier
+                        </span>
+                        <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">
+                        Full Biometric Dossier
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                        Inspect every stored personal field, document status,
+                        address, and verification timeline.
+                      </p>
+                    </div>
 
+                    <div className="mt-4 space-y-2">
+                      <button
+                        onClick={() => setShowProfileDossier(true)}
+                        className="w-full py-2.5 px-3 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" /> View Full Profile Dossier
+                      </button>
+                      <button
+                        onClick={handleEditProfile}
+                        className="w-full py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                      >
+                        <Edit className="h-4 w-4" /> Edit Profile Settings
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Elections Tab */}
             {activeTab === "elections" && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">
-                  Elections
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-xl text-white tracking-tight">
+                    Active Elections & Contesting Candidates
+                  </h3>
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                    Live Polling Open
+                  </span>
+                </div>
+
                 <ElectionList
                   token={token}
                   onVote={(e: any, c: any) => {
@@ -314,73 +400,90 @@ export default function VoterDashboard({
               </div>
             )}
 
+            {/* My Votes Tab */}
             {activeTab === "myVotes" && (
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-3">
-                  My Votes
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Your voting history and receipts will appear here.
-                </p>
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                  <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                    <Vote className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-white">
+                      Digital Ballot Receipts & Verification
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Cryptographically sealed votes logged in real-time.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+                  <h4 className="text-sm font-bold text-white">
+                    Your Ballots are Authenticated
+                  </h4>
+                  <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
+                    When you cast a vote, your anonymous voter SHA-256 hash
+                    receipt will be displayed here for verification.
+                  </p>
+                </div>
               </div>
             )}
 
-            <div
-              className={`${activeTab === "documents" ? "block" : "hidden lg:block"}`}
-            >
+            {/* Documents Tab */}
+            {activeTab === "documents" && (
               <DocumentGallery
-                documents={safeProfile?.documents || []}
+                documents={renderProfile?.documents || []}
                 onView={(u?: string) => setViewerUrl(u || null)}
                 onDownload={handleDownload}
               />
-            </div>
+            )}
 
-            <div
-              className={`${activeTab === "timeline" ? "block" : "hidden lg:block"}`}
-            >
+            {/* Timeline Tab */}
+            {activeTab === "timeline" && (
               <Timeline items={safeProfile?.timeline || []} />
-            </div>
+            )}
 
-            <div
-              className={`${activeTab === "family" ? "block" : "hidden lg:block"}`}
-            >
+            {/* Family & Audit Tab */}
+            {activeTab === "family" && (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <FamilyTable family={safeProfile?.family || []} />
-                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                      <Activity className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <FamilyTable family={renderProfile?.family || []} />
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+                  <div className="flex items-center gap-3 mb-4 border-b border-slate-800 pb-3">
+                    <div className="p-2 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                      <Activity className="h-5 w-5 text-purple-400" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 dark:text-white">
-                      Audit History
+                    <h3 className="font-bold text-white text-sm">
+                      Security Audit History
                     </h3>
                   </div>
+
                   {(safeProfile?.audit || []).length === 0 ? (
                     <div className="text-center py-8">
-                      <CheckCircle2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        No audit records found
+                      <CheckCircle2 className="h-10 w-10 text-slate-600 mx-auto mb-2" />
+                      <p className="text-xs text-slate-400">
+                        No audit security violations detected
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-[340px] overflow-y-auto">
                       {safeProfile.audit.map((a: any) => (
                         <div
                           key={a.id}
-                          className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                          className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800"
                         >
-                          <div className="w-8 h-8 rounded-full bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shrink-0">
-                            <Activity className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                          <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+                            <Activity className="h-4 w-4 text-purple-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                            <p className="text-xs font-bold text-slate-200">
                               {a.action}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            <p className="text-[10px] text-slate-500 mt-0.5">
                               By {a.by || "System"}
                             </p>
                           </div>
-                          <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                          <span className="text-[10px] font-mono text-slate-400">
                             {new Date(a.at).toLocaleDateString()}
                           </span>
                         </div>
@@ -389,13 +492,13 @@ export default function VoterDashboard({
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </section>
 
-          {/* Sidebar */}
+          {/* Right Summary Sidebar Column */}
           <aside className="lg:col-span-1">
             <SummarySidebar
-              profile={profile}
+              profile={renderProfile}
               onEdit={handleEditProfile}
               onDownloadAll={handleDownloadAll}
             />
@@ -403,32 +506,59 @@ export default function VoterDashboard({
         </div>
       </main>
 
+      {/* Document Viewer Modal */}
       <DocumentViewerModal
         open={!!viewerUrl}
         url={viewerUrl}
         onClose={() => setViewerUrl(null)}
       />
 
+      {/* Full Profile Dossier Modal */}
+      {showProfileDossier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-slate-950 border border-slate-800 p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowProfileDossier(false)}
+              className="absolute top-5 right-5 p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <ComprehensiveProfile token={token} user={user} />
+          </div>
+        </div>
+      )}
+
+      {/* Live Face Verification Modal for Voting */}
       {showFaceModal && currentElection && currentCandidate && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-semibold">Verify and Cast Vote</h4>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+          <div className="w-full max-w-3xl rounded-3xl bg-slate-950 border border-slate-800 p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+              <div>
+                <h4 className="font-bold text-lg text-white">
+                  Encrypted Face Verification & Ballot Submission
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Target Candidate:{" "}
+                  <span className="font-semibold text-blue-400">
+                    {currentCandidate.label || currentCandidate.name}
+                  </span>
+                </p>
+              </div>
               <button
                 onClick={() => setShowFaceModal(false)}
-                className="text-slate-500"
+                className="p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
               >
-                Close
+                <X className="h-5 w-5" />
               </button>
             </div>
+
             <FaceVerification
               token={token}
               electionId={currentElection.id}
-              candidateLabel={currentCandidate.label}
+              candidateLabel={currentCandidate.label || currentCandidate.name}
               onBack={() => setShowFaceModal(false)}
               onVerified={async (result: any) => {
                 try {
-                  // Call vote endpoint
                   const { castVote } =
                     await import("../../services/electionService");
                   await castVote(token, {
@@ -437,7 +567,8 @@ export default function VoterDashboard({
                     faceVerificationId: result.verificationId,
                   });
                   setShowFaceModal(false);
-                  alert("Vote cast successfully.");
+                  alert("Digital Ballot Successfully Sealed & Cast.");
+                  void reload();
                 } catch (err: any) {
                   console.error(err);
                   alert(err?.message || "Failed to cast vote.");

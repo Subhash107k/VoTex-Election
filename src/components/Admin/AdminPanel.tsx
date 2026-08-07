@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { BellRing, Sparkles } from "lucide-react";
 import type { ThemeMode } from "../../types/auth.ts";
 import AdminSidebar from "./Sidebar/AdminSidebar.tsx";
@@ -10,8 +10,6 @@ import VotersPage from "../../pages/Admin/Voters/VotersPage.tsx";
 import SettingsPage from "../../pages/Admin/Settings/SettingsPage.tsx";
 import PartiesPage from "../../pages/Admin/Parties/PartiesPage.tsx";
 import ReportsPage from "../../pages/Admin/Reports/ReportsPage.tsx";
-import VerificationPage from "../../pages/Admin/Verification/VerificationPage.tsx";
-import DocumentsPage from "../../pages/Admin/Documents/DocumentsPage.tsx";
 import NotificationsPage from "../../pages/Admin/Notifications/NotificationsPage.tsx";
 import AnalyticsPage from "../../pages/Admin/Analytics/AnalyticsPage.tsx";
 import NewsletterPage from "../../pages/Admin/Newsletter/NewsletterPage.tsx";
@@ -56,6 +54,7 @@ export default function AdminPanel({
   theme,
   setTheme,
 }: AdminPanelProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const {
     stats,
     elections,
@@ -117,21 +116,35 @@ export default function AdminPanel({
       ) : null}
 
       <div className="flex min-h-screen flex-col md:flex-row">
+        {/* Mobile Backdrop */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
         <AdminSidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setMobileMenuOpen(false);
+          }}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
           onLogout={onLogout}
           theme={theme}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
         />
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
           <AdminTopbar
             theme={theme === "high-contrast" ? "dark" : theme}
             onToggleTheme={handleThemeToggle}
             onRefresh={() => window.location.reload()}
             onSearch={setSearchQuery}
+            onToggleMobileMenu={() => setMobileMenuOpen(true)}
           />
 
           <main className="flex-1 overflow-y-auto bg-slate-50/70 p-4 dark:bg-slate-950/70 md:p-6">
@@ -161,6 +174,7 @@ export default function AdminPanel({
                 <CandidatesPage
                   candidates={candidates}
                   elections={elections}
+                  token={token}
                   onCreateCandidate={async (payload) => {
                     await handleCreateOrUpdateCandidate(payload);
                   }}
@@ -174,6 +188,7 @@ export default function AdminPanel({
               {activeTab === "voters" ? (
                 <VotersPage
                   voters={voters}
+                  token={token}
                   onUpdateVoterStatus={handleUpdateVoterStatus}
                 />
               ) : null}
@@ -192,12 +207,11 @@ export default function AdminPanel({
                   description="Voting telemetry and ballot verification workflows will be surfaced here."
                 />
               ) : null}
-              {activeTab === "verification" ? <VerificationPage /> : null}
-              {activeTab === "documents" ? <DocumentsPage /> : null}
               {activeTab === "reports" ? <ReportsPage /> : null}
               {activeTab === "notifications" ? <NotificationsPage /> : null}
               {activeTab === "newsletter" ? (
                 <NewsletterPage
+                  token={token}
                   subscribers={newsletterSubscribers}
                   onUpdateStatus={handleUpdateNewsletterStatus}
                   onDeleteSubscriber={handleDeleteNewsletterSubscriber}
@@ -218,8 +232,6 @@ export default function AdminPanel({
                 "voters",
                 "parties",
                 "votes",
-                "verification",
-                "documents",
                 "reports",
                 "notifications",
                 "newsletter",

@@ -83,6 +83,7 @@ export default function SessionManager({
   const mouseMovementsRef = useRef<{ x: number; y: number; time: number }[]>(
     [],
   );
+  const isLoggingOutRef = useRef(false);
 
   // Time configurations
   const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 minutes
@@ -172,6 +173,8 @@ export default function SessionManager({
   // Enhanced secure logout with forensic cleanup
   const forceSecureLogout = useCallback(
     (reason: string = "Session Expired") => {
+      if (isLoggingOutRef.current) return;
+      isLoggingOutRef.current = true;
       console.log(`🔒 Force Secure Logout: ${reason}`);
 
       // Log security event
@@ -329,8 +332,11 @@ export default function SessionManager({
 
       const isAbruptMovement = avgSpeed > 500 || maxDistance > 200;
       const isStalledMovement = avgSpeed < 0.3 && distances.length > 8;
+      
+      const isProfilePage = window.location.pathname.includes("/profile") || window.location.pathname.includes("/complete-profile") || window.location.pathname.includes("/edit-profile");
 
       if (
+        !isProfilePage &&
         (isAbruptMovement || isStalledMovement) &&
         timeSinceLastWarning > warningCooldown
       ) {

@@ -15,6 +15,35 @@ type ApiResponseBody<T> = T & {
   message?: string;
 };
 
+const getConfiguredApiBaseUrl = () => {
+  const importMetaEnv = (
+    import.meta as ImportMeta & { env?: Record<string, string | undefined> }
+  ).env;
+  const envApiBaseUrl =
+    importMetaEnv?.VITE_API_BASE_URL ||
+    importMetaEnv?.VITE_API_URL ||
+    (typeof process !== "undefined" && process.env
+      ? process.env.VITE_API_BASE_URL || process.env.VITE_API_URL || ""
+      : "");
+
+  if (envApiBaseUrl) return envApiBaseUrl.replace(/\/$/, "");
+  return "";
+};
+
+export function buildApiUrl(path: string): string {
+  if (!path) return path;
+  if (/^https?:\/\//i.test(path) || path.startsWith("//")) {
+    return path;
+  }
+
+  const baseUrl = getConfiguredApiBaseUrl();
+  if (!baseUrl) {
+    return path;
+  }
+
+  return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export async function requestJson<T>(
   url: string,
   options: RequestInit = {},
@@ -45,7 +74,7 @@ export async function requestJson<T>(
   }
   options = { ...options, headers };
 
-  const response = await fetch(url, options);
+  const response = await fetch(buildApiUrl(url), options);
   const data = (await response.json().catch(() => ({}))) as ApiResponseBody<T>;
 
   if (!response.ok) {

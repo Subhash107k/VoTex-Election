@@ -16,7 +16,7 @@ interface PartiesPageProps {
   onRefresh: () => void;
 }
 
-interface PartyDraft {
+interface PartyFormData {
   id: string;
   name: string;
   code: string;
@@ -27,7 +27,7 @@ interface PartyDraft {
   headquarters: string;
 }
 
-const emptyDraft: PartyDraft = {
+const emptyFormData: PartyFormData = {
   id: "",
   name: "",
   code: "",
@@ -50,7 +50,7 @@ export default function PartiesPage({
   token,
   onRefresh,
 }: PartiesPageProps) {
-  const [draft, setDraft] = useState<PartyDraft>(emptyDraft);
+  const [formData, setFormData] = useState<PartyFormData>(emptyFormData);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -76,10 +76,10 @@ export default function PartiesPage({
         candidate.party === party.name || candidate.party === party.code,
     ).length;
 
-  const resetDraft = () => setDraft(emptyDraft);
+  const resetFormData = () => setFormData(emptyFormData);
 
   const startEdit = (party: PoliticalParty) => {
-    setDraft({
+    setFormData({
       id: party.id,
       name: party.name || "",
       code: party.code || "",
@@ -92,25 +92,25 @@ export default function PartiesPage({
   };
 
   const saveParty = async () => {
-    if (!draft.name.trim() || !draft.code.trim() || !draft.description.trim()) {
+    if (!formData.name.trim() || !formData.code.trim() || !formData.description.trim()) {
       alert("Party name, code, and description are required.");
       return;
     }
 
     try {
       setIsSaving(true);
-      const method = draft.id ? "PUT" : "POST";
+      const method = formData.id ? "PUT" : "POST";
       await requestJson(
-        draft.id ? `/api/parties/${draft.id}` : "/api/parties",
+        formData.id ? `/api/parties/${formData.id}` : "/api/parties",
         {
-          ...jsonRequestOptions(method, draft),
+          ...jsonRequestOptions(method, formData),
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         },
       );
-      resetDraft();
+      resetFormData();
       onRefresh();
     } catch (error) {
       alert(
@@ -174,7 +174,7 @@ export default function PartiesPage({
             </div>
             <button
               type="button"
-              onClick={resetDraft}
+              onClick={resetFormData}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-800"
             >
               New party
@@ -233,7 +233,7 @@ export default function PartiesPage({
         </SectionCard>
 
         <SectionCard
-          title={draft.id ? "Edit party" : "Add party"}
+          title={formData.id ? "Edit party" : "Add party"}
           description="Create or update a party registry entry."
         >
           <div className="space-y-3">
@@ -257,9 +257,9 @@ export default function PartiesPage({
                       ? "Founded year"
                       : field.charAt(0).toUpperCase() + field.slice(1)
                 }
-                value={draft[field]}
+                value={formData[field]}
                 onChange={(event) =>
-                  setDraft({ ...draft, [field]: event.target.value })
+                  setFormData({ ...formData, [field]: event.target.value })
                 }
               />
             ))}
@@ -268,7 +268,7 @@ export default function PartiesPage({
                 <button
                   key={logo}
                   type="button"
-                  onClick={() => setDraft({ ...draft, logoUrl: logo })}
+                  onClick={() => setFormData({ ...formData, logoUrl: logo })}
                   className="rounded-full border border-slate-200 px-3 py-1 text-xs dark:border-slate-800"
                 >
                   Use preset logo
@@ -278,9 +278,9 @@ export default function PartiesPage({
             <textarea
               className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
               placeholder="Description"
-              value={draft.description}
+              value={formData.description}
               onChange={(event) =>
-                setDraft({ ...draft, description: event.target.value })
+                setFormData({ ...formData, description: event.target.value })
               }
             />
             <div className="flex gap-2">
@@ -293,14 +293,14 @@ export default function PartiesPage({
                 <Upload className="h-4 w-4" />{" "}
                 {isSaving
                   ? "Saving..."
-                  : draft.id
+                  : formData.id
                     ? "Update party"
                     : "Save party"}
               </button>
-              {draft.id ? (
+              {formData.id ? (
                 <button
                   type="button"
-                  onClick={resetDraft}
+                  onClick={resetFormData}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-800"
                 >
                   Cancel

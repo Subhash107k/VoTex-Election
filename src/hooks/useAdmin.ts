@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
+import {
   AuditLog,
   Candidate,
   DashboardStats,
@@ -10,6 +10,7 @@ import type {
   PoliticalParty,
   User,
 } from "../types.js";
+import { useRealTimeSync } from "./useRealTimeSync.js";
 
 export type AdminTab =
   | "dashboard"
@@ -18,8 +19,6 @@ export type AdminTab =
   | "voters"
   | "parties"
   | "votes"
-  | "verification"
-  | "documents"
   | "reports"
   | "notifications"
   | "newsletter"
@@ -289,6 +288,9 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  // Listen to real-time events and refresh admin data
+  useRealTimeSync({ onRefresh: fetchData, token });
 
   const handleCreateOrUpdateElection = useCallback(
     async (payload: ElectionFormValues) => {

@@ -372,13 +372,22 @@ export default defineConfig(({ command, mode }) => {
       open: env.VITE_OPEN_BROWSER === "true",
 
       // HMR
-      hmr: {
-        overlay: true,
-        protocol: "ws",
-        host: "localhost",
-        port: parseInt(env.VITE_HMR_PORT || env.PORT || "3000"),
-        clientPort: parseInt(env.VITE_HMR_PORT || env.PORT || "3000"),
-      },
+      hmr:
+        env.VITE_DISABLE_HMR === "true"
+          ? false
+          : {
+              overlay: true,
+              ...(env.VITE_HMR_PROTOCOL
+                ? { protocol: env.VITE_HMR_PROTOCOL as "ws" | "wss" }
+                : {}),
+              ...(env.VITE_HMR_HOST ? { host: env.VITE_HMR_HOST } : {}),
+              ...(env.VITE_HMR_PORT
+                ? { port: parseInt(env.VITE_HMR_PORT, 10) }
+                : {}),
+              ...(env.VITE_HMR_CLIENT_PORT
+                ? { clientPort: parseInt(env.VITE_HMR_CLIENT_PORT, 10) }
+                : {}),
+            },
       watch: {
         ignored: [
           "**/node_modules/**",
@@ -396,10 +405,12 @@ export default defineConfig(({ command, mode }) => {
       // Proxy configuration
       proxy: {
         "/api": {
-          target: env.VITE_API_URL || "http://localhost:3000",
+          target:
+            env.VITE_API_URL ||
+            env.VITE_API_BASE_URL ||
+            "http://localhost:3001",
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api/, ""),
           configure: (proxy) => {
             proxy.on("error", (err) => {
               console.log("Proxy error:", err);

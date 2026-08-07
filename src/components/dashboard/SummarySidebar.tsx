@@ -174,14 +174,23 @@ export default function SummarySidebar({
     normalizedStatus.includes("active") ||
     normalizedStatus.includes("verified") ||
     Boolean(user?.isProfileComplete);
-  const assignedWard = [
-    profile?.wardNumber ? `Ward ${profile.wardNumber}` : "",
-    profile?.municipality || user?.municipality,
-    profile?.district || user?.district,
-    profile?.province || user?.province,
-  ]
-    .filter(Boolean)
-    .join(", ") || "Not Assigned";
+  const hasSubmittedProfile = Boolean(
+    user?.isProfileComplete ||
+    normalizedStatus.includes("submitted") ||
+    normalizedStatus.includes("verification") ||
+    normalizedStatus.includes("approved") ||
+    normalizedStatus.includes("verified") ||
+    normalizedStatus.includes("active"),
+  );
+  const assignedWard =
+    [
+      profile?.wardNumber ? `Ward ${profile.wardNumber}` : "",
+      profile?.municipality || user?.municipality,
+      profile?.district || user?.district,
+      profile?.province || user?.province,
+    ]
+      .filter(Boolean)
+      .join(", ") || "Not Assigned";
   const nextElection =
     profile?.nextElection ||
     profile?.election?.title ||
@@ -225,7 +234,7 @@ export default function SummarySidebar({
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25 active:scale-95"
         >
           <Edit3 className="w-4 h-4" />
-          Edit Profile
+          {hasSubmittedProfile ? "View Full Profile" : "Edit Profile"}
         </button>
         <button
           onClick={() => onDownloadAll?.()}
@@ -319,161 +328,11 @@ export default function SummarySidebar({
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25 active:scale-95"
               >
                 <Edit3 className="w-4 h-4" />
-                Edit Profile
-              </button>
-              <button
-                onClick={() => onDownloadAll?.()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-all border border-slate-200 dark:border-slate-600"
-              >
-                <Download className="w-4 h-4" />
-                Download All Documents
+                {hasSubmittedProfile ? "View Full Profile" : "Edit Profile"}
               </button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Election Info Section */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <button
-          onClick={() => toggleSection("election")}
-          className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg shadow-purple-500/20">
-              <Vote className="w-5 h-5 text-white" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-semibold text-slate-800 dark:text-white">
-                Election Information
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Voting eligibility & details
-              </p>
-            </div>
-          </div>
-          {expandedSections.has("election") ? (
-            <ChevronDown className="w-5 h-5 text-slate-400" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-slate-400" />
-          )}
-        </button>
-
-        {expandedSections.has("election") && (
-          <div className="px-5 pb-5 space-y-3">
-            <div
-              className={`p-4 rounded-xl border-2 ${
-                isEligible
-                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20"
-                  : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`p-2 rounded-lg ${
-                    isEligible
-                      ? "bg-emerald-100 dark:bg-emerald-800"
-                      : "bg-red-100 dark:bg-red-800"
-                  }`}
-                >
-                  {isEligible ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  )}
-                </div>
-                <div>
-                  <p
-                    className={`font-semibold ${
-                      isEligible
-                        ? "text-emerald-700 dark:text-emerald-400"
-                        : "text-red-700 dark:text-red-400"
-                    }`}
-                  >
-                    {isEligible ? "Eligible to Vote" : "Not Eligible"}
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                    {isEligible
-                      ? `Status: ${accountStatus}`
-                      : `Status: ${accountStatus}`}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                <MapPin className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Assigned Ward
-                  </p>
-                  <p className="font-semibold text-slate-800 dark:text-white">
-                    {assignedWard}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Next Election
-                  </p>
-                  <p className="font-semibold text-slate-800 dark:text-white">
-                    {nextElection}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                <Activity className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Voter ID Status
-                  </p>
-                  <p className="font-semibold text-slate-800 dark:text-white">
-                    {voterIdStatus}
-                  </p>
-                </div>
-                <StatusBadge status={voterIdStatus} />
-              </div>
-            </div>
-
-            <button className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
-              <ExternalLink className="w-4 h-4" />
-              View Voting Guidelines
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions - Always Visible */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-4 hidden lg:block">
-        <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-slate-500" />
-          Quick Actions
-        </h4>
-        <div className="space-y-2">
-          <button className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left group">
-            <Shield className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-            <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200">
-              Security Settings
-            </span>
-          </button>
-          <button className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left group">
-            <BarChart3 className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors" />
-            <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200">
-              Activity Report
-            </span>
-          </button>
-          <button className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left group">
-            <FileText className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-            <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200">
-              Download Certificates
-            </span>
-          </button>
-        </div>
       </div>
     </div>
   );

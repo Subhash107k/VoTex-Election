@@ -1,4 +1,5 @@
 import { AuditService } from "./audit.service.js";
+import { Database } from "../src/db/dbService.js";
 
 export class SecurityService {
   static async checkRateLimit(
@@ -50,6 +51,11 @@ export class SecurityService {
     userId: string,
     updates: Record<string, unknown>,
   ) {
+    const normalized: Record<string, unknown> = { ...updates };
+    if (updates.faceVerifiedAt instanceof Date) {
+      normalized.faceVerifiedAt = updates.faceVerifiedAt.toISOString();
+    }
+    await Database.updateUser(userId, normalized as any);
     return true;
   }
 

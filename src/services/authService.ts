@@ -8,9 +8,12 @@ import type { User, UserPreferences } from "../types.js";
 import { authHeader, jsonRequestOptions, requestJson } from "./apiClient.ts";
 
 export function getCurrentUser(token: string) {
-  return requestJson<{ user: User }>("/api/auth/me", {
-    headers: authHeader(token),
-  });
+  return requestJson<{ user: User | null; sessionExpired?: boolean }>(
+    "/api/auth/me",
+    {
+      headers: authHeader(token),
+    },
+  );
 }
 
 export function getUserPreferences(token: string) {
