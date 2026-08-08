@@ -24,6 +24,7 @@ export interface User {
   isApproved?: boolean;
   isSuspended?: boolean;
   isProfileComplete?: boolean;
+  profileCompleted?: boolean;
   faceVerified?: boolean;
   faceVerifiedAt?: string;
   faceMatchConfidence?: number;

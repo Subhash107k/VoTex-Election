@@ -55,11 +55,9 @@ describe("Registration Duplicate Validation & Normalization Tests", () => {
       message: "NID is already registered.",
     });
 
+    // Citizenship number uniqueness removed — parseDuplicateFieldError now returns null for citizenship E11000 errors
     const citizenshipErr = { message: "E11000 duplicate key error index: users_citizenship_number_unique" };
-    expect(Database.parseDuplicateFieldError(citizenshipErr)).toEqual({
-      field: "citizenshipNumber",
-      message: "Citizenship number is already registered.",
-    });
+    expect(Database.parseDuplicateFieldError(citizenshipErr)).toBeNull();
   });
 
   it("Test Database Inspection - Reports duplicate stats safely without deleting data", async () => {

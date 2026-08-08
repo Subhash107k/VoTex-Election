@@ -903,24 +903,35 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
 
                 {/* Submission Actions */}
                 <div className="space-y-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={onSubmit}
-                    disabled={isLoading || !isCertified || !acceptLegal || isSubmitted}
-                    className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white rounded-2xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-blue-500/25 active:scale-98"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Submitting Registration...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-5 h-5" />
-                        Submit Voter Registration
-                      </>
-                    )}
-                  </button>
+                  {isSubmitted ? (
+                    <button
+                      type="button"
+                      onClick={onSubmit}
+                      className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-bold text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-5 h-5" />
+                      Registration Submitted — Proceed to Voter Dashboard
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onSubmit}
+                      disabled={isLoading || !isCertified || !acceptLegal}
+                      className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white rounded-2xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-blue-500/25 active:scale-98"
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Submitting Registration...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-5 h-5" />
+                          Submit Voter Registration
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   <button
                     type="button"

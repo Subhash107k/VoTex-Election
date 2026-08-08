@@ -41,8 +41,8 @@ function StatusBadge({ value, tone }: { value: string; tone?: Tone }) {
       : lower.includes("pending")
         ? "warning"
         : lower.includes("verif") ||
-            lower.includes("approv") ||
-            lower.includes("eligible")
+          lower.includes("approv") ||
+          lower.includes("eligible")
           ? "success"
           : "neutral");
   const styles: Record<Tone, string> = {
@@ -187,22 +187,22 @@ export default function ComprehensiveProfile({
       [
         "Province",
         profile?.[`${prefix}Province`] ||
-          (!temporary ? profile?.province : undefined),
+        (!temporary ? profile?.province : undefined),
       ],
       [
         "District",
         profile?.[`${prefix}District`] ||
-          (!temporary ? profile?.district : undefined),
+        (!temporary ? profile?.district : undefined),
       ],
       [
         "Municipality",
         profile?.[`${prefix}Municipality`] ||
-          (!temporary ? profile?.municipality : undefined),
+        (!temporary ? profile?.municipality : undefined),
       ],
       [
         "Ward",
         profile?.[`${prefix}WardNumber`] ||
-          (!temporary ? profile?.wardNumber : undefined),
+        (!temporary ? profile?.wardNumber : undefined),
       ],
       [
         "Tole / Street",
@@ -212,7 +212,7 @@ export default function ComprehensiveProfile({
       [
         "Postal Code",
         profile?.[`${prefix}PostalCode`] ||
-          (!temporary ? profile?.postalCode : undefined),
+        (!temporary ? profile?.postalCode : undefined),
       ],
     ] as Array<[string, any]>;
   };
@@ -427,7 +427,7 @@ export default function ComprehensiveProfile({
               [
                 "Face Verification",
                 faceVerification?.verificationStatus ||
-                  (user?.isVerified ? "Verified" : "Pending"),
+                (user?.isVerified ? "Verified" : "Pending"),
               ],
               [
                 "Fingerprint Verification",
@@ -497,7 +497,7 @@ export default function ComprehensiveProfile({
                 "Verification Timestamp",
                 date(
                   faceVerification?.verificationTimestamp ||
-                    report?.submissionTimestamp,
+                  report?.submissionTimestamp,
                 ),
               ],
             ]}

@@ -69,11 +69,14 @@ export default function DashboardStatsCards({
       id: "voters",
       title: "Registered Citizens",
       value: stats.registeredVoters.toLocaleString(),
-      subtext: `${stats.verifiedVoters.toLocaleString()} Face Verified`,
+      subtext: `${stats.verifiedVoters.toLocaleString()} Biometric Verified`,
       icon: Users,
-      color: "from-blue-600 to-indigo-600",
-      textColor: "text-blue-500",
-      bgLight: "bg-blue-50 dark:bg-blue-900/20",
+      badge: "National Roll",
+      color: "from-blue-600 via-indigo-600 to-blue-500",
+      textColor: "text-blue-400",
+      borderColor: "border-blue-500/30 hover:border-blue-500/60",
+      bgGlow: "bg-blue-500/10",
+      progress: 95,
     },
     {
       id: "elections",
@@ -81,29 +84,38 @@ export default function DashboardStatsCards({
       value: `${stats.activeElections} Open`,
       subtext: `${stats.totalCandidates} Candidates contesting`,
       icon: Activity,
-      color: "from-emerald-500 to-teal-600",
-      textColor: "text-emerald-500",
-      bgLight: "bg-emerald-50 dark:bg-emerald-900/20",
+      badge: "Polling Live",
+      color: "from-emerald-500 via-teal-500 to-emerald-400",
+      textColor: "text-emerald-400",
+      borderColor: "border-emerald-500/30 hover:border-emerald-500/60",
+      bgGlow: "bg-emerald-500/10",
+      progress: 100,
     },
     {
       id: "turnout",
-      title: "Voter Turnout",
+      title: "National Voter Turnout",
       value: `${stats.turnoutPercentage}%`,
-      subtext: `${stats.totalVotesCast.toLocaleString()} Total Ballots Cast`,
+      subtext: `${stats.totalVotesCast.toLocaleString()} Sealed Ballots Cast`,
       icon: Vote,
-      color: "from-purple-600 to-pink-600",
-      textColor: "text-purple-500",
-      bgLight: "bg-purple-50 dark:bg-purple-900/20",
+      badge: "Encrypted Log",
+      color: "from-purple-600 via-violet-600 to-indigo-500",
+      textColor: "text-purple-400",
+      borderColor: "border-purple-500/30 hover:border-purple-500/60",
+      bgGlow: "bg-purple-500/10",
+      progress: Math.round(stats.turnoutPercentage),
     },
     {
       id: "security",
-      title: "Identity Protection",
-      value: user?.isVerified ? "100% Sealed" : "Pending",
-      subtext: "256-Bit SHA Biometric Vault",
+      title: "Identity Verification",
+      value: user?.isVerified ? "100% Verified" : "Pending",
+      subtext: "256-Bit SHA-256 Biometric Vault",
       icon: ShieldCheck,
-      color: "from-amber-500 to-orange-600",
-      textColor: "text-amber-500",
-      bgLight: "bg-amber-50 dark:bg-amber-900/20",
+      badge: "ISO 27001",
+      color: "from-amber-500 via-orange-500 to-amber-400",
+      textColor: "text-amber-400",
+      borderColor: "border-amber-500/30 hover:border-amber-500/60",
+      bgGlow: "bg-amber-500/10",
+      progress: user?.isVerified ? 100 : 60,
     },
   ];
 
@@ -114,37 +126,53 @@ export default function DashboardStatsCards({
         return (
           <div
             key={item.id}
-            className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm hover:shadow-md transition-all duration-300 group"
+            className={`relative overflow-hidden rounded-3xl border ${item.borderColor} bg-slate-900/90 p-5 shadow-xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl group`}
           >
-            <div className="flex items-center justify-between">
+            {/* Background Radial Glow */}
+            <div className={`absolute -right-8 -top-8 h-32 w-32 rounded-full ${item.bgGlow} blur-2xl transition-all group-hover:scale-125`} />
+
+            <div className="relative z-10 flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {item.title}
-                </p>
-                <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {item.title}
+                  </span>
+                  <span className={`rounded-full border border-slate-800 bg-slate-950/80 px-2 py-0.5 text-[9px] font-bold ${item.textColor}`}>
+                    {item.badge}
+                  </span>
+                </div>
+
+                <h3 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-white">
                   {loading ? (
-                    <span className="inline-block h-6 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                    <span className="inline-block h-8 w-24 animate-pulse rounded-xl bg-slate-800" />
                   ) : (
                     item.value
                   )}
                 </h3>
               </div>
+
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${item.color} text-white shadow-md shadow-slate-900/10 transition-transform duration-300 group-hover:scale-110`}
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-white shadow-lg shadow-slate-950/40 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110 shrink-0`}
               >
                 <IconComponent className="h-6 w-6" />
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <TrendingUp className={`h-3.5 w-3.5 ${item.textColor}`} />
-              <span>{item.subtext}</span>
+            {/* Progress Bar Gauge */}
+            <div className="relative z-10 mt-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-1.5">
+                <span className="flex items-center gap-1 text-[11px] truncate">
+                  <TrendingUp className={`h-3.5 w-3.5 ${item.textColor} shrink-0`} />
+                  <span className="truncate">{item.subtext}</span>
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-500`}
+                  style={{ width: `${item.progress}%` }}
+                />
+              </div>
             </div>
-
-            {/* Subtle bottom gradient indicator */}
-            <div
-              className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-100 transition-opacity`}
-            />
           </div>
         );
       })}

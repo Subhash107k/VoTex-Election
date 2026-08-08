@@ -262,21 +262,21 @@ export default function RegisterPage({
   const [hpWebsite, setHpWebsite] = useState("");
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
-  
+
   // Check account creation timing: 10 min cooldown + 20 min allowance window
   const [accountTimingState] = useState(() => {
     try {
       const lastCreatedStr = localStorage.getItem("votex_account_created_at");
       if (!lastCreatedStr) return { blocked: false, nextAllowedTime: null, allowanceEndsAt: null };
-      
+
       const lastCreatedTime = parseInt(lastCreatedStr, 10);
       const now = Date.now();
       const timeSinceCreation = now - lastCreatedTime;
-      
+
       const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
       const ALLOWANCE_MS = 20 * 60 * 1000; // 20 minutes
       const TOTAL_CYCLE = COOLDOWN_MS + ALLOWANCE_MS; // 30 minutes total
-      
+
       if (timeSinceCreation < COOLDOWN_MS) {
         // Still in cooldown period
         return {
@@ -301,7 +301,7 @@ export default function RegisterPage({
       return { blocked: false, nextAllowedTime: null, allowanceEndsAt: null };
     }
   });
-  
+
   const [alreadyHasAccount] = useState(() => accountTimingState.blocked);
   const [timingInfo] = useState(accountTimingState);
 
@@ -469,47 +469,47 @@ export default function RegisterPage({
               updated.email = res.available.email
                 ? { status: "available", message: "Email available" }
                 : {
-                    status: "taken",
-                    message: res.message?.email || "Email already registered.",
-                  };
+                  status: "taken",
+                  message: res.message?.email || "Email already registered.",
+                };
             }
             if (queryParams.username) {
               updated.username = res.available.username
                 ? { status: "available", message: "Username available" }
                 : {
-                    status: "taken",
-                    message: res.message?.username || "Username already taken.",
-                  };
+                  status: "taken",
+                  message: res.message?.username || "Username already taken.",
+                };
             }
             if (queryParams.phone) {
               updated.phone = res.available.phone
                 ? { status: "available", message: "Phone number available" }
                 : {
-                    status: "taken",
-                    message:
-                      res.message?.phone || "Phone number already registered.",
-                  };
+                  status: "taken",
+                  message:
+                    res.message?.phone || "Phone number already registered.",
+                };
             }
             if (queryParams.nid) {
               updated.nid = res.available.nid
                 ? { status: "available", message: "National ID available" }
                 : {
-                    status: "taken",
-                    message: res.message?.nid || "National ID already exists.",
-                  };
+                  status: "taken",
+                  message: res.message?.nid || "National ID already exists.",
+                };
             }
             if (queryParams.citizenship) {
               updated.citizenship = res.available.citizenship
                 ? {
-                    status: "available",
-                    message: "Citizenship number available",
-                  }
+                  status: "available",
+                  message: "Citizenship number available",
+                }
                 : {
-                    status: "taken",
-                    message:
-                      res.message?.citizenship ||
-                      "Citizenship number already exists.",
-                  };
+                  status: "taken",
+                  message:
+                    res.message?.citizenship ||
+                    "Citizenship number already exists.",
+                };
             }
             return updated;
           });
@@ -586,7 +586,7 @@ export default function RegisterPage({
       if (data?.alreadyRegistered) {
         setEmailError(
           data.message ||
-            "This email is already registered. Please sign in or reset your password.",
+          "This email is already registered. Please sign in or reset your password.",
         );
         setIsEmailOtpSent(false);
         setEmailCountdown(0);
@@ -655,7 +655,7 @@ export default function RegisterPage({
       if (data?.alreadyRegistered) {
         setSmsError(
           data.message ||
-            "This mobile number is already registered. Please sign in or recover your account.",
+          "This mobile number is already registered. Please sign in or recover your account.",
         );
         setIsSmsOtpSent(false);
         setSmsCountdown(0);
@@ -758,8 +758,7 @@ export default function RegisterPage({
     return null;
   };
 
-  const isBotChallengePassed =
-    isCaptchaVerified && !hpWebsite && !alreadyHasAccount;
+  const isBotChallengePassed = isCaptchaVerified && !hpWebsite;
 
   const isIdentityAllAvailable =
     identityStatus.email.status === "available" &&
@@ -859,22 +858,20 @@ export default function RegisterPage({
                 <button
                   type="button"
                   onClick={() => setRegForm({ ...regForm, role: "Voter" })}
-                  className={`py-2.5 rounded-xl text-center font-bold transition-all cursor-pointer text-xs ${
-                    regForm.role === "Voter" || !regForm.role
+                  className={`py-2.5 rounded-xl text-center font-bold transition-all cursor-pointer text-xs ${regForm.role === "Voter" || !regForm.role
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
                       : "text-slate-600 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-                  }`}
+                    }`}
                 >
                   Voter Account
                 </button>
                 <button
                   type="button"
                   onClick={() => setRegForm({ ...regForm, role: "Candidate" })}
-                  className={`py-2.5 rounded-xl text-center font-bold transition-all cursor-pointer text-xs ${
-                    regForm.role === "Candidate"
+                  className={`py-2.5 rounded-xl text-center font-bold transition-all cursor-pointer text-xs ${regForm.role === "Candidate"
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
                       : "text-slate-600 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-                  }`}
+                    }`}
                 >
                   Candidate Account
                 </button>

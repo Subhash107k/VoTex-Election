@@ -48,6 +48,9 @@ const CandidateDashboard = lazy(() =>
 const CompleteProfile = lazy(
   () => import("./components/dashboard/CompleteProfile"),
 );
+const EditProfile = lazy(
+  () => import("./components/dashboard/EditProfile"),
+);
 
 const TOKEN_STORAGE_KEY = "votex_token";
 const LOGOUT_REASON_KEY = "votex_logout_reason";
@@ -250,7 +253,8 @@ export default function App() {
 
   const getHomePath = (u: User) => {
     if (u.role === "Voter") {
-      return u.isProfileComplete ? "/votexDashboard" : "/profile/edit";
+      const isComplete = Boolean(u.isProfileComplete || u.profileCompleted);
+      return isComplete ? "/votexDashboard" : "/complete-profile";
     }
     const homeByRole: Record<string, string> = {
       Candidate: "/candidate",
@@ -268,8 +272,16 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.role === "Voter" && !currentUser.isProfileComplete && currentPath !== "/profile/edit") {
-        setCurrentPath("/profile/edit");
+      const isComplete = Boolean(
+        currentUser.isProfileComplete || currentUser.profileCompleted,
+      );
+      if (
+        currentUser.role === "Voter" &&
+        !isComplete &&
+        currentPath !== "/complete-profile" &&
+        currentPath !== "/profile/edit"
+      ) {
+        setCurrentPath("/complete-profile");
         return;
       }
 
@@ -290,7 +302,7 @@ export default function App() {
 
     if (
       !loading &&
-      /^(\/admin|\/voter|\/candidate|\/votexDashboard)/.test(currentPath)
+      /^(\/admin|\/voter|\/candidate|\/votexDashboard|\/complete-profile|\/profile\/edit)/.test(currentPath)
     ) {
       setCurrentPath(
         currentPath.startsWith("/admin") ? "/admin/login" : "/login",
@@ -357,14 +369,22 @@ export default function App() {
 
     try {
       setLoading(true);
-      await registerAccount(regForm);
+      const result = await registerAccount(regForm);
       try {
         localStorage.setItem("votex_account_created", "true");
       } catch {
         // ignore storage errors
       }
-      showToast("Account created successfully. Please sign in.");
-      setCurrentPath("/login");
+
+      if (result && result.token && result.user) {
+        saveSession(result.token, result.user);
+        showToast("Account created successfully! Please complete your profile verification.");
+        setCurrentPath("/complete-profile");
+      } else {
+        showToast("Account created successfully. Please sign in.");
+        setCurrentPath("/login");
+      }
+
       setRegForm(emptyRegisterForm);
       setRegFaceImage("");
       setRegFaceTemplate(null);
@@ -458,13 +478,30 @@ export default function App() {
               </div>
             </main>
           ) : currentUser && token ? (
-            currentUser.role === "Voter" && (!currentUser.isProfileComplete || currentPath === "/profile/edit") ? (
+            currentUser.role === "Voter" && currentPath === "/profile/edit" ? (
+              <EditProfile
+                token={token}
+                user={currentUser}
+                onLogout={handleLogout}
+                onUpdateComplete={(updatedUser) => {
+                  setCurrentUser(updatedUser);
+                }}
+                setCurrentPath={setCurrentPath}
+                theme={theme}
+                setTheme={setTheme}
+              />
+            ) : currentUser.role === "Voter" && (!currentUser.isProfileComplete || currentPath === "/complete-profile") ? (
               <CompleteProfile
                 token={token}
                 user={currentUser}
                 onLogout={handleLogout}
                 onComplete={(updatedUser) => {
-                  setCurrentUser(updatedUser);
+                  const finalUser = {
+                    ...currentUser,
+                    ...(updatedUser || {}),
+                    isProfileComplete: true,
+                  };
+                  setCurrentUser(finalUser);
                   setCurrentPath("/votexDashboard");
                 }}
                 setCurrentPath={setCurrentPath}

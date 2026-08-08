@@ -67,7 +67,7 @@ export function checkAvailability(params: {
 }
 
 export function registerAccount(form: RegisterForm) {
-  return requestJson("/api/auth/register", jsonRequestOptions("POST", form));
+  return requestJson<AuthResult>("/api/auth/register", jsonRequestOptions("POST", form));
 }
 
 export function loginAccount(form: LoginForm) {

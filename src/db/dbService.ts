@@ -53,6 +53,7 @@ export interface User {
   tokenVersion?: number;
   accountStatus?: string;
   isProfileComplete?: boolean;
+  profileCompleted?: boolean;
   faceVerified?: boolean;
   faceVerifiedAt?: string;
   faceMatchConfidence?: number;
@@ -643,6 +644,7 @@ export class Database {
     collectionName: string,
     filter: Filter<T>,
   ): Promise<T | null> {
+    if (!this.db) return null;
     try {
       const collection = this.getCollection<T>(collectionName);
       const doc = await collection.findOne(filter);
@@ -995,14 +997,7 @@ export class Database {
     if (keyPattern.nationalID || errMsg.includes("users_national_id_unique") || /dup key.*nationalID/i.test(errMsg)) {
       return { field: "nid", message: "NID is already registered." };
     }
-    if (
-      keyPattern.citizenshipNumber ||
-      errMsg.includes("users_citizenship_number_unique") ||
-      errMsg.includes("profiles_citizenship_unique") ||
-      /dup key.*citizenship/i.test(errMsg)
-    ) {
-      return { field: "citizenshipNumber", message: "Citizenship number is already registered." };
-    }
+    // Citizenship number uniqueness check removed — allow multiple voters to share the same citizenship number.
 
     return null;
   }
@@ -1725,7 +1720,13 @@ export class Database {
       data.citizenshipNumber || data.citizenship || data.documentNumber || "",
     ).trim();
     if (!rawCitizenship) {
-      throw new Error("Citizenship Number is required for submission.");
+      return {
+        success: true,
+        message: "Citizenship record creation skipped (no citizenship number provided).",
+        replaced: false,
+        isNew: false,
+        record: null,
+      };
     }
 
     const normalizedCit = rawCitizenship.replace(/[\s-]/g, "").toUpperCase();
@@ -2449,14 +2450,25 @@ export class Database {
       const existingUsers = (this.inMemStore.get("users") || []) as User[];
       const processedUsers = users.map((user) => {
         const existing = existingUsers.find((u) => u.id === user.id);
+        let updated = user;
         if (
           existing?.citizenshipNumber &&
           user.citizenshipNumber &&
           user.citizenshipNumber !== existing.citizenshipNumber
         ) {
-          return { ...user, citizenshipNumber: existing.citizenshipNumber };
+          updated = { ...updated, citizenshipNumber: existing.citizenshipNumber };
         }
-        return user;
+
+        const sanitizeBase64 = (val?: string) =>
+          val && val.length > 200000 ? val.substring(0, 500) + "...[data-reference]" : val;
+
+        return {
+          ...updated,
+          fingerprintImage: sanitizeBase64(updated.fingerprintImage),
+          fingerprintLeftImage: sanitizeBase64(updated.fingerprintLeftImage),
+          fingerprintRightImage: sanitizeBase64(updated.fingerprintRightImage),
+          faceImage: sanitizeBase64(updated.faceImage),
+        };
       });
 
       if (this.db) {

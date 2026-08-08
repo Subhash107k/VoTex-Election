@@ -13,6 +13,7 @@ import DashboardStatsCards from "./DashboardStatsCards";
 import DashboardHeroBanner from "./DashboardHeroBanner";
 import VoterDashboardHeader from "./VoterDashboardHeader";
 import useProfile from "../../hooks/useProfile";
+import { getLocalVoteReceipts } from "../../services/electionService";
 import {
   User,
   FileText,
@@ -185,6 +186,7 @@ export default function VoterDashboard({
   const [showProfileDossier, setShowProfileDossier] = useState(false);
   const [currentElection, setCurrentElection] = useState<any | null>(null);
   const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
+  const [latestReceipt, setLatestReceipt] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<
     "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
   >("overview");
@@ -404,7 +406,7 @@ export default function VoterDashboard({
 
             {/* My Votes Tab */}
             {activeTab === "myVotes" && (
-              <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-4">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-6">
                 <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
                   <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
                     <Vote className="h-6 w-6 text-blue-400" />
@@ -419,16 +421,95 @@ export default function VoterDashboard({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
-                  <h4 className="text-sm font-bold text-white">
-                    Your Ballots are Authenticated
-                  </h4>
-                  <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
-                    When you cast a vote, your anonymous voter SHA-256 hash
-                    receipt will be displayed here for verification.
-                  </p>
-                </div>
+                {(() => {
+                  const receipts = getLocalVoteReceipts();
+
+                  if (receipts.length === 0) {
+                    return (
+                      <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-10 text-center space-y-3">
+                        <div className="h-16 w-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                          <Vote className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-base font-bold text-white">
+                          No Digital Receipts Logged Yet
+                        </h4>
+                        <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                          When you select a candidate and complete live face verification,
+                          your cryptographically sealed anonymous SHA-256 vote receipt
+                          will be permanently logged here.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {receipts.map((r: any) => (
+                        <div
+                          key={r.receiptId}
+                          className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-slate-900/90 to-slate-950 p-6 space-y-4 shadow-xl backdrop-blur-xl"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/30 text-emerald-400">
+                                <CheckCircle2 className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <h4 className="font-black text-base text-white">
+                                  {r.electionTitle}
+                                </h4>
+                                <p className="text-xs text-blue-400 font-bold mt-0.5">
+                                  Nominee Choice: <span className="text-white">{r.candidateName}</span> ({r.candidateParty})
+                                </p>
+                              </div>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-400">
+                              <ShieldCheck className="h-3.5 w-3.5" /> Cryptographically Sealed
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                            <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3">
+                              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block">
+                                Receipt ID
+                              </span>
+                              <span className="font-mono text-slate-200 text-xs font-bold mt-0.5 block">
+                                {r.receiptId}
+                              </span>
+                            </div>
+
+                            <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3">
+                              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block">
+                                Anonymous Voter SHA-256 Hash
+                              </span>
+                              <span className="font-mono text-emerald-400 text-xs truncate block mt-0.5">
+                                {r.anonymousVoterHash}
+                              </span>
+                            </div>
+
+                            <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3">
+                              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block">
+                                Verification Timestamp
+                              </span>
+                              <span className="text-slate-300 font-semibold text-xs mt-0.5 block">
+                                {new Date(r.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3">
+                              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block">
+                                Digital RSA Signature
+                              </span>
+                              <span className="font-mono text-blue-400 text-xs truncate block mt-0.5">
+                                {r.signature}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -536,13 +617,13 @@ export default function VoterDashboard({
           <div className="w-full max-w-3xl rounded-3xl bg-slate-950 border border-slate-800 p-6 shadow-2xl relative">
             <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
               <div>
-                <h4 className="font-bold text-lg text-white">
-                  Encrypted Face Verification & Ballot Submission
+                <h4 className="font-black text-lg text-white">
+                  Real-time Face Verification & Ballot Submission
                 </h4>
                 <p className="text-xs text-slate-400">
                   Target Candidate:{" "}
                   <span className="font-semibold text-blue-400">
-                    {currentCandidate.label || currentCandidate.name}
+                    {currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
                   </span>
                 </p>
               </div>
@@ -557,19 +638,22 @@ export default function VoterDashboard({
             <FaceVerification
               token={token}
               electionId={currentElection.id}
-              candidateLabel={currentCandidate.label || currentCandidate.name}
+              candidateLabel={currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
               onBack={() => setShowFaceModal(false)}
               onVerified={async (result: any) => {
                 try {
                   const { castVote } =
                     await import("../../services/electionService");
-                  await castVote(token, {
+                  const res = await castVote(token, {
                     electionId: currentElection.id,
                     candidateId: currentCandidate.id,
                     faceVerificationId: result.verificationId,
                   });
                   setShowFaceModal(false);
-                  alert("Digital Ballot Successfully Sealed & Cast.");
+                  if (res?.receipt) {
+                    setLatestReceipt(res.receipt);
+                  }
+                  setActiveTab("myVotes");
                   void reload();
                 } catch (err: any) {
                   console.error(err);
@@ -580,6 +664,55 @@ export default function VoterDashboard({
           </div>
         </div>
       )}
+
+      {/* Successful Vote Receipt Confirmation Modal */}
+      {latestReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+          <div className="w-full max-w-lg rounded-3xl border border-emerald-500/30 bg-slate-950 p-6 shadow-2xl relative space-y-6 text-center">
+            <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-white">
+                Digital Ballot Sealed & Cast!
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Your vote was authenticated via real-time face verification.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 text-left space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Election:</span>
+                <span className="font-bold text-white">{latestReceipt.electionTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Selected Candidate:</span>
+                <span className="font-bold text-blue-400">{latestReceipt.candidateName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Receipt ID:</span>
+                <span className="font-mono text-slate-300">{latestReceipt.receiptId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Anonymous Voter Hash:</span>
+                <span className="font-mono text-emerald-400 text-[11px] truncate max-w-[200px]">
+                  {latestReceipt.anonymousVoterHash}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setLatestReceipt(null)}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20"
+            >
+              Done & View Receipts
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

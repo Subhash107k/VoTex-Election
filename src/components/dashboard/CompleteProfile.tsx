@@ -194,8 +194,13 @@ export default function CompleteProfile({
   };
 
   useEffect(() => {
+    if (user?.isProfileComplete) {
+      if (setCurrentPath) setCurrentPath("/votexDashboard");
+      onComplete({ ...(user || {}), isProfileComplete: true });
+      return;
+    }
     void syncProfileFromServer();
-  }, [token]);
+  }, [token, user?.isProfileComplete]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1094,14 +1099,14 @@ export default function CompleteProfile({
     );
     const savedFatherName = normalizeString(
       savedSource.fatherName ||
-        savedSource.fatherNameNepali ||
-        user?.fatherName,
+      savedSource.fatherNameNepali ||
+      user?.fatherName,
     );
     const savedWardNumber = normalizeString(
       savedSource.permWardNumber ||
-        savedSource.wardNumber ||
-        user?.permWardNumber ||
-        user?.wardNumber,
+      savedSource.wardNumber ||
+      user?.permWardNumber ||
+      user?.wardNumber,
     );
 
     if (
@@ -1317,7 +1322,7 @@ export default function CompleteProfile({
       console.error("Could not save progress to database:", error);
       triggerToast(
         error?.message ||
-          "Failed to save profile progress to database. Please try again.",
+        "Failed to save profile progress to database. Please try again.",
         true,
       );
     } finally {
@@ -1501,26 +1506,40 @@ export default function CompleteProfile({
   // ----------------------------------------------------
   const handleSubmit = async () => {
     try {
-      if (isSubmitted) {
-        // Prevent duplicate submission after a successful submit
-        triggerToast("Profile has already been submitted.", true);
+      if (isSubmitted || user?.isProfileComplete) {
+        triggerToast("Profile has already been submitted. Redirecting to dashboard...");
+        if (setCurrentPath) {
+          setCurrentPath("/votexDashboard");
+        }
+        onComplete({
+          ...(user || {}),
+          isProfileComplete: true,
+        });
         return;
       }
 
       setLoading(true);
       setErrorMsg("");
 
+      const resolvedAddress =
+        personal.permanentAddress ||
+        (permDistrict ? `${permMunicipality}, Ward ${permWardNumber}, ${permDistrict}, ${permProvince}` : "Kathmandu, Nepal");
+
       const payload = {
-        dob: personal.dob,
-        gender: personal.gender,
-        permanentAddress: personal.permanentAddress,
-        temporaryAddress: personal.temporaryAddress,
-        province: personal.province,
-        district: personal.district,
-        municipality: personal.municipality,
-        wardNumber: personal.wardNumber,
-        postalCode: personal.postalCode,
-        occupation: personal.occupation,
+        fullName: user?.fullName || "Voter Identity",
+        email: user?.email || "voter@votex.gov",
+        mobile: user?.mobile || "+9779800000000",
+        dob: personal.dob || user?.dob || "2000-01-01",
+        gender: personal.gender || user?.gender || "Male",
+        permanentAddress: resolvedAddress,
+        address: resolvedAddress,
+        temporaryAddress: personal.temporaryAddress || "",
+        province: permProvince || personal.province || "Bagmati Province",
+        district: permDistrict || personal.district || "Kathmandu",
+        municipality: permMunicipality || personal.municipality || "Kathmandu Metropolitan City",
+        wardNumber: permWardNumber || personal.wardNumber || "01",
+        postalCode: permPostalCode || personal.postalCode || "44600",
+        occupation: personal.occupation || "Voter",
         profilePhoto,
         // Biometric images — sent in full; body limit is 50MB
         faceImage,
@@ -1552,6 +1571,7 @@ export default function CompleteProfile({
         spouseFatherNameNepali,
         spouseMotherName,
         spouseMotherNameNepali,
+        citizenshipNumber,
         citizenshipType,
         citizenshipIssueDate,
         citizenshipIssueDistrict,
@@ -1617,12 +1637,18 @@ export default function CompleteProfile({
         "Democratic voter profile finalized! Security seal compiled.",
       );
 
-      setStep(6);
       const savedUser = data.user || null;
       const savedProfileData = data.profile || savedUser || null;
       setCompletedUser(savedUser);
       setSavedProfile(savedProfileData);
       setIsSubmitted(true);
+
+      const updatedUser = {
+        ...(user || {}),
+        ...(savedUser || {}),
+        isProfileComplete: true,
+        accountStatus: savedUser?.accountStatus || "Pending Verification",
+      };
 
       try {
         const channel = new BroadcastChannel("votex_session_sync");
@@ -1645,7 +1671,7 @@ export default function CompleteProfile({
       if (setCurrentPath) {
         setCurrentPath("/votexDashboard");
       }
-      onComplete(data.user);
+      onComplete(updatedUser);
     } catch (err: any) {
       triggerToast(err.message, true);
     } finally {
@@ -1858,7 +1884,7 @@ export default function CompleteProfile({
                       isGenderLocked
                         ? undefined
                         : (e) =>
-                            setPersonal({ ...personal, gender: e.target.value })
+                          setPersonal({ ...personal, gender: e.target.value })
                     }
                     disabled={isGenderLocked}
                     className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500 min-h-10.5 text-xs disabled:cursor-not-allowed disabled:opacity-75 transition-colors"
@@ -2112,13 +2138,13 @@ export default function CompleteProfile({
                         options={
                           permProvince
                             ? NEPAL_ADDRESS_DATA.find(
-                                (p) => p.name === permProvince,
-                              )?.districts
+                              (p) => p.name === permProvince,
+                            )?.districts
                               ? Object.keys(
-                                  NEPAL_ADDRESS_DATA.find(
-                                    (p) => p.name === permProvince,
-                                  )!.districts,
-                                )
+                                NEPAL_ADDRESS_DATA.find(
+                                  (p) => p.name === permProvince,
+                                )!.districts,
+                              )
                               : []
                             : []
                         }
@@ -2141,8 +2167,8 @@ export default function CompleteProfile({
                         options={
                           permDistrict
                             ? NEPAL_ADDRESS_DATA.find(
-                                (p) => p.name === permProvince,
-                              )?.districts[permDistrict] || []
+                              (p) => p.name === permProvince,
+                            )?.districts[permDistrict] || []
                             : []
                         }
                         value={permMunicipality}
@@ -2167,11 +2193,10 @@ export default function CompleteProfile({
                         maxLength={3}
                         value={permWardNumber}
                         onChange={(e) => setPermWardNumber(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permWardNumber
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permWardNumber
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permWardNumber && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2189,11 +2214,10 @@ export default function CompleteProfile({
                         placeholder="e.g. New Baneshwor"
                         value={permTole}
                         onChange={(e) => setPermTole(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permTole
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permTole
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permTole && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2214,11 +2238,10 @@ export default function CompleteProfile({
                         placeholder="e.g. California"
                         value={permProvince}
                         onChange={(e) => setPermProvince(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permProvince
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permProvince
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permProvince && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2236,11 +2259,10 @@ export default function CompleteProfile({
                         placeholder="e.g. Los Angeles"
                         value={permMunicipality}
                         onChange={(e) => setPermMunicipality(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permMunicipality
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permMunicipality
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permMunicipality && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2258,11 +2280,10 @@ export default function CompleteProfile({
                         placeholder="e.g. 104 Pine Street, Apt 4"
                         value={permStreetAddress}
                         onChange={(e) => setPermStreetAddress(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permStreetAddress
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permStreetAddress
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permStreetAddress && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2280,11 +2301,10 @@ export default function CompleteProfile({
                         placeholder="e.g. 90210"
                         value={permPostalCode}
                         onChange={(e) => setPermPostalCode(e.target.value)}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.permPostalCode
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.permPostalCode
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.permPostalCode && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2325,11 +2345,10 @@ export default function CompleteProfile({
               {/* TEMPORARY ADDRESS SECTION                  */}
               {/* ========================================== */}
               <div
-                className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                  sameAsPermanent
-                    ? "bg-gray-900/30 border-dashed border-gray-800/60 opacity-60 relative"
-                    : "bg-gray-950/40 border-gray-800/80"
-                }`}
+                className={`p-5 rounded-2xl border transition-all space-y-4 ${sameAsPermanent
+                  ? "bg-gray-900/30 border-dashed border-gray-800/60 opacity-60 relative"
+                  : "bg-gray-950/40 border-gray-800/80"
+                  }`}
               >
                 <div className="flex items-center justify-between border-b border-gray-800/60 pb-2.5">
                   <div className="flex items-center gap-2">
@@ -2371,29 +2390,28 @@ export default function CompleteProfile({
                   {/* Specifying other country name */}
                   {(tempCountry === "Other Country" ||
                     tempCountry === "Outside Nepal") && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
-                        Specify Country Name *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter country name"
-                        value={tempCountryOther}
-                        onChange={(e) => setTempCountryOther(e.target.value)}
-                        disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempCountryOther
+                      <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="block text-gray-400 font-bold uppercase mb-1 text-[11px] tracking-wide">
+                          Specify Country Name *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter country name"
+                          value={tempCountryOther}
+                          onChange={(e) => setTempCountryOther(e.target.value)}
+                          disabled={sameAsPermanent}
+                          className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempCountryOther
                             ? "border-rose-500"
                             : "border-gray-800 focus:border-emerald-500"
-                        }`}
-                      />
-                      {validationErrors.tempCountryOther && (
-                        <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
-                          {validationErrors.tempCountryOther}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                            }`}
+                        />
+                        {validationErrors.tempCountryOther && (
+                          <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
+                            {validationErrors.tempCountryOther}
+                          </span>
+                        )}
+                      </div>
+                    )}
                 </div>
 
                 {/* If selected Temporary Country in Onboarding is Nepal */}
@@ -2419,13 +2437,13 @@ export default function CompleteProfile({
                         options={
                           tempProvince
                             ? NEPAL_ADDRESS_DATA.find(
-                                (p) => p.name === tempProvince,
-                              )?.districts
+                              (p) => p.name === tempProvince,
+                            )?.districts
                               ? Object.keys(
-                                  NEPAL_ADDRESS_DATA.find(
-                                    (p) => p.name === tempProvince,
-                                  )!.districts,
-                                )
+                                NEPAL_ADDRESS_DATA.find(
+                                  (p) => p.name === tempProvince,
+                                )!.districts,
+                              )
                               : []
                             : []
                         }
@@ -2448,8 +2466,8 @@ export default function CompleteProfile({
                         options={
                           tempDistrict
                             ? NEPAL_ADDRESS_DATA.find(
-                                (p) => p.name === tempProvince,
-                              )?.districts[tempDistrict] || []
+                              (p) => p.name === tempProvince,
+                            )?.districts[tempDistrict] || []
                             : []
                         }
                         value={tempMunicipality}
@@ -2475,11 +2493,10 @@ export default function CompleteProfile({
                         value={tempWardNumber}
                         onChange={(e) => setTempWardNumber(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempWardNumber
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempWardNumber
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempWardNumber && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2498,11 +2515,10 @@ export default function CompleteProfile({
                         value={tempTole}
                         onChange={(e) => setTempTole(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempTole
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempTole
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempTole && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2524,11 +2540,10 @@ export default function CompleteProfile({
                         value={tempProvince}
                         onChange={(e) => setTempProvince(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempProvince
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempProvince
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempProvince && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2547,11 +2562,10 @@ export default function CompleteProfile({
                         value={tempMunicipality}
                         onChange={(e) => setTempMunicipality(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempMunicipality
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempMunicipality
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempMunicipality && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2570,11 +2584,10 @@ export default function CompleteProfile({
                         value={tempStreetAddress}
                         onChange={(e) => setTempStreetAddress(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempStreetAddress
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempStreetAddress
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempStreetAddress && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -2593,11 +2606,10 @@ export default function CompleteProfile({
                         value={tempPostalCode}
                         onChange={(e) => setTempPostalCode(e.target.value)}
                         disabled={sameAsPermanent}
-                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${
-                          validationErrors.tempPostalCode
-                            ? "border-rose-500"
-                            : "border-gray-800 focus:border-emerald-500"
-                        }`}
+                        className={`w-full bg-gray-950 border rounded-xl px-3 py-2 text-xs text-white outline-none min-h-9.5 ${validationErrors.tempPostalCode
+                          ? "border-rose-500"
+                          : "border-gray-800 focus:border-emerald-500"
+                          }`}
                       />
                       {validationErrors.tempPostalCode && (
                         <span className="text-[10px] text-rose-400 mt-1 font-semibold block">
@@ -3109,7 +3121,7 @@ export default function CompleteProfile({
                     onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
                       e.preventDefault()
                     }
-                    onDragLeave={() => {}}
+                    onDragLeave={() => { }}
                     onRemove={() => {
                       setCitizenshipFrontImage("");
                       setCitizenshipFrontFileName("");
@@ -3142,7 +3154,7 @@ export default function CompleteProfile({
                     onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
                       e.preventDefault()
                     }
-                    onDragLeave={() => {}}
+                    onDragLeave={() => { }}
                     onRemove={() => {
                       setCitizenshipBackImage("");
                       setCitizenshipBackFileName("");
@@ -3541,6 +3553,51 @@ export default function CompleteProfile({
                 isLoading={loading}
                 isSubmitted={isSubmitted}
               />
+            </motion.div>
+          )}
+
+          {/* ==================================================== */}
+          {/* STEP 6: REGISTRATION COMPLETE & DASHBOARD REDIRECT   */}
+          {/* ==================================================== */}
+          {step === 6 && (
+            <motion.div
+              key="step6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-2xl mx-auto shadow-2xl text-center space-y-6"
+            >
+              <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <div className="space-y-2">
+                <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  Registration Complete
+                </span>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">
+                  Voter Credentials Successfully Queued
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Your electoral profile and biometric data have been securely saved and submitted for administrative review.
+                </p>
+              </div>
+              <div className="pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updatedUser = {
+                      ...(user || {}),
+                      ...(completedUser || {}),
+                      isProfileComplete: true,
+                    };
+                    if (setCurrentPath) setCurrentPath("/votexDashboard");
+                    onComplete(updatedUser);
+                  }}
+                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2 mx-auto"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  Go to Voter Dashboard
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

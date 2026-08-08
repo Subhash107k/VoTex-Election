@@ -37,32 +37,32 @@ export default function DetectionStatus({
   checks: DetectionChecks;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur-md">
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
           Live Biometric Checks
         </span>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500">
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
           <ShieldCheck className="h-3.5 w-3.5" /> Security Sealed
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-2">
         {statusItems.map(([key, label]) => {
           const passed = checks[key];
           return (
             <div
               key={key}
-              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold transition-all ${
                 passed
-                  ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  : "border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-slate-400 dark:text-slate-500"
+                  ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : "border border-slate-800 bg-slate-950/60 text-slate-400"
               }`}
             >
               {passed ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
               ) : (
-                <Circle className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
+                <Circle className="h-3.5 w-3.5 shrink-0 text-slate-600" />
               )}
               <span className="truncate">{label}</span>
             </div>
@@ -72,3 +72,4 @@ export default function DetectionStatus({
     </div>
   );
 }
+

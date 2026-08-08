@@ -191,10 +191,10 @@ describe("CompleteProfile & Profile Service Smoke Tests", () => {
     const attemptedOverwrite = Database.getUsers().map((user) =>
       user.id === testUserId
         ? {
-            ...user,
-            citizenshipNumber: "CIT-SHOULD-NOT-REPLACE",
-            isProfileComplete: true,
-          }
+          ...user,
+          citizenshipNumber: "CIT-SHOULD-NOT-REPLACE",
+          isProfileComplete: true,
+        }
         : user,
     );
 

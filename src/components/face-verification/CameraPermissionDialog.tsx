@@ -55,15 +55,7 @@ export default function CameraPermissionDialog({
         </button>
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-4 text-[10px] font-semibold text-slate-400">
-        <span className="flex items-center gap-1">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> Encrypted Stream
-        </span>
-        <span>•</span>
-        <span>Zero Storage of Raw Video</span>
-        <span>•</span>
-        <span>ISO 27001 Compliant</span>
-      </div>
+
     </div>
   );
 }
