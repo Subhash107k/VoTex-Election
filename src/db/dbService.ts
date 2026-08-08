@@ -472,7 +472,8 @@ export class Database {
 
       console.log(`✅ Connected to MongoDB: ${DB_NAME}`);
 
-      // Ensure indexes
+      // Backfill missing documentIds and ensure indexes
+      await this.backfillDocumentIds();
       await this.ensureIndexes();
 
       // Load persisted cache from MongoDB so runtime APIs reflect actual admin data
@@ -1482,6 +1483,502 @@ export class Database {
     return this.insertOne<IdentityDocument>("identity_documents", document);
   }
 
+  static async upsertNidRecord(data: Record<string, any>): Promise<{
+    success: boolean;
+    message: string;
+    replaced: boolean;
+    isNew: boolean;
+    record: any;
+  }> {
+    this.ensureSeedData();
+    const rawNid = String(
+      data.nidNumber || data.nationalID || data.documentNumber || "",
+    ).trim();
+    if (!rawNid) {
+      throw new Error("NID number is required for submission.");
+    }
+
+    const normalizedNid = rawNid.replace(/[\s-]/g, "").toUpperCase();
+
+    const docs = (this.inMemStore.get("identity_documents") || []) as any[];
+    const profiles = (this.inMemStore.get("user_profiles") || []) as any[];
+    const users = (this.inMemStore.get("users") || []) as any[];
+
+    const existingDoc = docs.find(
+      (d) =>
+        (d.nidNumber &&
+          String(d.nidNumber).replace(/[\s-]/g, "").toUpperCase() ===
+            normalizedNid) ||
+        (d.documentNumber &&
+          String(d.documentNumber).replace(/[\s-]/g, "").toUpperCase() ===
+            normalizedNid),
+    );
+
+    const existingProfile = profiles.find(
+      (p) =>
+        p.nidNumber &&
+        String(p.nidNumber).replace(/[\s-]/g, "").toUpperCase() ===
+          normalizedNid,
+    );
+
+    const existingUser = users.find(
+      (u) =>
+        u.nationalID &&
+        String(u.nationalID).replace(/[\s-]/g, "").toUpperCase() ===
+          normalizedNid,
+    );
+
+    const existingRecord =
+      existingDoc ||
+      existingProfile ||
+      (existingUser ? { id: existingUser.id, userId: existingUser.id } : null);
+
+    const userId =
+      data.userId ||
+      existingDoc?.userId ||
+      existingProfile?.userId ||
+      existingUser?.id ||
+      "";
+
+    if (!existingRecord) {
+      const newDocId = this.createId("doc");
+      const newRecord = {
+        id: newDocId,
+        documentId: newDocId,
+        userId,
+        documentType: "nid_front",
+        documentNumber: rawNid,
+        nidNumber: rawNid,
+        nidIssueDate: data.nidIssueDate || "",
+        nidStatus: data.nidStatus || "Verified",
+        fileUrl: data.nidFrontImage || data.fileUrl || "",
+        nidFrontImage: data.nidFrontImage || "",
+        nidBackImage: data.nidBackImage || "",
+        verificationStatus: "verified",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...data,
+      };
+
+      docs.push(newRecord);
+      this.inMemStore.set("identity_documents", docs);
+      if (this.db) {
+        try {
+          await this.upsertOne(
+            "identity_documents",
+            { id: newRecord.id },
+            newRecord,
+          );
+        } catch (dbErr: any) {
+          const parsed = this.parseDuplicateFieldError(dbErr);
+          if (parsed && parsed.field === "nid") {
+            return this.upsertNidRecord(data);
+          }
+        }
+      }
+
+      if (userId) {
+        const uIdx = users.findIndex((u) => u.id === userId);
+        if (uIdx >= 0) {
+          users[uIdx].nationalID = rawNid;
+          users[uIdx].updatedAt = new Date().toISOString();
+          await this.saveUsers(users);
+        }
+        const pIdx = profiles.findIndex((p) => p.userId === userId);
+        if (pIdx >= 0) {
+          profiles[pIdx].nidNumber = rawNid;
+          if (data.nidIssueDate)
+            profiles[pIdx].nidIssueDate = data.nidIssueDate;
+          if (data.nidStatus) profiles[pIdx].nidStatus = data.nidStatus;
+          if (data.nidFrontImage)
+            profiles[pIdx].nidFrontImage = data.nidFrontImage;
+          if (data.nidBackImage)
+            profiles[pIdx].nidBackImage = data.nidBackImage;
+          profiles[pIdx].updatedAt = new Date().toISOString();
+          await this.saveUserProfiles(profiles);
+        }
+      }
+
+      return {
+        success: true,
+        message: "NID registered successfully",
+        replaced: false,
+        isNew: true,
+        record: newRecord,
+      };
+    }
+
+    const recordId =
+      existingDoc?.id ||
+      existingDoc?.documentId ||
+      existingProfile?.id ||
+      existingUser?.id ||
+      this.createId("doc");
+    const targetUserId =
+      existingDoc?.userId ||
+      existingProfile?.userId ||
+      existingUser?.id ||
+      userId;
+
+    const updatedRecord = {
+      ...existingDoc,
+      ...data,
+      id: recordId,
+      documentId: existingDoc?.documentId || recordId,
+      userId: targetUserId,
+      documentType: "nid_front",
+      documentNumber: rawNid,
+      nidNumber: rawNid,
+      nidIssueDate:
+        data.nidIssueDate ||
+        existingDoc?.nidIssueDate ||
+        existingProfile?.nidIssueDate ||
+        "",
+      nidStatus:
+        data.nidStatus ||
+        existingDoc?.nidStatus ||
+        existingProfile?.nidStatus ||
+        "Verified",
+      fileUrl:
+        data.nidFrontImage ||
+        data.fileUrl ||
+        existingDoc?.fileUrl ||
+        existingDoc?.nidFrontImage ||
+        "",
+      nidFrontImage:
+        data.nidFrontImage ||
+        existingDoc?.nidFrontImage ||
+        existingProfile?.nidFrontImage ||
+        "",
+      nidBackImage:
+        data.nidBackImage ||
+        existingDoc?.nidBackImage ||
+        existingProfile?.nidBackImage ||
+        "",
+      verificationStatus: "verified",
+      createdAt: existingDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (existingDoc) {
+      const docIdx = docs.findIndex(
+        (d) => d.id === existingDoc.id || d.documentId === existingDoc.documentId,
+      );
+      if (docIdx >= 0) {
+        docs[docIdx] = updatedRecord;
+      } else {
+        docs.push(updatedRecord);
+      }
+    } else {
+      docs.push(updatedRecord);
+    }
+    this.inMemStore.set("identity_documents", docs);
+    if (this.db) {
+      await this.upsertOne(
+        "identity_documents",
+        { id: updatedRecord.id },
+        updatedRecord,
+      );
+    }
+
+    if (targetUserId) {
+      const uIdx = users.findIndex((u) => u.id === targetUserId);
+      if (uIdx >= 0) {
+        users[uIdx].nationalID = rawNid;
+        users[uIdx].updatedAt = new Date().toISOString();
+        await this.saveUsers(users);
+      }
+      const pIdx = profiles.findIndex((p) => p.userId === targetUserId);
+      if (pIdx >= 0) {
+        profiles[pIdx].nidNumber = rawNid;
+        if (data.nidIssueDate)
+          profiles[pIdx].nidIssueDate = data.nidIssueDate;
+        if (data.nidStatus) profiles[pIdx].nidStatus = data.nidStatus;
+        if (data.nidFrontImage)
+          profiles[pIdx].nidFrontImage = data.nidFrontImage;
+        if (data.nidBackImage)
+          profiles[pIdx].nidBackImage = data.nidBackImage;
+        profiles[pIdx].updatedAt = new Date().toISOString();
+        await this.saveUserProfiles(profiles);
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        "NID already exists. The previous NID information has been updated with your latest submission.",
+      replaced: true,
+      isNew: false,
+      record: updatedRecord,
+    };
+  }
+
+  static async upsertCitizenshipRecord(data: Record<string, any>): Promise<{
+    success: boolean;
+    message: string;
+    replaced: boolean;
+    isNew: boolean;
+    record: any;
+  }> {
+    this.ensureSeedData();
+    const rawCitizenship = String(
+      data.citizenshipNumber || data.citizenship || data.documentNumber || "",
+    ).trim();
+    if (!rawCitizenship) {
+      throw new Error("Citizenship Number is required for submission.");
+    }
+
+    const normalizedCit = rawCitizenship.replace(/[\s-]/g, "").toUpperCase();
+
+    const docs = (this.inMemStore.get("identity_documents") || []) as any[];
+    const profiles = (this.inMemStore.get("user_profiles") || []) as any[];
+    const users = (this.inMemStore.get("users") || []) as any[];
+
+    const existingDoc = docs.find(
+      (d) =>
+        (d.citizenshipNumber &&
+          String(d.citizenshipNumber).replace(/[\s-]/g, "").toUpperCase() ===
+            normalizedCit) ||
+        (d.documentNumber &&
+          String(d.documentNumber).replace(/[\s-]/g, "").toUpperCase() ===
+            normalizedCit),
+    );
+
+    const existingProfile = profiles.find(
+      (p) =>
+        p.citizenshipNumber &&
+        String(p.citizenshipNumber).replace(/[\s-]/g, "").toUpperCase() ===
+          normalizedCit,
+    );
+
+    const existingUser = users.find(
+      (u) =>
+        u.citizenshipNumber &&
+        String(u.citizenshipNumber).replace(/[\s-]/g, "").toUpperCase() ===
+          normalizedCit,
+    );
+
+    const existingRecord =
+      existingDoc ||
+      existingProfile ||
+      (existingUser ? { id: existingUser.id, userId: existingUser.id } : null);
+
+    const userId =
+      data.userId ||
+      existingDoc?.userId ||
+      existingProfile?.userId ||
+      existingUser?.id ||
+      "";
+
+    if (!existingRecord) {
+      const newDocId = this.createId("doc");
+      const newRecord = {
+        id: newDocId,
+        documentId: newDocId,
+        userId,
+        documentType: "citizenship_front",
+        documentNumber: rawCitizenship,
+        citizenshipNumber: rawCitizenship,
+        citizenshipType: data.citizenshipType || "Regular",
+        citizenshipIssueDate: data.citizenshipIssueDate || "",
+        citizenshipIssueDistrict: data.citizenshipIssueDistrict || "",
+        citizenshipIssueAuthority: data.citizenshipIssueAuthority || "",
+        fileUrl: data.citizenshipFrontImage || data.fileUrl || "",
+        citizenshipFrontImage: data.citizenshipFrontImage || "",
+        citizenshipBackImage: data.citizenshipBackImage || "",
+        signatureImage: data.signatureImage || "",
+        verificationStatus: "verified",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...data,
+      };
+
+      docs.push(newRecord);
+      this.inMemStore.set("identity_documents", docs);
+      if (this.db) {
+        try {
+          await this.upsertOne(
+            "identity_documents",
+            { id: newRecord.id },
+            newRecord,
+          );
+        } catch (dbErr: any) {
+          const parsed = this.parseDuplicateFieldError(dbErr);
+          if (parsed && parsed.field === "citizenshipNumber") {
+            return this.upsertCitizenshipRecord(data);
+          }
+        }
+      }
+
+      if (userId) {
+        const uIdx = users.findIndex((u) => u.id === userId);
+        if (uIdx >= 0) {
+          users[uIdx].citizenshipNumber = rawCitizenship;
+          users[uIdx].updatedAt = new Date().toISOString();
+          await this.saveUsers(users);
+        }
+        const pIdx = profiles.findIndex((p) => p.userId === userId);
+        if (pIdx >= 0) {
+          profiles[pIdx].citizenshipNumber = rawCitizenship;
+          if (data.citizenshipType)
+            profiles[pIdx].citizenshipType = data.citizenshipType;
+          if (data.citizenshipIssueDate)
+            profiles[pIdx].citizenshipIssueDate = data.citizenshipIssueDate;
+          if (data.citizenshipIssueDistrict)
+            profiles[pIdx].citizenshipIssueDistrict =
+              data.citizenshipIssueDistrict;
+          if (data.citizenshipIssueAuthority)
+            profiles[pIdx].citizenshipIssueAuthority =
+              data.citizenshipIssueAuthority;
+          if (data.citizenshipFrontImage)
+            profiles[pIdx].citizenshipFrontImage = data.citizenshipFrontImage;
+          if (data.citizenshipBackImage)
+            profiles[pIdx].citizenshipBackImage = data.citizenshipBackImage;
+          if (data.signatureImage)
+            profiles[pIdx].signatureImage = data.signatureImage;
+          profiles[pIdx].updatedAt = new Date().toISOString();
+          await this.saveUserProfiles(profiles);
+        }
+      }
+
+      return {
+        success: true,
+        message: "Citizenship record registered successfully",
+        replaced: false,
+        isNew: true,
+        record: newRecord,
+      };
+    }
+
+    const recordId =
+      existingDoc?.id ||
+      existingDoc?.documentId ||
+      existingProfile?.id ||
+      existingUser?.id ||
+      this.createId("doc");
+    const targetUserId =
+      existingDoc?.userId ||
+      existingProfile?.userId ||
+      existingUser?.id ||
+      userId;
+
+    const updatedRecord = {
+      ...existingDoc,
+      ...data,
+      id: recordId,
+      documentId: existingDoc?.documentId || recordId,
+      userId: targetUserId,
+      documentType: "citizenship_front",
+      documentNumber: rawCitizenship,
+      citizenshipNumber: rawCitizenship,
+      citizenshipType:
+        data.citizenshipType ||
+        existingDoc?.citizenshipType ||
+        existingProfile?.citizenshipType ||
+        "Regular",
+      citizenshipIssueDate:
+        data.citizenshipIssueDate ||
+        existingDoc?.citizenshipIssueDate ||
+        existingProfile?.citizenshipIssueDate ||
+        "",
+      citizenshipIssueDistrict:
+        data.citizenshipIssueDistrict ||
+        existingDoc?.citizenshipIssueDistrict ||
+        existingProfile?.citizenshipIssueDistrict ||
+        "",
+      citizenshipIssueAuthority:
+        data.citizenshipIssueAuthority ||
+        existingDoc?.citizenshipIssueAuthority ||
+        existingProfile?.citizenshipIssueAuthority ||
+        "",
+      fileUrl:
+        data.citizenshipFrontImage ||
+        data.fileUrl ||
+        existingDoc?.fileUrl ||
+        existingDoc?.citizenshipFrontImage ||
+        "",
+      citizenshipFrontImage:
+        data.citizenshipFrontImage ||
+        existingDoc?.citizenshipFrontImage ||
+        existingProfile?.citizenshipFrontImage ||
+        "",
+      citizenshipBackImage:
+        data.citizenshipBackImage ||
+        existingDoc?.citizenshipBackImage ||
+        existingProfile?.citizenshipBackImage ||
+        "",
+      signatureImage:
+        data.signatureImage ||
+        existingDoc?.signatureImage ||
+        existingProfile?.signatureImage ||
+        "",
+      verificationStatus: "verified",
+      createdAt: existingDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (existingDoc) {
+      const docIdx = docs.findIndex(
+        (d) => d.id === existingDoc.id || d.documentId === existingDoc.documentId,
+      );
+      if (docIdx >= 0) {
+        docs[docIdx] = updatedRecord;
+      } else {
+        docs.push(updatedRecord);
+      }
+    } else {
+      docs.push(updatedRecord);
+    }
+    this.inMemStore.set("identity_documents", docs);
+    if (this.db) {
+      await this.upsertOne(
+        "identity_documents",
+        { id: updatedRecord.id },
+        updatedRecord,
+      );
+    }
+
+    if (targetUserId) {
+      const uIdx = users.findIndex((u) => u.id === targetUserId);
+      if (uIdx >= 0) {
+        users[uIdx].citizenshipNumber = rawCitizenship;
+        users[uIdx].updatedAt = new Date().toISOString();
+        await this.saveUsers(users);
+      }
+      const pIdx = profiles.findIndex((p) => p.userId === targetUserId);
+      if (pIdx >= 0) {
+        profiles[pIdx].citizenshipNumber = rawCitizenship;
+        if (data.citizenshipType)
+          profiles[pIdx].citizenshipType = data.citizenshipType;
+        if (data.citizenshipIssueDate)
+          profiles[pIdx].citizenshipIssueDate = data.citizenshipIssueDate;
+        if (data.citizenshipIssueDistrict)
+          profiles[pIdx].citizenshipIssueDistrict =
+            data.citizenshipIssueDistrict;
+        if (data.citizenshipIssueAuthority)
+          profiles[pIdx].citizenshipIssueAuthority =
+            data.citizenshipIssueAuthority;
+        if (data.citizenshipFrontImage)
+          profiles[pIdx].citizenshipFrontImage = data.citizenshipFrontImage;
+        if (data.citizenshipBackImage)
+          profiles[pIdx].citizenshipBackImage = data.citizenshipBackImage;
+        if (data.signatureImage)
+          profiles[pIdx].signatureImage = data.signatureImage;
+        profiles[pIdx].updatedAt = new Date().toISOString();
+        await this.saveUserProfiles(profiles);
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        "Citizenship Number already exists. The previous Citizenship information has been updated with your latest submission.",
+      replaced: true,
+      isNew: false,
+      record: updatedRecord,
+    };
+  }
+
   // ============================================
   // OTP Records
   // ============================================
@@ -1731,21 +2228,57 @@ export class Database {
   // Index Management
   // ============================================
 
+  private static async backfillDocumentIds(): Promise<void> {
+    if (!this.db) return;
+    try {
+      const col = this.getCollection("identity_documents");
+      const docsToFix = await col
+        .find({
+          $or: [
+            { documentId: { $exists: false } },
+            { documentId: null },
+            { documentId: "" },
+          ],
+        })
+        .toArray();
+
+      for (const doc of docsToFix) {
+        const resolvedId = doc.id || this.createId("doc");
+        await col.updateOne(
+          { _id: doc._id },
+          { $set: { documentId: resolvedId, id: resolvedId } },
+        );
+      }
+    } catch (err: any) {
+      console.warn("Notice: Document ID backfill notice:", err?.message);
+    }
+  }
+
   private static async safeCreateIndexes(
     collection: Collection,
     indexes: any[],
   ): Promise<void> {
-    try {
-      await collection.createIndexes(indexes);
-    } catch (error: any) {
-      const isNameConflict =
-        error?.code === 85 ||
-        error?.codeName === "IndexOptionsConflict" ||
-        /already exists with a different name/i.test(error?.message || "");
-      if (isNameConflict) {
-        return;
+    for (const indexDef of indexes) {
+      try {
+        await collection.createIndexes([indexDef]);
+      } catch (error: any) {
+        const isConflict =
+          error?.code === 85 ||
+          error?.code === 11000 ||
+          error?.codeName === "IndexOptionsConflict" ||
+          error?.codeName === "DuplicateKey" ||
+          /already exists/i.test(error?.message || "");
+        if (isConflict) {
+          console.warn(
+            `Notice: Index ${indexDef.name || "unnamed"} on ${collection.collectionName} skipped due to existing index or data state.`,
+          );
+          continue;
+        }
+        console.warn(
+          `Warning: Could not create index ${indexDef.name || "unnamed"}:`,
+          error?.message,
+        );
       }
-      throw error;
     }
   }
 
@@ -1791,6 +2324,40 @@ export class Database {
           unique: true,
           sparse: true,
           name: "profiles_citizenship_unique",
+        },
+        {
+          key: { nidNumber: 1 },
+          unique: true,
+          sparse: true,
+          name: "profiles_nid_number_unique",
+        },
+      ]);
+
+      // Identity documents indexes
+      await this.safeCreateIndexes(this.getCollection("identity_documents"), [
+        {
+          key: { documentId: 1 },
+          unique: true,
+          sparse: true,
+          name: "identity_documents_id_unique",
+        },
+        {
+          key: { documentNumber: 1 },
+          unique: true,
+          sparse: true,
+          name: "identity_documents_doc_number_unique",
+        },
+        {
+          key: { nidNumber: 1 },
+          unique: true,
+          sparse: true,
+          name: "identity_documents_nid_number_unique",
+        },
+        {
+          key: { citizenshipNumber: 1 },
+          unique: true,
+          sparse: true,
+          name: "identity_documents_citizenship_number_unique",
         },
       ]);
 
@@ -1863,10 +2430,37 @@ export class Database {
 
   private static inMemStore: Map<string, any> = new Map();
 
+  static sanitizeUserForStorage(user: any): any {
+    if (!user || typeof user !== "object") return user;
+    const copy = { ...user };
+    if (copy.faceImage && String(copy.faceImage).length > 1000000) copy.faceImage = "";
+    if (copy.fingerprintImage && String(copy.fingerprintImage).length > 1000000) copy.fingerprintImage = "";
+    if (copy.profilePhoto && String(copy.profilePhoto).length > 1000000) copy.profilePhoto = "";
+    if (Array.isArray(copy.auditLogs)) {
+      copy.auditLogs = copy.auditLogs.map((log: any) =>
+        typeof log === "string" && log.length > 2048 ? log.slice(0, 2048) : log,
+      );
+    }
+    return copy;
+  }
+
   static async saveUsers(users: User[]): Promise<boolean> {
     try {
+      const existingUsers = (this.inMemStore.get("users") || []) as User[];
+      const processedUsers = users.map((user) => {
+        const existing = existingUsers.find((u) => u.id === user.id);
+        if (
+          existing?.citizenshipNumber &&
+          user.citizenshipNumber &&
+          user.citizenshipNumber !== existing.citizenshipNumber
+        ) {
+          return { ...user, citizenshipNumber: existing.citizenshipNumber };
+        }
+        return user;
+      });
+
       if (this.db) {
-        for (const user of users) {
+        for (const user of processedUsers) {
           await this.upsertOne(
             "users",
             { id: user.id } as Filter<User>,
@@ -1874,7 +2468,7 @@ export class Database {
           );
         }
       }
-      this.inMemStore.set("users", users);
+      this.inMemStore.set("users", processedUsers);
       return true;
     } catch (error) {
       console.error("Error saving users:", error);

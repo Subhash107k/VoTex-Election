@@ -134,7 +134,6 @@ export default function CompleteProfile({
     spouseMotherName,
     spouseMotherNameNepali,
     profilePhoto,
-    citizenshipNumber,
     citizenshipType,
     citizenshipIssueDate,
     citizenshipCalendar,
@@ -1263,12 +1262,6 @@ export default function CompleteProfile({
         );
       }
     } else if (step === 3) {
-      if (!citizenshipNumber) {
-        return triggerToast(
-          "Citizenship/National Identification ID Number is mandatory.",
-          true,
-        );
-      }
       if (!citizenshipFrontImage || !citizenshipBackImage) {
         return triggerToast(
           "Both front and back ID documentation copies are required.",
@@ -1323,7 +1316,8 @@ export default function CompleteProfile({
     } catch (error: any) {
       console.error("Could not save progress to database:", error);
       triggerToast(
-        error?.message || "Failed to save profile progress to database. Please try again.",
+        error?.message ||
+          "Failed to save profile progress to database. Please try again.",
         true,
       );
     } finally {
@@ -1346,7 +1340,10 @@ export default function CompleteProfile({
     setStep(1);
   };
 
-  const saveProfileProgress = async ({ showToast = true, nextStep }: { showToast?: boolean; nextStep?: number } = {}) => {
+  const saveProfileProgress = async ({
+    showToast = true,
+    nextStep,
+  }: { showToast?: boolean; nextStep?: number } = {}) => {
     const rawSnapshot = buildProfileSnapshot();
     const identityBiometricFields = new Set([
       "faceImage",
@@ -1516,9 +1513,6 @@ export default function CompleteProfile({
       const payload = {
         dob: personal.dob,
         gender: personal.gender,
-        fingerprintImage,
-        fingerprintLeftImage,
-        fingerprintRightImage,
         permanentAddress: personal.permanentAddress,
         temporaryAddress: personal.temporaryAddress,
         province: personal.province,
@@ -1528,12 +1522,17 @@ export default function CompleteProfile({
         postalCode: personal.postalCode,
         occupation: personal.occupation,
         profilePhoto,
-        citizenshipFrontImage,
-        citizenshipBackImage,
-        citizenshipNumber,
-        signatureImage,
+        // Biometric images — sent in full; body limit is 50MB
         faceImage,
         faceTemplate,
+        fingerprintImage,
+        fingerprintLeftImage,
+        fingerprintRightImage,
+        citizenshipFrontImage,
+        citizenshipBackImage,
+        signatureImage,
+        nidFrontImage,
+        nidBackImage,
         deviceInformation: navigator.userAgent,
 
         fullNameNepali,
@@ -1560,8 +1559,6 @@ export default function CompleteProfile({
         nidNumber,
         nidIssueDate,
         nidStatus,
-        nidFrontImage,
-        nidBackImage,
 
         // Separate location subfield entries
         permCountry:
@@ -1747,7 +1744,15 @@ export default function CompleteProfile({
             {setTheme && (
               <button
                 type="button"
-                onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "high-contrast" : "dark")}
+                onClick={() =>
+                  setTheme(
+                    theme === "dark"
+                      ? "light"
+                      : theme === "light"
+                        ? "high-contrast"
+                        : "dark",
+                  )
+                }
                 title={`Current theme: ${theme || "dark"}. Click to toggle.`}
                 className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors flex items-center gap-1 text-xs font-semibold"
               >
@@ -2980,10 +2985,10 @@ export default function CompleteProfile({
                   </label>
                   <input
                     type="text"
-                    placeholder=""
+                    placeholder="Registered citizenship number"
                     value={citizenshipNumber}
                     readOnly
-                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-emerald-500 opacity-70 cursor-not-allowed"
+                    className="w-full cursor-not-allowed bg-gray-950/70 border border-gray-800 rounded-xl px-3 py-2.5 text-gray-300 outline-none"
                   />
                 </div>
 
@@ -3192,7 +3197,10 @@ export default function CompleteProfile({
                     {nidAvailabilityStatus.status === "taken" && (
                       <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] font-semibold text-rose-400">
                         <XCircle className="h-3.5 w-3.5 text-rose-400" />
-                        <span>{nidAvailabilityStatus.message || "National ID already exists."}</span>
+                        <span>
+                          {nidAvailabilityStatus.message ||
+                            "National ID already exists."}
+                        </span>
                       </div>
                     )}
                   </div>

@@ -856,6 +856,7 @@ export const databaseSchema: Record<string, CollectionSchema> = {
       { fields: ["userId"], type: "unique" },
       { fields: ["citizenship.number"], type: "unique", sparse: true },
       { fields: ["nationalId.number"], type: "unique", sparse: true },
+      { fields: ["nidNumber"], type: "unique", sparse: true },
       { fields: ["verificationStatus"] },
       { fields: ["permanentAddress.province", "permanentAddress.district"] },
       { fields: ["fullName", "citizenship.number"], type: "text" },
@@ -1056,7 +1057,9 @@ export const databaseSchema: Record<string, CollectionSchema> = {
     indexes: [
       { fields: ["documentId"], type: "unique" },
       { fields: ["userId", "documentType"] },
-      { fields: ["documentNumber"] },
+      { fields: ["documentNumber"], type: "unique", sparse: true },
+      { fields: ["nidNumber"], type: "unique", sparse: true },
+      { fields: ["citizenshipNumber"], type: "unique", sparse: true },
       { fields: ["verificationStatus"] },
       { fields: ["createdAt"] },
     ],

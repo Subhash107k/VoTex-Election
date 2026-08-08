@@ -91,3 +91,40 @@ export function resetPassword(form: ForgotPasswordForm) {
     }),
   );
 }
+
+export function submitNidRecord(data: {
+  nidNumber: string;
+  nidIssueDate?: string;
+  nidStatus?: string;
+  nidFrontImage?: string;
+  nidBackImage?: string;
+  userId?: string;
+}) {
+  return requestJson<{
+    success: boolean;
+    message: string;
+    replaced: boolean;
+    isNew: boolean;
+    record: any;
+  }>("/api/auth/submit-nid", jsonRequestOptions("POST", data));
+}
+
+export function submitCitizenshipRecord(data: {
+  citizenshipNumber: string;
+  citizenshipType?: string;
+  citizenshipIssueDate?: string;
+  citizenshipIssueDistrict?: string;
+  citizenshipIssueAuthority?: string;
+  citizenshipFrontImage?: string;
+  citizenshipBackImage?: string;
+  signatureImage?: string;
+  userId?: string;
+}) {
+  return requestJson<{
+    success: boolean;
+    message: string;
+    replaced: boolean;
+    isNew: boolean;
+    record: any;
+  }>("/api/auth/submit-citizenship", jsonRequestOptions("POST", data));
+}
