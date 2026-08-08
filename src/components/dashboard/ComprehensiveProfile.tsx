@@ -46,10 +46,10 @@ function StatusBadge({ value, tone }: { value: string; tone?: Tone }) {
           ? "success"
           : "neutral");
   const styles: Record<Tone, string> = {
-    success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-    warning: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-    danger: "border-rose-400/30 bg-rose-400/10 text-rose-300",
-    neutral: "border-slate-700 bg-slate-800/60 text-slate-300",
+    success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    warning: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    danger: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+    neutral: "border-[var(--border-default)] bg-[var(--surface-muted)] text-[var(--text-secondary)]",
   };
   return (
     <span
@@ -66,12 +66,12 @@ function InfoGrid({ entries }: { entries: Array<[string, any]> }) {
       {entries.map(([label, value]) => (
         <div
           key={label}
-          className="rounded-xl border border-slate-800/70 bg-slate-950/60 p-3"
+          className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3 hover:bg-[var(--surface-hover)] transition-colors"
         >
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
             {label}
           </p>
-          <p className="mt-1 break-words text-xs font-semibold text-slate-200">
+          <p className="mt-1 break-words text-xs font-semibold text-[var(--text-primary)]">
             {shown(value)}
           </p>
         </div>
@@ -93,16 +93,16 @@ function Section({
   return (
     <details
       open={open}
-      className="group overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/60 shadow-xl shadow-black/10"
+      className="group overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-md"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between border-b border-slate-800/70 px-4 py-3">
-        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200">
-          <Icon className="h-4 w-4 text-emerald-400" />
+      <summary className="flex cursor-pointer list-none items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3 bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] transition-colors">
+        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--text-primary)]">
+          <Icon className="h-4 w-4 text-emerald-500" />
           {title}
         </span>
-        <ChevronDown className="h-4 w-4 text-slate-500 transition group-open:rotate-180" />
+        <ChevronDown className="h-4 w-4 text-[var(--text-secondary)] transition group-open:rotate-180" />
       </summary>
-      <div className="p-4">{children}</div>
+      <div className="p-4 bg-[var(--surface-card)]">{children}</div>
     </details>
   );
 }
@@ -112,14 +112,14 @@ function Documents({ items }: { items: any[] }) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-2xl border border-slate-800/70 bg-slate-950/40 p-3"
+          className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
         >
           <div className="mb-3 flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-black uppercase tracking-wider text-slate-200">
+              <p className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                 {item.label}
               </p>
-              <p className="mt-1 text-[10px] text-slate-500">
+              <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
                 Number: {shown(item.number)}
               </p>
             </div>
@@ -159,7 +159,6 @@ export default function ComprehensiveProfile({
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [light, setLight] = useState(false);
   const load = async () => {
     setLoading(true);
     setError("");
@@ -257,6 +256,7 @@ export default function ComprehensiveProfile({
     ],
     [profile, document],
   );
+
   const timeline = [
     ["Registration", user?.registrationTimestamp || user?.createdAt],
     ["Email Verified", user?.emailVerifiedAt],
@@ -277,46 +277,38 @@ export default function ComprehensiveProfile({
       user?.isApproved && user?.isVerified ? user?.updatedAt : undefined,
     ],
   ] as Array<[string, any]>;
-  const canvas = light
-    ? "bg-slate-50 text-slate-900"
-    : "bg-slate-950 text-slate-100";
+
   if (loading)
+
     return (
-      <div
-        className={`flex min-h-[420px] items-center justify-center ${canvas}`}
-      >
-        <RefreshCw className="h-7 w-7 animate-spin text-emerald-400" />
+      <div className="flex min-h-[420px] items-center justify-center bg-[var(--surface-page)] text-[var(--text-primary)]">
+        <RefreshCw className="h-7 w-7 animate-spin text-blue-500" />
       </div>
     );
+
   return (
-    <div className={`rounded-3xl border border-slate-800 p-2 ${canvas}`}>
-      <header className="sticky top-0 z-10 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-4 py-3 backdrop-blur">
+    <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-primary)] p-3 sm:p-4 shadow-xl space-y-4 transition-colors">
+      <header className="sticky top-0 z-10 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 backdrop-blur shadow-sm">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-500">
             User Profile Details
           </p>
-          <h2 className="mt-1 text-lg font-black">{shown(user?.fullName)}</h2>
-          <p className="text-[10px] text-slate-500">ID: {shown(user?.id)}</p>
+          <h2 className="mt-0.5 text-lg font-black text-[var(--text-primary)]">{shown(user?.fullName)}</h2>
+          <p className="text-[10px] text-[var(--text-tertiary)] font-mono">ID: {shown(user?.id)}</p>
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge value={user?.accountStatus || "Pending"} />
           <button
             type="button"
-            onClick={() => setLight((current) => !current)}
-            className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-[10px] font-bold text-slate-300"
-          >
-            {light ? "Dark" : "Light"}
-          </button>
-          <button
-            type="button"
             onClick={load}
             title="Refresh profile"
-            className="rounded-lg border border-slate-700 p-2 text-slate-300"
+            className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>
+
       {error && (
         <div className="mb-3 rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-300">
           {error}

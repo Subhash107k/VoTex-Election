@@ -339,7 +339,12 @@ export default function VoterDashboard({
             {/* Overview Tab Content */}
             {activeTab === "overview" && (
               <>
-                <ProfileHeader profile={renderProfile} />
+                <ProfileHeader
+                  profile={renderProfile}
+                  onEditProfile={handleEditProfile}
+                  onDownloadPdf={handleDownloadAll}
+                  onPrint={() => window.print()}
+                />
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                   <div className="xl:col-span-2">

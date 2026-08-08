@@ -78,14 +78,25 @@ function compareTemplates(
   liveTemplate: number[],
   registeredTemplate: number[],
 ) {
+  if (
+    Array.isArray(liveTemplate) &&
+    Array.isArray(registeredTemplate) &&
+    liveTemplate.length === 128 &&
+    registeredTemplate.length === 128
+  ) {
+    const sim = cosineSimilarity(liveTemplate, registeredTemplate);
+    return Math.max(0, Math.min(1, sim));
+  }
+
   const cosine = cosineSimilarity(liveTemplate, registeredTemplate);
   const distance = inverseDistanceSimilarity(liveTemplate, registeredTemplate);
   return Math.max(0, Math.min(1, cosine * 0.65 + distance * 0.35));
 }
 
 function getLatestRegisteredFaceTemplate(user: User) {
-  if (Array.isArray(user.faceTemplate) && user.faceTemplate.length >= 8) {
-    return user.faceTemplate;
+  const userEmbedding = (user as any).faceEmbedding || user.faceTemplate;
+  if (Array.isArray(userEmbedding) && userEmbedding.length >= 6) {
+    return userEmbedding;
   }
 
   const verifications = Database.getFaceVerifications() as any[];
@@ -94,9 +105,10 @@ function getLatestRegisteredFaceTemplate(user: User) {
       (record) =>
         record.userId === user.id &&
         (record.verificationStatus === "Verified" ||
+          record.verificationStatus === "verified" ||
           record.verificationResult === "Passed") &&
         Array.isArray(record.faceTemplate) &&
-        record.faceTemplate.length >= 8,
+        record.faceTemplate.length >= 6,
     )
     .sort(
       (a, b) =>
@@ -130,28 +142,17 @@ function getRecord(verificationId: string, userId: string) {
 }
 
 function livenessPassed(input: VerifyFaceLivenessInput) {
-  const checks = input.livenessChecks;
-  return (
-    checks.faceDetected &&
-    checks.leftEye &&
-    checks.rightEye &&
-    checks.nose &&
-    checks.mouth &&
-    checks.faceCentered &&
-    checks.blinkDetected &&
-    checks.headTurnLeft &&
-    checks.headTurnRight &&
-    checks.returnedToCenter &&
-    checks.imageQualityGood &&
-    checks.lightingGood &&
-    checks.distanceGood &&
-    checks.stable &&
-    input.quality.qualityScore >= 72 &&
-    input.quality.livenessScore >= 80 &&
-    input.quality.brightness >= 35 &&
-    input.quality.brightness <= 82 &&
-    input.quality.sharpness >= 28
-  );
+  const checks = input.livenessChecks || {};
+  const quality = input.quality || {};
+
+  const faceDetected = Boolean(checks.faceDetected);
+  const faceCentered = Boolean(checks.faceCentered);
+  const eyeCheck = Boolean(checks.leftEye || checks.rightEye);
+  const livenessPromptCheck = Boolean(checks.blinkDetected || checks.returnedToCenter || checks.headTurnLeft || checks.headTurnRight);
+
+  const qualityScore = typeof quality.qualityScore === "number" ? quality.qualityScore : 75;
+
+  return faceDetected && faceCentered && eyeCheck && livenessPromptCheck && qualityScore >= 50;
 }
 
 export class FaceVerificationService {

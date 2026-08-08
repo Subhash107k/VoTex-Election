@@ -387,7 +387,7 @@ export function normalizeProfilePayload(data: any) {
   return normalized;
 }
 
-export default function euseProfile(token?: string) {
+export function useProfile(token?: string) {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -416,3 +416,6 @@ export default function euseProfile(token?: string) {
 
   return { profile, loading, error, reload: load } as const;
 }
+
+export default useProfile;
+

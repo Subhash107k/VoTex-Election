@@ -15,20 +15,20 @@ function Row({
   isBadge?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-2xl bg-slate-950/40 border border-slate-800/80 transition-all hover:bg-slate-950/80">
-      <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
-        {Icon && <Icon className="h-4 w-4 text-blue-400 shrink-0" />}
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-2xl bg-[var(--surface-muted)] border border-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)]">
+      <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs font-medium">
+        {Icon && <Icon className="h-4 w-4 text-blue-500 shrink-0" />}
         <span>{label}</span>
       </div>
       <div className="text-right">
         {isBadge ? (
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
             {value ?? "Verified"}
           </span>
         ) : (
           <span
-            className={`text-xs font-bold text-slate-100 ${
-              isMono ? "font-mono text-blue-300" : ""
+            className={`text-xs font-bold text-[var(--text-primary)] ${
+              isMono ? "font-mono text-blue-600 dark:text-blue-400" : ""
             }`}
           >
             {value ?? "Not provided"}
@@ -50,22 +50,22 @@ export default function ProfileCard({ profile }: { profile: any }) {
     : null;
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl backdrop-blur-xl space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-primary)] p-5 shadow-xl backdrop-blur-xl space-y-4">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400">
+          <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-500">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-black text-white text-base">
+            <h3 className="font-black text-[var(--text-primary)] text-base">
               Personal Citizen Credentials
             </h3>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[var(--text-secondary)]">
               Verified identity record registered in federal voter database.
             </p>
           </div>
         </div>
-        <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-bold text-blue-400">
+        <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400">
           Official Roll
         </span>
       </div>
@@ -83,4 +83,5 @@ export default function ProfileCard({ profile }: { profile: any }) {
     </div>
   );
 }
+
 

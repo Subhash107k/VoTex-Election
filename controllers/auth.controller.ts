@@ -2080,9 +2080,10 @@ export const authController = {
       matchedUser.address = address || permanentAddress || matchedUser.address;
       matchedUser.nationalID = nidNumber || matchedUser.nationalID;
       matchedUser.citizenshipNumber = citizenshipNumber || matchedUser.citizenshipNumber;
-      const isLargeBase64 = (str?: string) => Boolean(str && str.length > 200000);
-      matchedUser.faceImage = isLargeBase64(faceImage) ? (matchedUser.faceImage && !isLargeBase64(matchedUser.faceImage) ? matchedUser.faceImage : "data:image/png;base64,face-biometric") : (faceImage || matchedUser.faceImage);
+      const isLargeBase64 = (str?: string) => Boolean(str && str.length > 5000000);
+      matchedUser.faceImage = faceImage || matchedUser.faceImage;
       matchedUser.faceTemplate = faceTemplateArray;
+      (matchedUser as any).faceEmbedding = faceTemplateArray;
       matchedUser.profilePhoto = profilePhoto || matchedUser.profilePhoto;
       matchedUser.profilePicture = profilePhoto || matchedUser.profilePicture;
       matchedUser.fingerprintImage = isLargeBase64(fingerprintImage) ? "captured" : (fingerprintImage || "");

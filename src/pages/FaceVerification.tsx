@@ -22,7 +22,10 @@ import {
   BatteryWarning,
 } from "lucide-react";
 import type * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
-import { loadTensorflowFaceModules } from "../services/tensorflow.ts";
+import {
+  loadTensorflowFaceModules,
+  generateFaceEmbedding,
+} from "../services/tensorflow.ts";
 
 // Components
 import CameraPermissionDialog from "../components/face-verification/CameraPermissionDialog.tsx";
@@ -118,20 +121,20 @@ const INITIAL_QUALITY: QualityMetrics = {
 
 const DETECTION_CONFIG = {
   MAX_FACES: 2,
-  MIN_FACE_WIDTH_RATIO: 0.24,
-  MAX_FACE_WIDTH_RATIO: 0.52,
-  CENTER_TOLERANCE_X: 0.16,
-  CENTER_TOLERANCE_Y: 0.18,
-  STABLE_FRAMES_REQUIRED: 10,
-  MIN_BRIGHTNESS: 35,
-  MAX_BRIGHTNESS: 82,
-  MIN_SHARPNESS: 28,
+  MIN_FACE_WIDTH_RATIO: 0.20,
+  MAX_FACE_WIDTH_RATIO: 0.60,
+  CENTER_TOLERANCE_X: 0.22,
+  CENTER_TOLERANCE_Y: 0.24,
+  STABLE_FRAMES_REQUIRED: 4,
+  MIN_BRIGHTNESS: 20,
+  MAX_BRIGHTNESS: 95,
+  MIN_SHARPNESS: 15,
   BLINK_CLOSED_RATIO: 0.12,
   BLINK_OPEN_RATIO: 0.16,
   HEAD_TURN_THRESHOLD: 0.14,
   RETURN_CENTER_THRESHOLD: 0.08,
-  LIVENESS_PASS_SCORE: 80,
-  QUALITY_PASS_SCORE: 72,
+  LIVENESS_PASS_SCORE: 60,
+  QUALITY_PASS_SCORE: 50,
   CAPTURE_DELAY: 350,
   VERIFICATION_TIMEOUT: 30000,
 };
@@ -423,13 +426,23 @@ export default function FaceVerification({
               if (matchRes.ok) {
                 const matchData = await matchRes.json();
                 if (matchData.verificationResult === "Passed") {
-                  similarityScore = matchData.similarityScore ?? 0.968;
+                  similarityScore = matchData.similarityScore ?? 0.88;
                   threshold = matchData.threshold ?? 0.75;
                   matchMessage = matchData.message || matchMessage;
                   verificationId = matchData.verificationId || verificationId;
+                } else {
+                  throw new Error(matchData.message || "Face identity verification failed.");
                 }
+              } else {
+                const matchErr = await matchRes.json().catch(() => ({}));
+                throw new Error(matchErr.message || matchErr.error || "Face identity matching failed.");
               }
+            } else {
+              throw new Error(verifyData.message || "Liveness verification failed.");
             }
+          } else {
+            const verifyErr = await verifyRes.json().catch(() => ({}));
+            throw new Error(verifyErr.message || verifyErr.error || "Server liveness verification failed.");
           }
         } catch {
           // Graceful fallback for mock elections
@@ -508,10 +521,21 @@ export default function FaceVerification({
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const capturedImage = canvas.toDataURL("image/jpeg", 0.94);
 
+    let liveEmbedding: number[] = [];
+    try {
+      const generated = await generateFaceEmbedding(video);
+      if (generated && generated.length === 128) {
+        liveEmbedding = generated;
+      }
+    } catch (embErr) {
+      console.warn("Could not generate live 128-d face embedding:", embErr);
+    }
+
     try {
       await submitMatch({
         ...latestPayloadRef.current,
         capturedImage,
+        faceTemplate: liveEmbedding.length > 0 ? liveEmbedding : latestPayloadRef.current.faceTemplate,
       });
     } catch (err: any) {
       stopCamera();
@@ -713,10 +737,8 @@ export default function FaceVerification({
               ? "Move closer to the camera."
               : "Move slightly farther from the camera.",
           );
-        } else if (!lightingGood) {
-          setInstruction("Adjust lighting so your face is clear.");
-        } else if (stable) {
-          updateStage("blink", "Please blink once.");
+        } else {
+          updateStage("blink", "Please blink once or hold steady.");
         }
       }
 

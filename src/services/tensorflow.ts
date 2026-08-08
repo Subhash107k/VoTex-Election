@@ -484,6 +484,107 @@ export function isFaceWellPositioned(face: DetectedFace): {
   return { isCentered, isCloseEnough, isLookingStraight, score };
 }
 
+// ============================================
+// Face-API Descriptor & Embedding Generator
+// ============================================
+let faceApiLoadedPromise: Promise<void> | null = null;
+
+export async function loadFaceApiModels(): Promise<void> {
+  if (faceApiLoadedPromise) return faceApiLoadedPromise;
+
+  faceApiLoadedPromise = (async () => {
+    try {
+      const faceapi = await import("@vladmandic/face-api");
+      const MODEL_URL = "/models";
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
+      console.log("✅ Face-API models loaded successfully from /models");
+    } catch (err) {
+      console.warn("⚠️ Primary Face-API model load failed, attempting fallback:", err);
+      try {
+        const faceapi = await import("@vladmandic/face-api");
+        const ALT_URL = "/model/face-api.js";
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(ALT_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(ALT_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(ALT_URL),
+        ]);
+        console.log("✅ Face-API models loaded from fallback /model/face-api.js");
+      } catch (fallbackErr) {
+        console.error("❌ Fallback Face-API model load failed:", fallbackErr);
+        faceApiLoadedPromise = null;
+        throw fallbackErr;
+      }
+    }
+  })();
+
+  return faceApiLoadedPromise;
+}
+
+export async function generateFaceEmbedding(
+  input: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
+): Promise<number[] | null> {
+  try {
+    const faceapi = await import("@vladmandic/face-api");
+    await loadFaceApiModels();
+
+    const detection = await faceapi
+      .detectSingleFace(
+        input as any,
+        new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 }),
+      )
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (detection?.descriptor) {
+      return Array.from(detection.descriptor);
+    }
+
+    try {
+      if (!faceapi.nets.ssdMobilenetv1.isLoaded) {
+        await faceapi.nets.ssdMobilenetv1.loadFromUri("/models");
+      }
+      const ssdDetection = await faceapi
+        .detectSingleFace(
+          input as any,
+          new faceapi.SsdMobilenetv1Options({ minConfidence: 0.35 }),
+        )
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (ssdDetection?.descriptor) {
+        return Array.from(ssdDetection.descriptor);
+      }
+    } catch {
+      // Ignore fallback SSD error
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Failed to generate face embedding:", error);
+    return null;
+  }
+}
+
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length === 0 || b.length === 0 || a.length !== b.length) {
+    return 0;
+  }
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 // Export default
 export default {
   loadTensorflowFaceModules,
@@ -495,4 +596,8 @@ export default {
   detectFace,
   extractFaceTemplate,
   isFaceWellPositioned,
+  loadFaceApiModels,
+  generateFaceEmbedding,
+  cosineSimilarity,
 };
+

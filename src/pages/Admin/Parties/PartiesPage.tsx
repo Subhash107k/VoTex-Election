@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Edit2, Search, Trash2, Upload } from "lucide-react";
+import { Edit2, Eye, Search, Trash2, Upload, Users, Building, Calendar } from "lucide-react";
 import type { Candidate, PoliticalParty } from "../../../types.js";
 import { PageHeader } from "../../../components/Admin/Shared/PageHeader.tsx";
 import { SectionCard } from "../../../components/Admin/Shared/SectionCard.tsx";
+import Modal from "../../../components/ui/Modal.tsx";
 import {
   ApiError,
   jsonRequestOptions,
@@ -53,6 +54,7 @@ export default function PartiesPage({
   const [formData, setFormData] = useState<PartyFormData>(emptyFormData);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedParty, setSelectedParty] = useState<PoliticalParty | null>(null);
 
   const filteredParties = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -204,11 +206,19 @@ export default function PartiesPage({
                       {candidateCount(party)}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                      onClick={() => setSelectedParty(party)}
+                    >
+                      <Eye className="mr-1 inline h-3.5 w-3.5" />
+                      View details
+                    </button>
                     <button
                       type="button"
                       onClick={() => startEdit(party)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold dark:border-slate-800"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-800"
                     >
                       <Edit2 className="h-3.5 w-3.5" /> Edit
                     </button>
@@ -224,6 +234,7 @@ export default function PartiesPage({
                 </div>
               </div>
             ))}
+
             {filteredParties.length === 0 ? (
               <p className="rounded-xl border border-dashed p-5 text-sm text-slate-500">
                 No parties match the search.
@@ -310,6 +321,76 @@ export default function PartiesPage({
           </div>
         </SectionCard>
       </div>
+
+      {selectedParty && (
+        <Modal
+          isOpen={Boolean(selectedParty)}
+          onClose={() => setSelectedParty(null)}
+          title={selectedParty.name}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <span className="rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1 text-xs font-bold text-blue-400">
+                Code: {selectedParty.code}
+              </span>
+              <span className="text-xs font-mono text-slate-400">
+                ID: {selectedParty.id}
+              </span>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Party Description
+                </span>
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  {selectedParty.description || "No description provided."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Party Leader
+                  </span>
+                  <span className="text-slate-200 font-semibold">
+                    {selectedParty.leader || "Not set"}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Founded Year
+                  </span>
+                  <span className="text-slate-200 font-semibold font-mono">
+                    {selectedParty.foundedYear || "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Headquarters
+                  </span>
+                  <span className="text-slate-200 font-semibold">
+                    {selectedParty.headquarters || "N/A"}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Linked Candidates Count
+                  </span>
+                  <span className="text-emerald-400 font-bold font-mono">
+                    {candidateCount(selectedParty)} Candidates
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
+

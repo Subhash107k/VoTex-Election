@@ -15,7 +15,10 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import type * as tf from "@tensorflow/tfjs-core";
 import type * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
-import { loadTensorflowFaceModules } from "../../services/tensorflow";
+import {
+  loadTensorflowFaceModules,
+  generateFaceEmbedding,
+} from "../../services/tensorflow";
 import {
   buildFallbackFaceBox,
   resolveCaptureDimensions,
@@ -921,16 +924,32 @@ export default function BiometricScanner({
           `Liveness score: ${result.livenessScore}`,
         ]);
 
-        const faceTemplate = [
-          result.qualityScore / 100,
-          result.livenessScore / 100,
-          result.confidenceScore,
-          result.validation.centered ? 1 : 0,
-          result.validation.eyesOpen ? 1 : 0,
-          result.validation.bothEars ? 1 : 0,
-        ];
+        let faceEmbedding: number[] = [];
+        try {
+          const generated = await generateFaceEmbedding(video);
+          if (generated && generated.length === 128) {
+            faceEmbedding = generated;
+            setBiometricsLog((prev) => [
+              ...prev,
+              "✔ 128-dimensional biometric face descriptor generated successfully.",
+            ]);
+          }
+        } catch (embErr) {
+          console.warn("Could not generate 128-d descriptor:", embErr);
+        }
 
-        onCapture(result.originalImage, faceTemplate, result);
+        if (faceEmbedding.length === 0) {
+          faceEmbedding = [
+            result.qualityScore / 100,
+            result.livenessScore / 100,
+            result.confidenceScore,
+            result.validation.centered ? 1 : 0,
+            result.validation.eyesOpen ? 1 : 0,
+            result.validation.bothEars ? 1 : 0,
+          ];
+        }
+
+        onCapture(result.croppedImage || result.originalImage, faceEmbedding, result);
         onCaptureResult?.(result);
       } else if (isMountedRef.current) {
         setScanStep("aligning");

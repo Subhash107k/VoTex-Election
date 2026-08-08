@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { CalendarDays, Eye, Plus, RefreshCcw, Trash2, CheckCircle2, Clock } from "lucide-react";
 import type { Election } from "../../../types.js";
 import { PageHeader } from "../../../components/Admin/Shared/PageHeader.tsx";
 import { SectionCard } from "../../../components/Admin/Shared/SectionCard.tsx";
 import { StatusBadge } from "../../../components/Admin/Shared/StatusBadge.tsx";
+import Modal from "../../../components/ui/Modal.tsx";
 
 interface ElectionFormValues {
   id?: string;
@@ -44,6 +45,7 @@ export default function ElectionsPage({
 }: ElectionsPageProps) {
   const [form, setForm] = useState<ElectionFormValues>(defaultForm());
   const [busy, setBusy] = useState(false);
+  const [selectedElection, setSelectedElection] = useState<Election | null>(null);
 
   const sortedElections = useMemo(
     () =>
@@ -108,7 +110,15 @@ export default function ElectionsPage({
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600"
+                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                    onClick={() => setSelectedElection(election)}
+                  >
+                    <Eye className="mr-1 inline h-3.5 w-3.5" />
+                    View details
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300"
                     onClick={() =>
                       onToggleElectionStatus(
                         election,
@@ -130,6 +140,7 @@ export default function ElectionsPage({
               </div>
             ))}
           </div>
+
 
           <form
             className="space-y-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/70"
@@ -218,6 +229,74 @@ export default function ElectionsPage({
           </form>
         </div>
       </SectionCard>
+
+      {selectedElection && (
+        <Modal
+          isOpen={Boolean(selectedElection)}
+          onClose={() => setSelectedElection(null)}
+          title={selectedElection.title}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <StatusBadge status={selectedElection.status} />
+              <span className="text-xs font-mono text-slate-400">
+                ID: {selectedElection.id}
+              </span>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Description
+                </span>
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  {selectedElection.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Election Type
+                  </span>
+                  <span className="text-slate-200 font-semibold">
+                    {selectedElection.type || "General Election"}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Maximum Votes Limit
+                  </span>
+                  <span className="text-slate-200 font-semibold font-mono">
+                    {selectedElection.maxVotes?.toLocaleString() || "Unlimited"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Polling Starts
+                  </span>
+                  <span className="text-emerald-400 font-semibold">
+                    {new Date(selectedElection.startDate).toLocaleString()}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Polling Closes
+                  </span>
+                  <span className="text-amber-400 font-semibold">
+                    {new Date(selectedElection.endDate).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
+

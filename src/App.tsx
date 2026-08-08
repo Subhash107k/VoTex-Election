@@ -311,6 +311,17 @@ export default function App() {
   }, [currentUser, currentPath, loading, setCurrentPath]);
 
   useEffect(() => {
+    if (
+      currentUser?.role === "Voter" &&
+      currentUser?.isProfileComplete &&
+      currentPath === "/complete-profile"
+    ) {
+      setCurrentPath("/votexDashboard");
+    }
+  }, [currentUser?.role, currentUser?.isProfileComplete, currentPath, setCurrentPath]);
+
+
+  useEffect(() => {
     if (!token || !currentUser) {
       setPreferencesReady(false);
       return;
@@ -490,7 +501,7 @@ export default function App() {
                 theme={theme}
                 setTheme={setTheme}
               />
-            ) : currentUser.role === "Voter" && (!currentUser.isProfileComplete || currentPath === "/complete-profile") ? (
+            ) : currentUser.role === "Voter" && (!currentUser.isProfileComplete && currentPath === "/complete-profile" || !currentUser.isProfileComplete) ? (
               <CompleteProfile
                 token={token}
                 user={currentUser}
@@ -508,6 +519,7 @@ export default function App() {
                 theme={theme}
                 setTheme={setTheme}
               />
+
             ) : currentUser.role === "Voter" ? (
               <VoterDashboard
                 token={token}

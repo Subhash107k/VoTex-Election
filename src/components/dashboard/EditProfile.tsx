@@ -24,9 +24,17 @@ import {
   Sparkles,
   BadgeCheck,
   UserCheck,
+  Bell,
+  Shield,
 } from "lucide-react";
 import type { ThemeMode } from "../../types/auth";
 import { NEPAL_ADDRESS_DATA, COUNTRIES } from "../../data/nepalAddressData";
+import ProfileAvatarUploader from "./ProfileAvatarUploader";
+import ProfileSecuritySettings from "./ProfileSecuritySettings";
+import ProfileNotificationSettings from "./ProfileNotificationSettings";
+import ProfilePrivacySettings from "./ProfilePrivacySettings";
+import UnsavedChangesModal from "../ui/UnsavedChangesModal";
+import ProfileSkeleton from "./ProfileSkeleton";
 
 interface EditProfileProps {
   token: string;
@@ -49,10 +57,16 @@ export default function EditProfile({
 }: EditProfileProps) {
   const isLight = theme === "light";
 
+  const [activeTab, setActiveTab] = useState<"personal" | "security" | "notifications" | "privacy">("personal");
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
 
   // Verified / Non-editable fields (loaded from backend DB)
   const [verifiedInfo, setVerifiedInfo] = useState({
@@ -350,14 +364,20 @@ export default function EditProfile({
     ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed"
     : "bg-slate-950/60 border-slate-800/80 text-slate-400 cursor-not-allowed";
 
+  const handleBackToDashboard = () => {
+    if (isFormDirty) {
+      setPendingPath("/votexDashboard");
+      setShowUnsavedModal(true);
+      return;
+    }
+    setCurrentPath("/votexDashboard");
+  };
+
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${bgPage}`}>
-        <div className="flex flex-col items-center gap-4 p-8 rounded-2xl border border-slate-800 bg-slate-900/60 text-center shadow-xl">
-          <RefreshCw className="h-8 w-8 animate-spin text-emerald-500" />
-          <p className="text-sm font-semibold tracking-wide">
-            Fetching latest database profile dossier...
-          </p>
+      <div className={`min-h-screen p-6 ${bgPage}`}>
+        <div className="mx-auto max-w-5xl">
+          <ProfileSkeleton />
         </div>
       </div>
     );
@@ -365,22 +385,41 @@ export default function EditProfile({
 
   return (
     <div className={`min-h-screen pb-16 transition-colors duration-300 ${bgPage}`}>
+      {/* Unsaved Changes Warning Modal */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onStay={() => {
+          setShowUnsavedModal(false);
+          setPendingPath(null);
+        }}
+        onDiscard={() => {
+          setShowUnsavedModal(false);
+          if (pendingPath) setCurrentPath(pendingPath);
+        }}
+        onSave={() => {
+          setShowUnsavedModal(false);
+          const form = document.querySelector("form");
+          if (form) form.requestSubmit();
+        }}
+        saving={saving}
+      />
+
       {/* Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-800/60 bg-slate-900/90 backdrop-blur-lg">
+      <header className="sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-primary)] backdrop-blur-lg shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCurrentPath("/votexDashboard")}
-              className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
+              onClick={handleBackToDashboard}
+              className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Back to Dashboard</span>
             </button>
-            <div className="h-5 w-px bg-slate-700 hidden sm:block" />
+            <div className="h-5 w-px bg-[var(--border-subtle)] hidden sm:block" />
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
-              <span className="font-bold text-sm sm:text-base tracking-tight text-white">
-                Edit Voter Profile
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              <span className="font-bold text-sm sm:text-base tracking-tight text-[var(--text-primary)]">
+                Voter Profile & Preferences
               </span>
             </div>
           </div>
@@ -390,15 +429,15 @@ export default function EditProfile({
               <button
                 type="button"
                 onClick={() => setTheme(isLight ? "dark" : "light")}
-                className="p-2 rounded-xl border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white transition cursor-pointer"
+                className="p-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition cursor-pointer"
                 title="Toggle Dark/Light Mode"
               >
-                {isLight ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-amber-400" />}
+                {isLight ? <Moon className="h-4 w-4 text-slate-700" /> : <Sun className="h-4 w-4 text-amber-400" />}
               </button>
             )}
             <button
               onClick={onLogout}
-              className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+              className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
             >
               Sign Out
             </button>
@@ -407,90 +446,96 @@ export default function EditProfile({
       </header>
 
       {/* Main Container */}
-      <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 space-y-6">
+        {/* Navigation Tabs Bar */}
+        <div className="flex items-center gap-2 p-1.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("personal")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "personal"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <User className="h-4 w-4" />
+            <span>Personal Details</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("security")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "security"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Lock className="h-4 w-4" />
+            <span>Security & Sessions</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("notifications")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "notifications"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            <span>Notification Alerts</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("privacy")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "privacy"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Shield className="h-4 w-4" />
+            <span>Privacy & Data Rights</span>
+          </button>
+        </div>
+
         {/* Banner Alert Messages */}
         {errorMsg && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-medium text-rose-400 shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm font-medium text-rose-500 shadow-lg animate-fade-in">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <p>{errorMsg}</p>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm font-medium text-emerald-400 shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm font-medium text-emerald-500 shadow-lg animate-fade-in">
             <CheckCircle2 className="h-5 w-5 shrink-0" />
             <p>{successMsg}</p>
           </div>
         )}
 
-        <form onSubmit={handleSaveProfile} className="space-y-6">
-          {/* Header Card */}
-          <div className={`rounded-3xl border p-6 ${bgCard}`}>
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              {/* Profile Photo Avatar */}
-              <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
-                <div className="relative group">
-                  <div className="h-28 w-28 rounded-2xl border-2 border-emerald-500/60 overflow-hidden bg-slate-950 flex items-center justify-center shadow-xl">
-                    {profilePhotoPreview ? (
-                      <img
-                        src={profilePhotoPreview}
-                        alt="Profile Avatar"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-12 w-12 text-slate-500" />
-                    )}
-                  </div>
-                </div>
+        {/* Tab 1: Personal Details */}
+        {activeTab === "personal" && (
+          <form
+            onSubmit={handleSaveProfile}
+            onChange={() => setIsFormDirty(true)}
+            className="space-y-6"
+          >
+            {/* Avatar Management Card */}
+            <ProfileAvatarUploader
+              currentPhotoUrl={profilePhotoPreview}
+              onPhotoChange={(photo) => {
+                setProfilePhoto(photo);
+                setProfilePhotoPreview(photo);
+                setIsFormDirty(true);
+              }}
+              userName={verifiedInfo.fullName || user?.fullName}
+              userRole={user?.role || "Voter"}
+            />
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={startLiveCamera}
-                    className="flex items-center gap-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-300 hover:bg-blue-500/20 transition cursor-pointer"
-                    title="Capture photo using live webcam"
-                  >
-                    <Camera className="h-3.5 w-3.5" />
-                    <span>Live Camera</span>
-                  </button>
-
-                  <label
-                    htmlFor="edit-profile-photo"
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
-                    title="Upload image file from device"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>Upload</span>
-                    <input
-                      type="file"
-                      id="edit-profile-photo"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="text-center sm:text-left space-y-1">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="text-xl font-bold tracking-tight text-white">
-                    {verifiedInfo.fullName || "Voter Identity"}
-                  </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    Government Verified
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400">
-                  {verifiedInfo.email} • Citizen ID: {verifiedInfo.citizenshipNumber || "CIT-VERIFIED"}
-                </p>
-                <p className="text-[11px] text-slate-500 pt-1">
-                  🔒 National Electoral Database Synchronized
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Section 1: Citizen Identity & Verification Credentials (Editable) */}
           <div className={`rounded-3xl border p-6 ${bgCard}`}>
@@ -855,36 +900,58 @@ export default function EditProfile({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPath("/votexDashboard")}
-              className="w-full sm:w-auto rounded-xl border border-slate-700 bg-slate-800/80 px-5 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition cursor-pointer"
-            >
-              Cancel
-            </button>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg hover:from-emerald-500 hover:to-teal-500 transition disabled:opacity-50 cursor-pointer"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Saving Updates to MongoDB...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  <span>Save Profile Changes</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+
+            {/* Action Buttons */}
+
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={handleBackToDashboard}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Saving Updates…</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Save Profile Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+
+        {/* Tab 2: Security & Credentials */}
+        {activeTab === "security" && (
+          <ProfileSecuritySettings token={token} user={user} />
+        )}
+
+        {/* Tab 3: Notification Alerts */}
+        {activeTab === "notifications" && (
+          <ProfileNotificationSettings token={token} user={user} />
+        )}
+
+        {/* Tab 4: Privacy & Data Rights */}
+        {activeTab === "privacy" && (
+          <ProfilePrivacySettings token={token} user={user} profile={verifiedInfo} />
+        )}
       </main>
+
 
       {/* Live Camera Photo Capture Modal */}
       {showCameraModal && (

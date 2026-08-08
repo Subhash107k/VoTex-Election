@@ -1425,6 +1425,17 @@ export default function CompleteProfile({
   };
 
   useEffect(() => {
+
+    if (user?.isProfileComplete) {
+      if (setCurrentPath) {
+        setCurrentPath("/votexDashboard");
+      }
+      onComplete(user);
+    }
+  }, [user?.isProfileComplete, setCurrentPath, onComplete]);
+
+  useEffect(() => {
+
     const loadSavedProfile = async () => {
       if (!token) return;
 
