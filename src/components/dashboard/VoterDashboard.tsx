@@ -29,6 +29,8 @@ import {
   X,
 } from "lucide-react";
 
+import type { ThemeMode } from "../../types/auth";
+
 export default function VoterDashboard({
   token,
   user,
@@ -41,8 +43,8 @@ export default function VoterDashboard({
   user?: any;
   onLogout: () => void;
   setCurrentPath: (path: string) => void;
-  theme?: string;
-  setTheme?: (t: string) => void;
+  theme?: ThemeMode;
+  setTheme?: (t: ThemeMode) => void;
 }) {
   const { profile, loading, error, reload } = useProfile(token);
   const safeProfile = profile || {

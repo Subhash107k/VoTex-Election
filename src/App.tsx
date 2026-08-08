@@ -1,12 +1,12 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 
-import ErrorBoundary from "./components/common/ErrorBoundary.tsx";
-import NotificationConsole from "./components/dashboard/NotificationConsole.tsx";
-import SessionManager from "./components/dashboard/SessionManager.tsx";
-import Toast from "./components/common/Toast.tsx";
-import { useBrowserPath } from "./hooks/useBrowserPath.ts";
-import { usePersistentTheme } from "./hooks/usePersistentTheme.ts";
-import { useToast } from "./hooks/useToast.ts";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import NotificationConsole from "./components/dashboard/NotificationConsole";
+import SessionManager from "./components/dashboard/SessionManager";
+import Toast from "./components/common/Toast";
+import { useBrowserPath } from "./hooks/useBrowserPath";
+import { usePersistentTheme } from "./hooks/usePersistentTheme";
+import { useToast } from "./hooks/useToast";
 import {
   getCurrentUser,
   getUserPreferences,
@@ -15,38 +15,38 @@ import {
   requestPasswordReset,
   resetPassword,
   updateUserPreferences,
-} from "./services/authService.ts";
-import { ApiError } from "./services/apiClient.ts";
+} from "./services/authService";
+import { ApiError } from "./services/apiClient";
 import type {
   ForgotPasswordForm,
   ForgotPasswordStep,
   LoginForm,
   RegisterForm,
-} from "./types/auth.ts";
-import type { User } from "./types.js";
+} from "./types/auth";
+import type { User } from "./types";
 
 const AdminLoginPage = lazy(
-  () => import("./components/Admin/AdminLoginPage.tsx"),
+  () => import("./components/Admin/AdminLoginPage"),
 );
-const AdminPanel = lazy(() => import("./components/Admin/AdminPanel.tsx"));
+const AdminPanel = lazy(() => import("./components/Admin/AdminPanel"));
 const PublicLanding = lazy(
-  () => import("./components/dashboard/PublicLanding.tsx"),
+  () => import("./components/dashboard/PublicLanding"),
 );
-const LoginPage = lazy(() => import("./components/auth/LoginPage.tsx"));
-const RegisterPage = lazy(() => import("./components/auth/RegisterPage.tsx"));
+const LoginPage = lazy(() => import("./components/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./components/auth/RegisterPage"));
 const ForgotPasswordPage = lazy(
-  () => import("./components/auth/ForgotPasswordPage.tsx"),
+  () => import("./components/auth/ForgotPasswordPage"),
 );
 const VoterDashboard = lazy(
-  () => import("./components/dashboard/VoterDashboard.tsx"),
+  () => import("./components/dashboard/VoterDashboard"),
 );
 const CandidateDashboard = lazy(() =>
-  import("./components/dashboard/CandidateDashboard.tsx").then((module) => ({
+  import("./components/dashboard/CandidateDashboard").then((module) => ({
     default: module.CandidateDashboard,
   })),
 );
 const CompleteProfile = lazy(
-  () => import("./components/dashboard/CompleteProfile.tsx"),
+  () => import("./components/dashboard/CompleteProfile"),
 );
 
 const TOKEN_STORAGE_KEY = "votex_token";
@@ -368,8 +368,17 @@ export default function App() {
       setRegForm(emptyRegisterForm);
       setRegFaceImage("");
       setRegFaceTemplate(null);
-    } catch (error) {
-      showToast(getErrorMessage(error), "error");
+    } catch (error: any) {
+      const msg = getErrorMessage(error);
+      showToast(msg, "error");
+      const field = error?.field || error?.details?.field;
+      if (field) {
+        window.dispatchEvent(
+          new CustomEvent("votex_registration_field_error", {
+            detail: { field, message: msg },
+          }),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -468,6 +477,8 @@ export default function App() {
                 user={currentUser}
                 onLogout={handleLogout}
                 setCurrentPath={setCurrentPath}
+                theme={theme}
+                setTheme={setTheme}
               />
             ) : currentUser.role === "Candidate" ? (
               <CandidateDashboard
@@ -560,6 +571,9 @@ export default function App() {
 
       <SessionManager
         token={token}
+        userRole={currentUser?.role}
+        theme={theme}
+        setTheme={setTheme}
         onLogout={(reason) => clearSession(reason)}
         onExtendSession={async () => {
           if (token) {

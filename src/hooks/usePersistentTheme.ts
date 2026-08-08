@@ -23,15 +23,44 @@ const applyThemeClass = (theme: ThemeMode) => {
 };
 
 export function usePersistentTheme() {
-  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const [theme, setThemeState] = useState<ThemeMode>(getInitialTheme);
+
+  const setTheme = (newTheme: ThemeMode) => {
+    setThemeState(newTheme);
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    applyThemeClass(newTheme);
+    window.dispatchEvent(new CustomEvent("votex_theme_changed", { detail: newTheme }));
+  };
 
   useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
     applyThemeClass(theme);
   }, [theme]);
 
   useEffect(() => {
-    applyThemeClass(theme);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === THEME_STORAGE_KEY && e.newValue) {
+        if (e.newValue === "light" || e.newValue === "dark" || e.newValue === "high-contrast") {
+          setThemeState(e.newValue);
+          applyThemeClass(e.newValue);
+        }
+      }
+    };
+
+    const handleCustomEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<ThemeMode>;
+      if (customEvent.detail && (customEvent.detail === "light" || customEvent.detail === "dark" || customEvent.detail === "high-contrast")) {
+        setThemeState(customEvent.detail);
+        applyThemeClass(customEvent.detail);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("votex_theme_changed", handleCustomEvent);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("votex_theme_changed", handleCustomEvent);
+    };
   }, []);
 
   return { theme, setTheme };

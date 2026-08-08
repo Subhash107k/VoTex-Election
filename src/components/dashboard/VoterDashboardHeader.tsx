@@ -16,8 +16,10 @@ import {
   Settings,
 } from "lucide-react";
 
+import type { ThemeMode } from "../../types/auth";
+
 type DashboardTab =
-  "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes";
+  | "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes";
 
 interface VoterDashboardHeaderProps {
   user: any;
@@ -28,8 +30,8 @@ interface VoterDashboardHeaderProps {
   setActiveTab: (tab: any) => void;
   currentPath: string;
   setCurrentPath: (path: string) => void;
-  theme?: string;
-  setTheme?: (theme: string) => void;
+  theme?: ThemeMode;
+  setTheme?: (theme: ThemeMode) => void;
 }
 
 export default function VoterDashboardHeader({

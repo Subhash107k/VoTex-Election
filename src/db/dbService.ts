@@ -160,6 +160,7 @@ export interface UserProfile {
   faceImage?: string;
   faceVerificationStatus?: string;
   isProfileComplete?: boolean;
+  currentStep?: number;
   auditLogs?: Array<{
     id: string;
     action: string;
@@ -948,6 +949,22 @@ export class Database {
     });
   }
 
+  static async getUsersAsync(filter: Partial<User> = {}): Promise<User[]> {
+    if (this.db) {
+      const dbUsers = await this.findAll<User>("users", filter as Filter<User>);
+      if (dbUsers && dbUsers.length > 0) return dbUsers;
+    }
+    return this.getUsers(filter);
+  }
+
+  static async getUserProfilesAsync(): Promise<UserProfile[]> {
+    if (this.db) {
+      const dbProfiles = await this.findAll<UserProfile>("user_profiles");
+      if (dbProfiles && dbProfiles.length > 0) return dbProfiles;
+    }
+    return this.getUserProfiles();
+  }
+
   static async getUserById(userId: string): Promise<User | null> {
     return this.findOne<User>("users", { id: userId } as Filter<User>);
   }
@@ -960,29 +977,122 @@ export class Database {
     return this.findOne<User>("users", { nationalID } as Filter<User>);
   }
 
-  static async createUser(
-    userData: Partial<User> & { password: string },
-  ): Promise<User | null> {
-    const passwordHash = await bcrypt.hash(userData.password, 12);
+  static parseDuplicateFieldError(error: any): { field: string; message: string } | null {
+    if (!error) return null;
+    const errMsg = String(error?.message || error?.errmsg || error || "");
+    const keyPattern = error?.keyPattern || {};
 
-    const user: User = {
-      id: this.createId("usr"),
-      fullName: userData.fullName || "",
-      nationalID: userData.nationalID || "",
-      email: userData.email || "",
-      mobile: userData.mobile || "",
-      role: userData.role || "Voter",
-      isVerified: false,
-      isApproved: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      tokenVersion: 0,
-      accountStatus: "Pending",
-      ...userData,
-      passwordHash, // Override with hashed version
+    if (keyPattern.email || errMsg.includes("users_email_unique") || /dup key.*email/i.test(errMsg)) {
+      return { field: "email", message: "Email is already registered." };
+    }
+    if (keyPattern.username || errMsg.includes("users_username_unique") || /dup key.*username/i.test(errMsg)) {
+      return { field: "username", message: "Username is not available." };
+    }
+    if (keyPattern.mobile || errMsg.includes("users_mobile_unique") || /dup key.*mobile/i.test(errMsg)) {
+      return { field: "phone", message: "Phone number is already registered." };
+    }
+    if (keyPattern.nationalID || errMsg.includes("users_national_id_unique") || /dup key.*nationalID/i.test(errMsg)) {
+      return { field: "nid", message: "NID is already registered." };
+    }
+    if (
+      keyPattern.citizenshipNumber ||
+      errMsg.includes("users_citizenship_number_unique") ||
+      errMsg.includes("profiles_citizenship_unique") ||
+      /dup key.*citizenship/i.test(errMsg)
+    ) {
+      return { field: "citizenshipNumber", message: "Citizenship number is already registered." };
+    }
+
+    return null;
+  }
+
+  static async inspectDuplicateUserData(): Promise<{
+    duplicateEmails: number;
+    duplicatePhones: number;
+    duplicateUsernames: number;
+    duplicateNids: number;
+    duplicateCitizenships: number;
+  }> {
+    const users = await this.getUsers();
+    const profiles = await this.getUserProfiles();
+
+    const countDuplicates = (arr: (string | undefined)[]) => {
+      const counts = new Map<string, number>();
+      for (const val of arr) {
+        if (!val) continue;
+        const norm = String(val).trim().toLowerCase();
+        counts.set(norm, (counts.get(norm) || 0) + 1);
+      }
+      let dupCount = 0;
+      for (const [, cnt] of counts) {
+        if (cnt > 1) dupCount += cnt - 1;
+      }
+      return dupCount;
     };
 
-    return this.insertOne<User>("users", user);
+    const emails = users.map((u) => u.email);
+    const usernames = users.map((u) => u.username);
+    const phones = users.map((u) => u.mobile);
+    const nids = users.map((u) => u.nationalID);
+    const citizenships = users.map((u) => u.citizenshipNumber);
+
+    const report = {
+      duplicateEmails: countDuplicates(emails),
+      duplicatePhones: countDuplicates(phones),
+      duplicateUsernames: countDuplicates(usernames),
+      duplicateNids: countDuplicates(nids),
+      duplicateCitizenships: countDuplicates(citizenships),
+    };
+
+    console.log("📊 [Database Inspection] Duplicate audit summary:", report);
+    return report;
+  }
+
+  static async createUser(
+    userData: Partial<User> & { password?: string },
+  ): Promise<User> {
+    const passwordHash = userData.passwordHash
+      ? userData.passwordHash
+      : userData.password
+        ? await bcrypt.hash(userData.password, 10)
+        : "";
+
+    const user: User = {
+      id: userData.id || this.createId("usr"),
+      fullName: userData.fullName || "",
+      username: userData.username || "",
+      nationalID: userData.nationalID || "",
+      citizenshipNumber: userData.citizenshipNumber || "",
+      email: userData.email || "",
+      mobile: userData.mobile || "",
+      address: userData.address || "",
+      dob: userData.dob || "",
+      gender: userData.gender || "Male",
+      occupation: userData.occupation || "",
+      passwordHash,
+      role: userData.role || "Voter",
+      isVerified: userData.isVerified ?? true,
+      isApproved: userData.isApproved ?? false,
+      isSuspended: userData.isSuspended ?? false,
+      createdAt: userData.createdAt || new Date().toISOString(),
+      updatedAt: userData.updatedAt || new Date().toISOString(),
+      tokenVersion: userData.tokenVersion || 0,
+      accountStatus: userData.accountStatus || "Pending",
+      ...userData,
+    };
+
+    let result: User | null = null;
+    if (this.db) {
+      result = await this.insertOne<User>("users", user);
+    }
+
+    const existing = (this.inMemStore.get("users") || []) as User[];
+    if (!existing.some((u) => u.id === user.id)) {
+      existing.push(user);
+      this.inMemStore.set("users", existing);
+    }
+
+    return result || user;
   }
 
   static async updateUser(
@@ -1653,10 +1763,22 @@ export class Database {
           name: "users_username_unique",
         },
         {
+          key: { mobile: 1 },
+          unique: true,
+          sparse: true,
+          name: "users_mobile_unique",
+        },
+        {
           key: { nationalID: 1 },
           unique: true,
           sparse: true,
           name: "users_national_id_unique",
+        },
+        {
+          key: { citizenshipNumber: 1 },
+          unique: true,
+          sparse: true,
+          name: "users_citizenship_number_unique",
         },
         { key: { role: 1, accountStatus: 1 }, name: "users_role_status" },
       ]);
@@ -1747,9 +1869,7 @@ export class Database {
         for (const user of users) {
           await this.upsertOne(
             "users",
-            {
-              $or: [{ id: user.id }, { username: user.username }],
-            } as any,
+            { id: user.id } as Filter<User>,
             user,
           );
         }

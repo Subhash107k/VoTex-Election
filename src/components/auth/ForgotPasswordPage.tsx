@@ -169,9 +169,8 @@ export default function ForgotPasswordPage({
                         setForgotForm({ ...forgotForm, email: forgotForm.email.trim() });
                       }
                     }}
-                    className={`w-full px-3 py-2.5 pl-9 rounded-xl border ${inputBg}`}
+                    className={`w-full px-3 py-2.5 rounded-xl border ${inputBg}`}
                   />
-                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
                 </div>
                 {emailSuggestion && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">

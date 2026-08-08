@@ -22,13 +22,18 @@ import {
   ChevronRight,
   X,
   Info,
+  Sun,
+  Moon,
 } from "lucide-react";
+import type { ThemeMode } from "../../types/auth";
 
 interface SessionManagerProps {
   token: string | null;
   onLogout: (reason?: string) => void;
   onExtendSession: () => Promise<void>;
   userRole?: string;
+  theme?: ThemeMode;
+  setTheme?: (theme: ThemeMode) => void;
 }
 
 interface SessionActivity {
@@ -55,6 +60,8 @@ export default function SessionManager({
   onLogout,
   onExtendSession,
   userRole,
+  theme,
+  setTheme,
 }: SessionManagerProps) {
   // State Management
   const [showWarning, setShowWarning] = useState(false);

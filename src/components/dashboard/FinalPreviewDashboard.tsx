@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useState } from "react";
 import {
   ShieldCheck,
   ChevronLeft,
@@ -25,14 +25,18 @@ import {
   PenTool,
   Heart,
   Briefcase,
-  Monitor,
   Globe,
   Hash,
   CreditCard,
   Home,
   Building2,
+  FileCheck,
+  Lock,
+  ArrowRight,
+  ExternalLink,
+  Layers,
 } from "lucide-react";
-import DocumentPreview from "../common/DocumentPreview";
+import DocumentViewerModal from "./DocumentViewerModal.tsx";
 
 interface FinalPreviewDashboardProps {
   user: any;
@@ -72,7 +76,7 @@ interface FinalPreviewDashboardProps {
   spouseName: string;
   spouseNameNepali: string;
   profilePhoto: string;
-  profilePhotoPreviewUrl: string;
+  profilePhotoPreviewUrl?: string;
   citizenshipNumber: string;
   citizenshipType: string;
   citizenshipIssueDate: string;
@@ -94,8 +98,8 @@ interface FinalPreviewDashboardProps {
   signatureImage: string;
   faceImage: string;
   fingerprintImage: string;
-  fingerprintLeftImage: string;
-  fingerprintRightImage: string;
+  fingerprintLeftImage?: string;
+  fingerprintRightImage?: string;
   fingerprintStatus: "idle" | "checking" | "clear" | "duplicate";
   faceMatchPercent?: number;
   fingerprintMatchPercent?: number;
@@ -111,37 +115,51 @@ interface FinalPreviewDashboardProps {
   isSubmitted?: boolean;
 }
 
-// Professional Card Component
+// Professional Card Shell
 const Card = memo(function Card({
   title,
+  subtitle,
   icon: Icon,
   children,
   className = "",
+  headerAction,
 }: {
   title: string;
+  subtitle?: string;
   icon: React.ElementType;
   children: React.ReactNode;
   className?: string;
+  headerAction?: React.ReactNode;
 }) {
   return (
-    <div className={`bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden ${className}`}>
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/30">
-        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+    <div
+      className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden transition-all duration-300 ${className}`}
+    >
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/60 dark:bg-slate-800/40">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-blue-500/10 dark:bg-blue-400/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-2xl">
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+              {title}
+            </h3>
+            {subtitle && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-          {title}
-        </h3>
+        {headerAction && <div>{headerAction}</div>}
       </div>
-      <div className="p-6">
-        {children}
-      </div>
+      <div className="p-6">{children}</div>
     </div>
   );
 });
 
-// Professional Info Row
-const InfoRow = memo(function InfoRow({
+// Professional Data Item Cell
+const DataCell = memo(function DataCell({
   label,
   value,
   icon: Icon,
@@ -151,119 +169,24 @@ const InfoRow = memo(function InfoRow({
   icon: React.ElementType;
 }) {
   return (
-    <div className="group p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-      <div className="flex items-center gap-2 mb-1">
-        <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+    <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors">
+      <div className="p-2 bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl shrink-0">
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
           {label}
-        </span>
-      </div>
-      <div className="text-sm font-medium text-slate-800 dark:text-slate-200 pl-6">
-        {value || <span className="text-slate-400 italic">Not provided</span>}
-      </div>
-    </div>
-  );
-});
-
-// Status Badge
-const StatusBadge = memo(function StatusBadge({
-  status,
-}: {
-  status: "verified" | "pending" | "warning" | "error";
-}) {
-  const config = {
-    verified: {
-      icon: CheckCircle2,
-      className: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
-      label: "Verified"
-    },
-    pending: {
-      icon: Clock3,
-      className: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
-      label: "Pending"
-    },
-    warning: {
-      icon: AlertTriangle,
-      className: "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800",
-      label: "Review Needed"
-    },
-    error: {
-      icon: AlertTriangle,
-      className: "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
-      label: "Failed"
-    }
-  };
-
-  const { icon: Icon, className, label } = config[status];
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${className}`}>
-      <Icon className="w-3 h-3" />
-      {label}
-    </span>
-  );
-});
-
-// Biometric Card
-const BiometricCard = memo(function BiometricCard({
-  type,
-  image,
-  matchPercent,
-  status,
-}: {
-  type: "face" | "fingerprint";
-  image?: string;
-  matchPercent: number;
-  status: string;
-}) {
-  const Icon = type === "face" ? Camera : Fingerprint;
-  
-  return (
-    <div className="p-4 bg-white dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50">
-      <div className="flex items-start gap-4">
-        <div className="relative">
-          {image ? (
-            <img
-              src={image}
-              alt={`${type} verification`}
-              className="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-              <Icon className="w-6 h-6 text-slate-400" />
-            </div>
-          )}
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-            <CheckCircle2 className="w-3 h-3 text-white" />
-          </div>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <Icon className="w-4 h-4 text-slate-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
-              {type} Verification
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-slate-800 dark:text-white mb-1">
-            {matchPercent}%
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"
-                style={{ width: `${matchPercent}%` }}
-              />
-            </div>
-            <span className="text-xs text-slate-500">match</span>
-          </div>
+        <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+          {value || <span className="text-slate-400 font-normal italic">Not provided</span>}
         </div>
       </div>
     </div>
   );
 });
 
-// Address Card
-const AddressCard = memo(function AddressCard({
+// Address Block
+const AddressBlock = memo(function AddressBlock({
   type,
   lines,
   badge,
@@ -273,38 +196,44 @@ const AddressCard = memo(function AddressCard({
   badge?: string;
 }) {
   return (
-    <div className="p-4 bg-white dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {type === "permanent" ? (
-            <Home className="w-4 h-4 text-blue-500" />
-          ) : (
-            <Building2 className="w-4 h-4 text-purple-500" />
-          )}
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
-            {type} Address
-          </span>
-        </div>
-        {badge && (
-          <span className="text-xs font-medium px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full">
-            {badge}
-          </span>
-        )}
-      </div>
-      <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-        {lines.map((line, index) => (
-          <div key={index} className="flex items-start gap-2">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
-            <span>{line}</span>
+    <div className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            {type === "permanent" ? (
+              <div className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+                <Home className="w-4 h-4" />
+              </div>
+            ) : (
+              <div className="p-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl">
+                <Building2 className="w-4 h-4" />
+              </div>
+            )}
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize">
+              {type} Address
+            </span>
           </div>
-        ))}
+          {badge && (
+            <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded-full">
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="space-y-1.5 pl-1">
+          {lines.map((line, idx) => (
+            <div key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+              <span>{line}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 });
 
-// Family Member Card
-const FamilyMemberCard = memo(function FamilyMemberCard({
+// Family Member Item
+const FamilyItem = memo(function FamilyItem({
   relation,
   name,
 }: {
@@ -312,172 +241,16 @@ const FamilyMemberCard = memo(function FamilyMemberCard({
   name: string;
 }) {
   return (
-    <div className="p-3 bg-white dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 flex items-center justify-center">
-          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        </div>
-        <div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">
-            {relation}
-          </div>
-          <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-            {name || "Not provided"}
-          </div>
-        </div>
+    <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80">
+      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 font-bold">
+        <Users className="w-5 h-5" />
       </div>
-    </div>
-  );
-});
-
-// Sidebar Component
-const Sidebar = memo(function Sidebar({
-  completionPercent,
-  isCertified,
-  acceptLegal,
-  isLoading,
-  isSubmitted,
-  onBack,
-  onEditProfile,
-  onSubmit,
-  onToggleCertified,
-  onToggleLegal,
-  faceMatchPercent,
-  fingerprintMatchPercent,
-  documentsCount,
-}: {
-  completionPercent: number;
-  isCertified: boolean;
-  acceptLegal: boolean;
-  isLoading: boolean;
-  isSubmitted?: boolean;
-  onBack: () => void;
-  onEditProfile: () => void;
-  onSubmit: () => Promise<void> | void;
-  onToggleCertified: (value: boolean) => void;
-  onToggleLegal: (value: boolean) => void;
-  faceMatchPercent: number;
-  fingerprintMatchPercent: number;
-  documentsCount: number;
-}) {
-  return (
-    <div className="lg:sticky lg:top-4 space-y-4">
-      {/* Progress Card */}
-      <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-6">
-        <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">
-          Registration Progress
-        </h4>
-        
-        <div className="mb-6">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-600 dark:text-slate-400">Completion</span>
-            <span className="font-bold text-slate-800 dark:text-white">{completionPercent}%</span>
-          </div>
-          <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                completionPercent >= 80
-                  ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                  : completionPercent >= 50
-                  ? "bg-gradient-to-r from-amber-500 to-amber-400"
-                  : "bg-gradient-to-r from-red-500 to-red-400"
-              }`}
-              style={{ width: `${completionPercent}%` }}
-            />
-          </div>
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          {relation}
         </div>
-
-        <div className="space-y-3 mb-6">
-          <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-            <span className="text-sm text-slate-600 dark:text-slate-400">Face Match</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{faceMatchPercent}%</span>
-          </div>
-          <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-            <span className="text-sm text-slate-600 dark:text-slate-400">Fingerprint</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{fingerprintMatchPercent}%</span>
-          </div>
-          <div className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-            <span className="text-sm text-slate-600 dark:text-slate-400">Documents</span>
-            <span className="text-sm font-bold text-slate-800 dark:text-white">{documentsCount} Uploaded</span>
-          </div>
-        </div>
-
-        {/* Certifications */}
-        <div className="space-y-3 mb-6">
-          <label className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isCertified}
-              onChange={(e) => onToggleCertified(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              I certify that all information provided is accurate and complete to the best of my knowledge.
-            </span>
-          </label>
-          
-          <label className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acceptLegal}
-              onChange={(e) => onToggleLegal(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              I understand that providing false information may result in legal consequences and disqualification.
-            </span>
-          </label>
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={isLoading || !isCertified || !acceptLegal || isSubmitted}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="w-4 h-4" />
-                Submit Registration
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={onEditProfile}
-            disabled={isSubmitted}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-          >
-            <PenTool className="w-4 h-4" />
-            Edit Profile
-          </button>
-
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            Print Preview
-          </button>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-slate-600 dark:text-slate-400 rounded-xl font-medium text-sm hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back to Registration
-          </button>
+        <div className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
+          {name || <span className="text-slate-400 font-normal italic">Not provided</span>}
         </div>
       </div>
     </div>
@@ -518,6 +291,8 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     grandfatherNameNepali,
     spouseName,
     spouseNameNepali,
+    profilePhoto,
+    profilePhotoPreviewUrl,
     citizenshipNumber,
     citizenshipType,
     citizenshipIssueDate,
@@ -527,13 +302,8 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     citizenshipIssueAuthority,
     citizenshipFrontImage,
     citizenshipBackImage,
-    citizenshipFrontFileName,
-    citizenshipBackFileName,
-    citizenshipFrontUploadedAt,
-    citizenshipBackUploadedAt,
     nidNumber,
     nidIssueDate,
-    nidStatus,
     nidFrontImage,
     nidBackImage,
     signatureImage,
@@ -550,10 +320,19 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     onToggleCertified,
     onToggleLegal,
     isLoading,
+    isSubmitted,
   } = props;
 
-  const fullName = user?.fullName || user?.name || 
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Not provided";
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  const fullName =
+    user?.fullName ||
+    user?.name ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    "Not provided";
+
+  const photoDisplay =
+    profilePhotoPreviewUrl || profilePhoto || faceImage || user?.faceImage || "";
 
   const age = useMemo(() => {
     if (!personal.dob) return null;
@@ -569,10 +348,17 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
   }, [personal.dob]);
 
   const permanentAddress = useMemo(() => {
-    const parts = permCountry === "Nepal"
-      ? [permProvince, permDistrict, permMunicipality, `Ward ${permWardNumber}`, permTole]
-      : [permProvince, permMunicipality, permStreetAddress];
-    
+    const parts =
+      permCountry === "Nepal"
+        ? [
+            permProvince,
+            permDistrict,
+            permMunicipality,
+            permWardNumber ? `Ward ${permWardNumber}` : "",
+            permTole,
+          ]
+        : [permProvince, permMunicipality, permStreetAddress];
+
     const address = parts.filter(Boolean).join(", ");
     const extras = [
       permCountry && permCountry !== "Nepal" ? permCountry : null,
@@ -580,15 +366,31 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     ].filter(Boolean);
 
     return [address, ...extras].filter(Boolean);
-  }, [permCountry, permProvince, permDistrict, permMunicipality, permWardNumber, permTole, permStreetAddress, permPostalCode]);
+  }, [
+    permCountry,
+    permProvince,
+    permDistrict,
+    permMunicipality,
+    permWardNumber,
+    permTole,
+    permStreetAddress,
+    permPostalCode,
+  ]);
 
   const temporaryAddress = useMemo(() => {
     if (sameAsPermanent) return ["Same as permanent address"];
-    
-    const parts = tempCountry === "Nepal"
-      ? [tempProvince, tempDistrict, tempMunicipality, `Ward ${tempWardNumber}`, tempTole]
-      : [tempProvince, tempMunicipality, tempStreetAddress];
-    
+
+    const parts =
+      tempCountry === "Nepal"
+        ? [
+            tempProvince,
+            tempDistrict,
+            tempMunicipality,
+            tempWardNumber ? `Ward ${tempWardNumber}` : "",
+            tempTole,
+          ]
+        : [tempProvince, tempMunicipality, tempStreetAddress];
+
     const address = parts.filter(Boolean).join(", ");
     const extras = [
       tempCountry && tempCountry !== "Nepal" ? tempCountry : null,
@@ -596,7 +398,17 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
     ].filter(Boolean);
 
     return [address, ...extras].filter(Boolean);
-  }, [sameAsPermanent, tempCountry, tempProvince, tempDistrict, tempMunicipality, tempWardNumber, tempTole, tempStreetAddress, tempPostalCode]);
+  }, [
+    sameAsPermanent,
+    tempCountry,
+    tempProvince,
+    tempDistrict,
+    tempMunicipality,
+    tempWardNumber,
+    tempTole,
+    tempStreetAddress,
+    tempPostalCode,
+  ]);
 
   const completionPercent = useMemo(() => {
     const checks = [
@@ -607,7 +419,7 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
       citizenshipFrontImage,
       citizenshipBackImage,
       nidNumber,
-      props.profilePhoto,
+      photoDisplay,
       signatureImage,
       faceImage,
       props.fingerprintLeftImage && props.fingerprintRightImage,
@@ -615,131 +427,305 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
       fatherName || motherName || spouseName,
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  }, [fullName, personal, citizenshipNumber, citizenshipFrontImage, citizenshipBackImage, nidNumber, props.profilePhoto, signatureImage, faceImage, props.fingerprintLeftImage, props.fingerprintRightImage, fullNameNepali, fatherName, motherName, spouseName]);
+  }, [
+    fullName,
+    personal,
+    citizenshipNumber,
+    citizenshipFrontImage,
+    citizenshipBackImage,
+    nidNumber,
+    photoDisplay,
+    signatureImage,
+    faceImage,
+    props.fingerprintLeftImage,
+    props.fingerprintRightImage,
+    fullNameNepali,
+    fatherName,
+    motherName,
+    spouseName,
+  ]);
 
-  const documents = useMemo(() => [
-    {
-      label: "Citizenship Front",
-      fileUrl: citizenshipFrontImage,
-      fileName: citizenshipFrontFileName || "Citizenship Front",
-      uploadedAt: citizenshipFrontUploadedAt,
-      status: citizenshipFrontImage ? "verified" as const : "pending" as const,
-    },
-    {
-      label: "Citizenship Back",
-      fileUrl: citizenshipBackImage,
-      fileName: citizenshipBackFileName || "Citizenship Back",
-      uploadedAt: citizenshipBackUploadedAt,
-      status: citizenshipBackImage ? "verified" as const : "pending" as const,
-    },
-    {
-      label: "National ID Front",
-      fileUrl: nidFrontImage,
-      fileName: "National ID Front",
-      uploadedAt: nidFrontImage ? "Uploaded" : undefined,
-      status: nidFrontImage ? "verified" as const : "pending" as const,
-    },
-    {
-      label: "National ID Back",
-      fileUrl: nidBackImage,
-      fileName: "National ID Back",
-      uploadedAt: nidBackImage ? "Uploaded" : undefined,
-      status: nidBackImage ? "verified" as const : "pending" as const,
-    },
-    {
-      label: "Signature",
-      fileUrl: signatureImage,
-      fileName: "Digital Signature",
-      uploadedAt: signatureImage ? "Captured" : undefined,
-      status: signatureImage ? "verified" as const : "pending" as const,
-    },
-  ], [citizenshipFrontImage, citizenshipBackImage, nidFrontImage, nidBackImage, signatureImage, citizenshipFrontFileName, citizenshipBackFileName, citizenshipFrontUploadedAt, citizenshipBackUploadedAt]);
+  // Clean document list WITHOUT showing raw document file names (as requested: "Remove show document name")
+  const documents = useMemo(
+    () => [
+      {
+        label: "Citizenship Document (Front)",
+        fileUrl: citizenshipFrontImage,
+        status: citizenshipFrontImage ? ("verified" as const) : ("pending" as const),
+      },
+      {
+        label: "Citizenship Document (Back)",
+        fileUrl: citizenshipBackImage,
+        status: citizenshipBackImage ? ("verified" as const) : ("pending" as const),
+      },
+      {
+        label: "National ID (Front)",
+        fileUrl: nidFrontImage,
+        status: nidFrontImage ? ("verified" as const) : ("pending" as const),
+      },
+      {
+        label: "National ID (Back)",
+        fileUrl: nidBackImage,
+        status: nidBackImage ? ("verified" as const) : ("pending" as const),
+      },
+      {
+        label: "Digital Signature",
+        fileUrl: signatureImage,
+        status: signatureImage ? ("verified" as const) : ("pending" as const),
+      },
+    ],
+    [
+      citizenshipFrontImage,
+      citizenshipBackImage,
+      nidFrontImage,
+      nidBackImage,
+      signatureImage,
+    ],
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
-              <ShieldCheck className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-slate-100/60 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Hero Voter Verification Banner */}
+        <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-blue-500/20 overflow-hidden">
+          {/* Subtle Background Lighting Glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+              {/* Profile Photo Avatar */}
+              <div className="relative">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl bg-slate-800 flex items-center justify-center shrink-0">
+                  {photoDisplay ? (
+                    <img
+                      src={photoDisplay}
+                      alt="Voter Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle2 className="w-16 h-16 text-slate-500" />
+                  )}
+                </div>
+                <div
+                  className="absolute -bottom-1 -right-1 p-1.5 bg-emerald-500 text-white rounded-full shadow-lg border border-slate-900"
+                  title="Profile Photo Verified"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Title & Identity Info */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                    Electoral Registration Dossier
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    {completionPercent}% Verified
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+                  {fullName}
+                </h1>
+                {fullNameNepali && (
+                  <p className="text-base text-slate-300 font-medium">
+                    {fullNameNepali}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1 text-xs text-slate-400">
+                  {user?.email && (
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-blue-400" />
+                      <span>{user.email}</span>
+                    </div>
+                  )}
+                  {user?.phone && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-                Registration Preview
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Review your voter registration details before submission
-              </p>
+
+            {/* Quick Header Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={onEditProfile}
+                disabled={isSubmitted}
+                className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                <PenTool className="w-4 h-4" />
+                Edit Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-2 transition-all active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                Print Preview
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-600/30"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </button>
             </div>
           </div>
         </div>
 
+        {/* Dashboard Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Personal Information */}
-            <Card title="Personal Information" icon={UserCircle2}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                <InfoRow label="Full Name" value={fullName} icon={UserCircle2} />
-                <InfoRow label="Name (Nepali)" value={fullNameNepali} icon={UserCircle2} />
-                <InfoRow label="Gender" value={personal.gender} icon={Users} />
-                <InfoRow label="Date of Birth" value={personal.dob} icon={CalendarDays} />
-                <InfoRow label="Age" value={age ? `${age} years` : null} icon={CalendarDays} />
-                <InfoRow label="Nationality" value={nationality || "Nepali"} icon={Globe} />
-                <InfoRow label="Marital Status" value={maritalStatus} icon={Heart} />
-                <InfoRow label="Education" value={educationStatus} icon={BookOpen} />
-                <InfoRow label="Occupation" value={personal.occupation} icon={Briefcase} />
-                <InfoRow label="Blood Group" value={bloodGroup} icon={Heart} />
-                <InfoRow label="Email" value={user?.email} icon={Mail} />
-                <InfoRow label="Phone" value={user?.phone} icon={Phone} />
+          {/* Main 2-Column Information Area */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Personal Information Card */}
+            <Card
+              title="Personal Information"
+              subtitle="Verified demographics and personal attributes"
+              icon={UserCircle2}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <DataCell label="Full Name (English)" value={fullName} icon={UserCircle2} />
+                <DataCell label="Full Name (Nepali)" value={fullNameNepali} icon={UserCircle2} />
+                <DataCell label="Gender" value={personal.gender} icon={Users} />
+                <DataCell label="Date of Birth" value={personal.dob} icon={CalendarDays} />
+                <DataCell label="Calculated Age" value={age ? `${age} years old` : null} icon={CalendarDays} />
+                <DataCell label="Nationality" value={nationality || "Nepali"} icon={Globe} />
+                <DataCell label="Marital Status" value={maritalStatus} icon={Heart} />
+                <DataCell label="Educational Attainment" value={educationStatus} icon={BookOpen} />
+                <DataCell label="Occupation" value={personal.occupation} icon={Briefcase} />
+                <DataCell label="Blood Group" value={bloodGroup} icon={Heart} />
               </div>
             </Card>
 
-            {/* Identity Documents */}
-            <Card title="Identity & Citizenship" icon={IdCard}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                <InfoRow label="Citizenship Number" value={citizenshipNumber} icon={Hash} />
-                <InfoRow label="Citizenship Type" value={citizenshipType} icon={CreditCard} />
-                <InfoRow 
-                  label="Issue Date" 
-                  value={citizenshipCalendar === "BS" ? citizenshipBsDate || citizenshipIssueDate : citizenshipIssueDate} 
-                  icon={CalendarDays} 
+            {/* Identity & Citizenship Documents Card */}
+            <Card
+              title="Identity & Citizenship Credentials"
+              subtitle="Official government registration details"
+              icon={IdCard}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <DataCell label="Citizenship Number" value={citizenshipNumber} icon={Hash} />
+                <DataCell label="Citizenship Type" value={citizenshipType} icon={CreditCard} />
+                <DataCell
+                  label="Issue Date"
+                  value={
+                    citizenshipCalendar === "BS"
+                      ? citizenshipBsDate || citizenshipIssueDate
+                      : citizenshipIssueDate
+                  }
+                  icon={CalendarDays}
                 />
-                <InfoRow label="Issue District" value={citizenshipIssueDistrict} icon={MapPin} />
-                <InfoRow label="Issuing Authority" value={citizenshipIssueAuthority} icon={Landmark} />
-                <InfoRow label="National ID Number" value={nidNumber} icon={Hash} />
-                <InfoRow label="NID Issue Date" value={nidIssueDate} icon={CalendarDays} />
+                <DataCell label="Issuing District" value={citizenshipIssueDistrict} icon={MapPin} />
+                <DataCell label="Issuing Authority" value={citizenshipIssueAuthority} icon={Landmark} />
+                <DataCell label="National ID (NID)" value={nidNumber} icon={Hash} />
+                <DataCell label="NID Issue Date" value={nidIssueDate} icon={CalendarDays} />
               </div>
             </Card>
 
-            {/* Biometric Verification */}
-            <Card title="Biometric Verification" icon={Fingerprint}>
+            {/* Biometric Verification Suite Card */}
+            <Card
+              title="Biometric Authentication Suite"
+              subtitle="Facial recognition and fingerprint matching integrity"
+              icon={Fingerprint}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Face Verification Card */}
+                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4">
+                  <div className="relative">
+                    {faceImage ? (
+                      <img
+                        src={faceImage}
+                        alt="Face Scan"
+                        className="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-md"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                        <Camera className="w-7 h-7" />
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 p-1 bg-emerald-500 text-white rounded-full shadow">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Camera className="w-4 h-4 text-blue-500" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Facial Recognition
+                      </span>
+                    </div>
+                    <div className="text-xl font-black text-slate-900 dark:text-white">
+                      {faceMatchPercent}% Match
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full"
+                        style={{ width: `${faceMatchPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fingerprint Verification Card */}
+                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4">
+                  <div className="relative">
+                    {fingerprintImage ? (
+                      <img
+                        src={fingerprintImage}
+                        alt="Fingerprint Scan"
+                        className="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-md bg-white p-1"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                        <Fingerprint className="w-7 h-7" />
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 -right-1 p-1 bg-emerald-500 text-white rounded-full shadow">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Fingerprint className="w-4 h-4 text-purple-500" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Fingerprint Scan
+                      </span>
+                    </div>
+                    <div className="text-xl font-black text-slate-900 dark:text-white">
+                      {fingerprintMatchPercent}% Match
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full"
+                        style={{ width: `${fingerprintMatchPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Address Information Card */}
+            <Card
+              title="Electoral Address Verification"
+              subtitle="Registered permanent and temporary residency details"
+              icon={MapPin}
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <BiometricCard
-                  type="face"
-                  image={faceImage}
-                  matchPercent={faceMatchPercent}
-                  status="verified"
-                />
-                <BiometricCard
-                  type="fingerprint"
-                  image={fingerprintImage}
-                  matchPercent={fingerprintMatchPercent}
-                  status={fingerprintStatus}
-                />
-              </div>
-            </Card>
-
-            {/* Address Information */}
-            <Card title="Address Information" icon={MapPin}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <AddressCard
+                <AddressBlock
                   type="permanent"
                   lines={permanentAddress.filter(Boolean) as string[]}
                   badge={permCountry === "Nepal" ? "Nepal" : "International"}
                 />
-                <AddressCard
+                <AddressBlock
                   type="temporary"
                   lines={temporaryAddress.filter(Boolean) as string[]}
                   badge={sameAsPermanent ? "Same as Permanent" : "Current"}
@@ -747,53 +733,235 @@ export default function FinalPreviewDashboard(props: FinalPreviewDashboardProps)
               </div>
             </Card>
 
-            {/* Family Information */}
-            <Card title="Family Information" icon={Users}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FamilyMemberCard relation="Father" name={fatherName || fatherNameNepali} />
-                <FamilyMemberCard relation="Mother" name={motherName || motherNameNepali} />
-                <FamilyMemberCard relation="Grandfather" name={grandfatherName || grandfatherNameNepali} />
-                <FamilyMemberCard relation="Spouse" name={spouseName || spouseNameNepali} />
+            {/* Family Tree Card */}
+            <Card
+              title="Family Relationship Record"
+              subtitle="Verified lineage and relationship entries"
+              icon={Users}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FamilyItem relation="Father" name={fatherName || fatherNameNepali} />
+                <FamilyItem relation="Mother" name={motherName || motherNameNepali} />
+                <FamilyItem relation="Grandfather" name={grandfatherName || grandfatherNameNepali} />
+                <FamilyItem relation="Spouse" name={spouseName || spouseNameNepali} />
               </div>
             </Card>
 
-            {/* Documents */}
-            <Card title="Uploaded Documents" icon={FileText}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.map((doc, index) => (
-                  <DocumentPreview
-                    key={`${doc.label}-${index}`}
-                    label={doc.label}
-                    fileUrl={doc.fileUrl}
-                    fileName={doc.fileName}
-                    uploadedAt={doc.uploadedAt}
-                    status={doc.status}
-                  />
-                ))}
+            {/* Uploaded Documents Vault Card - NO RAW FILENAME TEXT SHOWN */}
+            <Card
+              title="Uploaded Documents Vault"
+              subtitle="Verified official identity scans (Click thumbnail to inspect document)"
+              icon={FileText}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {documents.map((doc, index) => {
+                  const isUploaded = !!doc.fileUrl;
+                  return (
+                    <div
+                      key={index}
+                      className="group relative p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Header Badge */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {doc.label}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${
+                              isUploaded
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                            }`}
+                          >
+                            {isUploaded ? "Verified" : "Pending"}
+                          </span>
+                        </div>
+
+                        {/* Thumbnail Container - NO FILENAME DISPLAYED */}
+                        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center mb-3">
+                          {isUploaded ? (
+                            <>
+                              <img
+                                src={doc.fileUrl}
+                                alt={doc.label}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewerUrl(doc.fileUrl)}
+                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-lg flex items-center gap-1.5 transition-all"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  Inspect
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center p-4 text-slate-400 text-center">
+                              <FileText className="w-8 h-8 mb-1 opacity-50" />
+                              <span className="text-[11px]">Not uploaded</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Direct Inspection Action Button */}
+                      {isUploaded && (
+                        <button
+                          type="button"
+                          onClick={() => setViewerUrl(doc.fileUrl)}
+                          className="w-full py-2 bg-slate-200/60 dark:bg-slate-800/80 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View Document
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Sidebar
-              completionPercent={completionPercent}
-              isCertified={isCertified}
-              acceptLegal={acceptLegal}
-              isLoading={isLoading}
-              isSubmitted={props.isSubmitted}
-              onBack={onBack}
-              onEditProfile={onEditProfile}
-              onSubmit={onSubmit}
-              onToggleCertified={onToggleCertified}
-              onToggleLegal={onToggleLegal}
-              faceMatchPercent={faceMatchPercent}
-              fingerprintMatchPercent={fingerprintMatchPercent}
-              documentsCount={documents.filter(d => d.fileUrl).length}
-            />
+          {/* Right Sidebar Action & Compliance Panel */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="lg:sticky lg:top-6 space-y-6">
+              {/* Progress & Integrity Status */}
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-6 shadow-xl shadow-slate-200/40 dark:shadow-none space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Overall Progress
+                    </span>
+                    <span className="text-lg font-black text-blue-600 dark:text-blue-400">
+                      {completionPercent}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-900 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        completionPercent >= 80
+                          ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                          : completionPercent >= 50
+                          ? "bg-gradient-to-r from-amber-500 to-amber-400"
+                          : "bg-gradient-to-r from-red-500 to-red-400"
+                      }`}
+                      style={{ width: `${completionPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 text-xs font-medium">
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-600 dark:text-slate-400">Facial Match</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {faceMatchPercent}% Verified
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-600 dark:text-slate-400">Fingerprint Match</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {fingerprintMatchPercent}% Verified
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-600 dark:text-slate-400">Documents Vault</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {documents.filter((d) => d.fileUrl).length} / {documents.length} Items
+                    </span>
+                  </div>
+                </div>
+
+                {/* Legal Certification Checkboxes */}
+                <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <label className="flex items-start gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={isCertified}
+                      onChange={(e) => onToggleCertified(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                      I certify that all information provided is authentic, accurate, and complete.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={acceptLegal}
+                      onChange={(e) => onToggleLegal(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                      I understand that false declarations carry legal consequences under electoral laws.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Submission Actions */}
+                <div className="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onSubmit}
+                    disabled={isLoading || !isCertified || !acceptLegal || isSubmitted}
+                    className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white rounded-2xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-blue-500/25 active:scale-98"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Submitting Registration...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-5 h-5" />
+                        Submit Voter Registration
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onEditProfile}
+                    disabled={isSubmitted}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  >
+                    <PenTool className="w-4 h-4" />
+                    Edit Profile Details
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print Registration Dossier
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-2xl font-semibold text-xs transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back to Step 5
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal - NO DOCUMENT NAME DISPLAYED */}
+      <DocumentViewerModal
+        open={!!viewerUrl}
+        url={viewerUrl || undefined}
+        onClose={() => setViewerUrl(null)}
+      />
     </div>
   );
 }

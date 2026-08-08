@@ -178,9 +178,8 @@ export default function PublicFooter({ setCurrentPath }: PublicFooterProps) {
                   value={newsletterEmail}
                   ref={emailInputRef}
                   onChange={(e) => setNewsletterEmail(e.target.value)}
-                  className="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 pl-9 text-xs text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
                 />
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
               </div>
               <button
                 type="submit"

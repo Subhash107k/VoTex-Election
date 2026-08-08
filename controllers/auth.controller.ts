@@ -710,8 +710,8 @@ export const authController = {
           ? String(req.query.citizenshipNumber)
           : undefined;
 
-      const users = await Database.getUsers();
-      const profiles = await Database.getUserProfiles();
+      const users = await Database.getUsersAsync();
+      const profiles = await Database.getUserProfilesAsync();
 
       const available: Record<string, boolean> = {
         email: true,
@@ -905,31 +905,75 @@ export const authController = {
 
       const users = await Database.getUsers();
       const profiles = await Database.getUserProfiles();
-      const errors: Record<string, string> = {};
 
+      // Format validations
       if (!emailStandard || !validateEmail(email)) {
-        errors.email = "Please provide a valid email address.";
-      } else if (
-        users.some((u) => normalizeEmailValue(u.email) === emailStandard)
-      ) {
-        errors.email = "Email already registered.";
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          field: "email",
+          error: "Please provide a valid email address.",
+        });
+      }
+      if (!usernameStandard) {
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          field: "username",
+          error: "Please provide a valid username.",
+        });
+      }
+      if (!mobileStandard || !validateNepaliMobile(mobile)) {
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          field: "phone",
+          error: "Please provide a valid Nepali mobile number.",
+        });
+      }
+      if (!nidStandard) {
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          field: "nid",
+          error: "National ID is required.",
+        });
+      }
+      if (!citizenshipStandard) {
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          field: "citizenshipNumber",
+          error: "Citizenship number is required.",
+        });
       }
 
-      if (!usernameStandard) {
-        errors.username = "Please provide a valid username.";
-      } else if (
+      // Pre-insertion Duplicate Checks (HTTP 409 Conflict)
+      if (users.some((u) => normalizeEmailValue(u.email) === emailStandard)) {
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_FIELD",
+          field: "email",
+          message: "Email is already registered.",
+        });
+      }
+
+      if (
         users.some(
           (u) =>
             u.username &&
             normalizeUsernameValue(u.username) === usernameStandard,
         )
       ) {
-        errors.username = "Username already taken.";
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_FIELD",
+          field: "username",
+          message: "Username is not available.",
+        });
       }
 
-      if (!mobileStandard || !validateNepaliMobile(mobile)) {
-        errors.phone = "Please provide a valid Nepali mobile number.";
-      } else if (
+      if (
         users.some(
           (u) =>
             !!u.mobile &&
@@ -937,12 +981,15 @@ export const authController = {
               normalizePhoneValue(u.mobile) === mobileStandard),
         )
       ) {
-        errors.phone = "Phone number already registered.";
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_FIELD",
+          field: "phone",
+          message: "Phone number is already registered.",
+        });
       }
 
-      if (!nidStandard) {
-        errors.nid = "National ID is required.";
-      } else if (
+      if (
         users.some(
           (u) =>
             u.nationalID && normalizeNidValue(u.nationalID) === nidStandard,
@@ -951,12 +998,15 @@ export const authController = {
           (p) => p.nidNumber && normalizeNidValue(p.nidNumber) === nidStandard,
         )
       ) {
-        errors.nid = "National ID already exists.";
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_FIELD",
+          field: "nid",
+          message: "NID is already registered.",
+        });
       }
 
-      if (!citizenshipStandard) {
-        errors.citizenship = "Citizenship number is required.";
-      } else if (
+      if (
         users.some(
           (u) =>
             u.citizenshipNumber &&
@@ -970,13 +1020,12 @@ export const authController = {
               citizenshipStandard,
         )
       ) {
-        errors.citizenship = "Citizenship number already exists.";
-      }
-
-      if (Object.keys(errors).length > 0) {
-        return res
-          .status(400)
-          .json({ success: false, error: Object.values(errors)[0], errors });
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_FIELD",
+          field: "citizenshipNumber",
+          message: "Citizenship number is already registered.",
+        });
       }
 
       const otps = await Database.getOTPs();
@@ -1048,46 +1097,22 @@ export const authController = {
       };
 
       try {
-        users.push(newUser);
-        await Database.saveUsers(users);
+        await Database.createUser(newUser);
       } catch (dbErr: any) {
-        const errMsg = String(dbErr?.message || dbErr || "");
-        const dbErrors: Record<string, string> = {};
-        if (errMsg.includes("users_email_unique") || errMsg.includes("email")) {
-          dbErrors.email = "Email already registered.";
+        const parsed = Database.parseDuplicateFieldError(dbErr);
+        if (parsed) {
+          return res.status(409).json({
+            success: false,
+            code: "DUPLICATE_FIELD",
+            field: parsed.field,
+            message: parsed.message,
+          });
         }
-        if (
-          errMsg.includes("users_username_unique") ||
-          errMsg.includes("username")
-        ) {
-          dbErrors.username = "Username already taken.";
-        }
-        if (
-          errMsg.includes("users_mobile_unique") ||
-          errMsg.includes("mobile")
-        ) {
-          dbErrors.phone = "Phone number already registered.";
-        }
-        if (
-          errMsg.includes("users_national_id_unique") ||
-          errMsg.includes("nationalID")
-        ) {
-          dbErrors.nid = "National ID already exists.";
-        }
-        if (
-          errMsg.includes("users_citizenship_number_unique") ||
-          errMsg.includes("citizenshipNumber")
-        ) {
-          dbErrors.citizenship = "Citizenship number already exists.";
-        }
-        if (Object.keys(dbErrors).length === 0) {
-          dbErrors.general =
-            "Registration failed due to a database constraint conflict.";
-        }
-        return res.status(400).json({
+        return res.status(409).json({
           success: false,
-          error: Object.values(dbErrors)[0],
-          errors: dbErrors,
+          code: "DUPLICATE_FIELD",
+          field: "general",
+          message: "Registration failed due to a duplicate record conflict.",
         });
       }
 
@@ -1403,7 +1428,7 @@ export const authController = {
         }
       }
 
-      const isIdentityLocked = isElectionActive || hasVoted;
+      const isIdentityLocked = (isElectionActive && !!user.isProfileComplete) || hasVoted;
       const body = req.body || {};
 
       if (isIdentityLocked) {
@@ -1422,6 +1447,14 @@ export const authController = {
         ];
         const existingProfile = (Database.getUserProfiles().find((p: any) => p.userId === userId) || {}) as any;
         for (const field of identityFields) {
+          const hasProposedValue = hasLockedIdentityValue(body[field]);
+
+          // If no non-empty proposed value is provided in body, do not check or overwrite
+          if (!hasProposedValue) {
+            delete body[field];
+            continue;
+          }
+
           const existingValues = getLockedIdentitySources(
             field,
             existingProfile,
@@ -1437,12 +1470,8 @@ export const authController = {
               normalizeLockedIdentityValue(field, value) === proposedValue,
           );
 
-          if (
-            previouslySet &&
-            body[field] !== undefined &&
-            !matchesExistingValue
-          ) {
-            return res.status(400).json({
+          if (previouslySet && !matchesExistingValue) {
+            return res.status(403).json({
               error: `Critical identity field '${field}' cannot be modified while an election is active or after casting your vote.`,
             });
           }
@@ -1762,6 +1791,101 @@ export const authController = {
       }
 
       const matchedUser = users[userIdx];
+      const profiles = await Database.getUserProfiles();
+
+      const elections = Database.getElections();
+      const votes = Database.getVotes();
+      const isElectionActive = elections.some((e) => e.status === "Active" || (e.status as string) === "Open");
+
+      let hasVoted = false;
+      for (const e of elections) {
+        const keyToHash = `${userId}_${e.id}`;
+        const voterHash = crypto.createHash("sha256").update(keyToHash).digest("hex");
+        if (votes.some((v) => v.anonymousVoterHash === voterHash)) {
+          hasVoted = true;
+          break;
+        }
+      }
+
+      const isIdentityLocked = (isElectionActive && !!matchedUser.isProfileComplete) || hasVoted;
+      if (isIdentityLocked) {
+        const identityFields = [
+          "citizenshipNumber",
+          "nationalID",
+          "nidNumber",
+          "dob",
+          "gender",
+          "faceImage",
+          "faceTemplate",
+          "fingerprintImage",
+          "citizenshipFrontImage",
+          "citizenshipBackImage",
+          "signatureImage",
+        ];
+        const existingProfile = (profiles.find((p: any) => p.userId === userId) || {}) as any;
+        for (const field of identityFields) {
+          const hasProposedValue = hasLockedIdentityValue(req.body[field]);
+          if (!hasProposedValue) continue;
+
+          const existingValues = getLockedIdentitySources(
+            field,
+            existingProfile,
+            matchedUser,
+          ).filter(hasLockedIdentityValue);
+          const previouslySet = existingValues.length > 0;
+          const proposedValue = normalizeLockedIdentityValue(
+            field,
+            req.body[field],
+          );
+          const matchesExistingValue = existingValues.some(
+            (value) =>
+              normalizeLockedIdentityValue(field, value) === proposedValue,
+          );
+
+          if (previouslySet && !matchesExistingValue) {
+            return res.status(403).json({
+              error: `Critical identity field '${field}' cannot be modified while an election is active or after casting your vote.`,
+            });
+          }
+        }
+      }
+
+      // Check if citizenshipNumber is already registered by another user
+      if (citizenshipNumber) {
+        const normalizedCit = normalizeCitizenshipValue(citizenshipNumber);
+        const duplicateCitUser = users.some(
+          (u) => u.id !== userId && u.citizenshipNumber && normalizeCitizenshipValue(u.citizenshipNumber) === normalizedCit
+        );
+        const duplicateCitProfile = profiles.some(
+          (p) => p.userId !== userId && p.citizenshipNumber && normalizeCitizenshipValue(p.citizenshipNumber) === normalizedCit
+        );
+        if (duplicateCitUser || duplicateCitProfile) {
+          return res.status(409).json({
+            success: false,
+            error: "Citizenship number already exists.",
+            errors: { citizenship: "Citizenship number already exists." }
+          });
+        }
+      }
+
+      // Check if nidNumber is already registered by another user
+      if (nidNumber) {
+        const normalizedNid = normalizeNidValue(nidNumber);
+        const duplicateNidUser = users.some(
+          (u) => u.id !== userId && u.nationalID && normalizeNidValue(u.nationalID) === normalizedNid
+        );
+        const duplicateNidProfile = profiles.some(
+          (p) => p.userId !== userId && p.nidNumber && normalizeNidValue(p.nidNumber) === normalizedNid
+        );
+        if (duplicateNidUser || duplicateNidProfile) {
+          return res.status(409).json({
+            success: false,
+            error: "National ID already exists.",
+            errors: { nid: "National ID already exists." }
+          });
+        }
+      }
+
       const faceTemplateArray = Array.isArray(faceTemplate)
         ? faceTemplate
         : [0.1, 0.2, 0.3];
@@ -1793,13 +1917,12 @@ export const authController = {
         : false;
 
       if (isFaceDuplicate) {
-        return res.status(400).json({
+        return res.status(409).json({
           error:
             "Biometric Failure: This facial signature is already registered to another citizen's account",
         });
       }
 
-      const profiles = await Database.getUserProfiles();
       const existingProfileIdx = profiles.findIndex(
         (profile: any) => profile.userId === userId,
       );
@@ -1887,7 +2010,20 @@ export const authController = {
       } else {
         profiles.push(newProfile);
       }
-      await Database.saveUserProfiles(profiles);
+
+      // Wrap saves in a try block to catch potential E11000 index conflicts from MongoDB
+      try {
+        await Database.saveUserProfiles(profiles);
+      } catch (profileSaveErr: any) {
+        const isDuplicateErr = profileSaveErr?.code === 11000 || String(profileSaveErr?.message || "").includes("E11000");
+        if (isDuplicateErr) {
+          return res.status(409).json({
+            success: false,
+            error: "A profile constraint conflict occurred. Make sure your National ID and Citizenship number are unique.",
+          });
+        }
+        throw profileSaveErr;
+      }
 
       const docs = await Database.getIdentityDocuments();
       const newDoc: any = {
@@ -1927,7 +2063,8 @@ export const authController = {
       matchedUser.dob = dob;
       matchedUser.gender = gender as any;
       matchedUser.address = address || permanentAddress || matchedUser.address;
-      matchedUser.nationalID = citizenshipNumber;
+      matchedUser.nationalID = nidNumber || matchedUser.nationalID;
+      matchedUser.citizenshipNumber = citizenshipNumber || matchedUser.citizenshipNumber;
       matchedUser.faceImage = faceImage;
       matchedUser.faceTemplate = faceTemplateArray;
       matchedUser.profilePhoto = profilePhoto || matchedUser.profilePhoto;
@@ -2016,7 +2153,19 @@ export const authController = {
       );
 
       users[userIdx] = matchedUser;
-      await Database.saveUsers(users);
+
+      try {
+        await Database.saveUsers(users);
+      } catch (userSaveErr: any) {
+        const isDuplicateErr = userSaveErr?.code === 11000 || String(userSaveErr?.message || "").includes("E11000");
+        if (isDuplicateErr) {
+          return res.status(409).json({
+            success: false,
+            error: "A database registration conflict occurred. Please ensure your National ID, Email, and Username are unique.",
+          });
+        }
+        throw userSaveErr;
+      }
 
       const ip =
         (req.headers["x-forwarded-for"] as string) ||

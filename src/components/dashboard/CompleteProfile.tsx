@@ -18,20 +18,26 @@ import {
   Users,
   BadgePlus,
   Lock,
+  X,
+  Sun,
+  Moon,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-const BiometricScanner = React.lazy(() => import("./BiometricScanner.tsx"));
-import SearchableSelect from "./SearchableSelect.tsx";
-import Stepper from "../ui/Stepper.tsx";
+const BiometricScanner = React.lazy(() => import("./BiometricScanner"));
+import SearchableSelect from "./SearchableSelect";
+import Stepper from "../ui/Stepper";
 import {
   CitizenshipUploadPreview,
   SignaturePad,
-} from "../documents/CitizenshipUploadPreview.tsx";
-import FingerprintCaptureCard from "./FingerprintCaptureCard.tsx";
-import FinalPreviewDashboard from "./FinalPreviewDashboard.tsx";
-import type { ThemeMode } from "../../types/auth.ts";
-import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData.ts";
-import { buildApiUrl } from "../../services/apiClient.ts";
+} from "../documents/CitizenshipUploadPreview";
+import FingerprintCaptureCard from "./FingerprintCaptureCard";
+import FinalPreviewDashboard from "./FinalPreviewDashboard";
+import type { ThemeMode } from "../../types/auth";
+import { COUNTRIES, NEPAL_ADDRESS_DATA } from "../../data/nepalAddressData";
+import { buildApiUrl } from "../../services/apiClient";
+import { checkAvailability } from "../../services/authService";
 import NepaliDate from "nepali-date-converter";
 
 interface CompleteProfileProps {
@@ -50,6 +56,8 @@ export default function CompleteProfile({
   onLogout,
   onComplete,
   setCurrentPath,
+  theme,
+  setTheme,
 }: CompleteProfileProps) {
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -58,6 +66,18 @@ export default function CompleteProfile({
   const [savedProfile, setSavedProfile] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showSavedBanner, setShowSavedBanner] = useState(false);
+
+  useEffect(() => {
+    if (savedProfile) {
+      setShowSavedBanner(true);
+      const timer = setTimeout(() => {
+        setShowSavedBanner(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [savedProfile]);
+
   const profileSyncChannelId = useRef(
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -714,6 +734,41 @@ export default function CompleteProfile({
   const [nidFrontImage, setNidFrontImage] = useState<string>("");
   const [nidBackImage, setNidBackImage] = useState<string>("");
 
+  const [nidAvailabilityStatus, setNidAvailabilityStatus] = useState<{
+    status: "idle" | "checking" | "available" | "taken";
+    message?: string;
+  }>({ status: "idle" });
+
+  useEffect(() => {
+    if (!nidNumber || nidNumber.trim().length < 6) {
+      setNidAvailabilityStatus({ status: "idle" });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setNidAvailabilityStatus({ status: "checking" });
+      try {
+        const res = await checkAvailability({ nid: nidNumber });
+        if (res && res.success) {
+          if (res.available?.nid === false) {
+            setNidAvailabilityStatus({
+              status: "taken",
+              message: res.message?.nid || "National ID already exists.",
+            });
+          } else {
+            setNidAvailabilityStatus({
+              status: "available",
+              message: "National ID available",
+            });
+          }
+        }
+      } catch {
+        setNidAvailabilityStatus({ status: "idle" });
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [nidNumber]);
+
   // Fingerprint Registration states and simulator
   const [fingerprintImage, setFingerprintImage] = useState<string>("");
   const [fingerprintLeftImage, setFingerprintLeftImage] = useState<string>("");
@@ -1261,22 +1316,23 @@ export default function CompleteProfile({
 
     setIsSavingStep(true);
     try {
-      await saveProfileProgress({ showToast: false });
       const nextStepVal = step + 1;
+      await saveProfileProgress({ showToast: false, nextStep: nextStepVal });
       setStep(nextStepVal);
       triggerToast("✅ Profile progress advanced and saved.");
     } catch (error: any) {
-      console.warn("Could not save progress (identity may be locked):", error);
-      // Advance step even if auto-save fails to prevent getting stuck
-      const nextStepVal = step + 1;
-      setStep(nextStepVal);
+      console.error("Could not save progress to database:", error);
+      triggerToast(
+        error?.message || "Failed to save profile progress to database. Please try again.",
+        true,
+      );
     } finally {
       setIsSavingStep(false);
     }
   };
 
   const handlePrev = () => {
-    setStep((s) => s - 1);
+    setStep((s) => Math.max(1, s - 1));
   };
 
   const handleEditProfile = () => {
@@ -1290,8 +1346,37 @@ export default function CompleteProfile({
     setStep(1);
   };
 
-  const saveProfileProgress = async ({ showToast = true } = {}) => {
-    const payload = buildProfileSnapshot();
+  const saveProfileProgress = async ({ showToast = true, nextStep }: { showToast?: boolean; nextStep?: number } = {}) => {
+    const rawSnapshot = buildProfileSnapshot();
+    const identityBiometricFields = new Set([
+      "faceImage",
+      "faceTemplate",
+      "fingerprintImage",
+      "fingerprintLeftImage",
+      "fingerprintRightImage",
+      "citizenshipFrontImage",
+      "citizenshipBackImage",
+      "signatureImage",
+      "nidFrontImage",
+      "nidBackImage",
+    ]);
+
+    const payload: Record<string, any> = {};
+    for (const [key, val] of Object.entries(rawSnapshot)) {
+      if (val === undefined || val === null) continue;
+      if (typeof val === "string" && val.trim() === "") continue;
+      if (Array.isArray(val) && val.length === 0) continue;
+
+      if ((key === "faceImage" || key === "faceTemplate") && step < 4) {
+        continue;
+      }
+      if (identityBiometricFields.has(key) && step < 3) {
+        continue;
+      }
+
+      payload[key] = val;
+    }
+    payload.currentStep = typeof nextStep === "number" ? nextStep : step;
 
     try {
       const response = await fetch(buildApiUrl("/api/profile/save-progress"), {
@@ -1561,7 +1646,7 @@ export default function CompleteProfile({
       }
 
       if (setCurrentPath) {
-        setCurrentPath("/");
+        setCurrentPath("/votexDashboard");
       }
       onComplete(data.user);
     } catch (err: any) {
@@ -1581,49 +1666,58 @@ export default function CompleteProfile({
         </div>
       )}
 
-      {savedProfile && (
+      {savedProfile && showSavedBanner && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-[min(92vw,560px)] rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-emerald-100 shadow-xl backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-emerald-300/60 bg-slate-800 shadow-inner">
-              <img
-                src={
-                  savedProfile.profilePhoto ||
-                  savedProfile.profilePicture ||
-                  completedUser?.profilePhoto ||
-                  completedUser?.profilePicture ||
-                  user?.profilePhoto ||
-                  user?.profilePicture ||
-                  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23f8fafc'/><g fill='%23959eab'><circle cx='75' cy='50' r='30'/><path d='M30 130c0-28 27-52 45-52s45 24 45 52H30z'/></g></svg>"
-                }
-                alt={
-                  savedProfile.fullName ||
-                  savedProfile.name ||
-                  completedUser?.fullName ||
-                  user?.fullName ||
-                  "Profile photo"
-                }
-                className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                <span className="text-sm font-semibold">
-                  Profile saved successfully
-                </span>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-emerald-300/60 bg-slate-800 shadow-inner">
+                <img
+                  src={
+                    savedProfile.profilePhoto ||
+                    savedProfile.profilePicture ||
+                    completedUser?.profilePhoto ||
+                    completedUser?.profilePicture ||
+                    user?.profilePhoto ||
+                    user?.profilePicture ||
+                    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23f8fafc'/><g fill='%23959eab'><circle cx='75' cy='50' r='30'/><path d='M30 130c0-28 27-52 45-52s45 24 45 52H30z'/></g></svg>"
+                  }
+                  alt={
+                    savedProfile.fullName ||
+                    savedProfile.name ||
+                    completedUser?.fullName ||
+                    user?.fullName ||
+                    "Profile photo"
+                  }
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
               </div>
-              <div className="text-xs text-emerald-100/90 truncate">
-                {savedProfile.fullName ||
-                  savedProfile.name ||
-                  completedUser?.fullName ||
-                  user?.fullName ||
-                  "Profile"}
-                {savedProfile.email || completedUser?.email
-                  ? ` • ${savedProfile.email || completedUser?.email}`
-                  : ""}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                  <span className="text-sm font-semibold">
+                    Profile saved successfully
+                  </span>
+                </div>
+                <div className="text-xs text-emerald-100/90 truncate">
+                  {savedProfile.fullName ||
+                    savedProfile.name ||
+                    completedUser?.fullName ||
+                    user?.fullName ||
+                    "Profile"}
+                  {savedProfile.email || completedUser?.email
+                    ? ` • ${savedProfile.email || completedUser?.email}`
+                    : ""}
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => setShowSavedBanner(false)}
+              className="text-emerald-300/60 hover:text-emerald-100 transition-colors p-1 rounded-full hover:bg-emerald-500/20 shrink-0"
+              aria-label="Close notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -1650,12 +1744,39 @@ export default function CompleteProfile({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPath?.("/votexDashboard")}
-              className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-emerald-500/20 transition-colors cursor-pointer"
-            >
-              Back to Dashboard
-            </button>
+            {setTheme && (
+              <button
+                type="button"
+                onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "high-contrast" : "dark")}
+                title={`Current theme: ${theme || "dark"}. Click to toggle.`}
+                className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors flex items-center gap-1 text-xs font-semibold"
+              >
+                {theme === "light" ? (
+                  <>
+                    <Sun className="w-4 h-4 text-amber-400" />
+                    <span className="hidden sm:inline">Light</span>
+                  </>
+                ) : theme === "high-contrast" ? (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="hidden sm:inline">Contrast</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    <span className="hidden sm:inline">Dark</span>
+                  </>
+                )}
+              </button>
+            )}
+            {user?.isProfileComplete && (
+              <button
+                onClick={() => setCurrentPath?.("/votexDashboard")}
+                className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-emerald-500/20 transition-colors cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-xl border border-rose-500/20 transition-colors cursor-pointer"
@@ -2804,7 +2925,8 @@ export default function CompleteProfile({
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  disabled={isSavingStep || loading}
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer disabled:opacity-50"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -3055,6 +3177,24 @@ export default function CompleteProfile({
                       onChange={(e) => setNidNumber(e.target.value)}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none focus:border-indigo-400"
                     />
+                    {nidAvailabilityStatus.status === "checking" && (
+                      <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] font-medium text-amber-400">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>Checking National ID availability...</span>
+                      </div>
+                    )}
+                    {nidAvailabilityStatus.status === "available" && (
+                      <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] font-semibold text-emerald-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>✔ National ID available</span>
+                      </div>
+                    )}
+                    {nidAvailabilityStatus.status === "taken" && (
+                      <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] font-semibold text-rose-400">
+                        <XCircle className="h-3.5 w-3.5 text-rose-400" />
+                        <span>{nidAvailabilityStatus.message || "National ID already exists."}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -3211,7 +3351,8 @@ export default function CompleteProfile({
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  disabled={isSavingStep || loading}
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer disabled:opacity-50"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -3279,7 +3420,8 @@ export default function CompleteProfile({
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                  disabled={isSavingStep || loading}
+                  className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-5 py-2.5 rounded-xl font-extrabold uppercase text-xs tracking-wider cursor-pointer disabled:opacity-50"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>

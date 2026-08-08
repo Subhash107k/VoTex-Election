@@ -528,6 +528,39 @@ export default function RegisterPage({
     regForm.citizenshipNumber,
   ]);
 
+  useEffect(() => {
+    const handleFieldError = (e: Event) => {
+      const customEvent = e as CustomEvent<{ field: string; message: string }>;
+      if (customEvent.detail && customEvent.detail.field) {
+        const { field, message } = customEvent.detail;
+        setIsFormSubmitted(false);
+        setIdentityStatus((prev) => {
+          const updated = { ...prev };
+          const targetKey =
+            field === "phone" || field === "mobile"
+              ? "phone"
+              : field === "citizenshipNumber" || field === "citizenship"
+                ? "citizenship"
+                : field === "nationalID" || field === "nid"
+                  ? "nid"
+                  : (field as keyof typeof prev);
+          if (targetKey && updated[targetKey]) {
+            updated[targetKey] = {
+              status: "taken",
+              message: message || `${targetKey} is unavailable.`,
+            };
+          }
+          return updated;
+        });
+      }
+    };
+
+    window.addEventListener("votex_registration_field_error", handleFieldError);
+    return () => {
+      window.removeEventListener("votex_registration_field_error", handleFieldError);
+    };
+  }, []);
+
   const sendEmailCode = async () => {
     if (!regForm.email || !isValidEmailAddress(regForm.email)) {
       setEmailError("Please enter a valid email address.");
@@ -891,14 +924,14 @@ export default function RegisterPage({
             {/* National ID & Citizenship */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                <label className="mb-1 block text-xs font-semibold text-slate-00 dark:text-slate-300">
-                  National ID
+                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  NID Number *
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="Enter your NID Number"
+                    placeholder="e.g. NID-101-987"
                     value={regForm.nationalID}
                     onChange={(e) =>
                       setRegForm({ ...regForm, nationalID: e.target.value })
