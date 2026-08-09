@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProfileHeader from "./ProfileHeader";
 import ProfileCard from "./ProfileCard";
 import SummarySidebar from "./SummarySidebar";
@@ -13,7 +13,7 @@ import DashboardStatsCards from "./DashboardStatsCards";
 import DashboardHeroBanner from "./DashboardHeroBanner";
 import VoterDashboardHeader from "./VoterDashboardHeader";
 import useProfile from "../../hooks/useProfile";
-import { getLocalVoteReceipts } from "../../services/electionService";
+import { getElections, getLocalVoteReceipts, getVotingStatus } from "../../services/electionService";
 import {
   User,
   FileText,
@@ -29,9 +29,8 @@ import {
   Edit,
   X,
   AlertTriangle,
+  Lock,
 } from "lucide-react";
-
-
 import type { ThemeMode } from "../../types/auth";
 
 export default function VoterDashboard({
@@ -50,6 +49,56 @@ export default function VoterDashboard({
   setTheme?: (t: ThemeMode) => void;
 }) {
   const { profile, loading, error, reload } = useProfile(token);
+  const [activeElections, setActiveElections] = useState<any[]>([]);
+  const [votedElectionIds, setVotedElectionIds] = useState<Set<string>>(new Set());
+
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [showProfileDossier, setShowProfileDossier] = useState(false);
+  const [currentElection, setCurrentElection] = useState<any | null>(null);
+  const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
+  const [latestReceipt, setLatestReceipt] = useState<any | null>(null);
+  const [verificationResult, setVerificationResult] = useState<any | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "elections" | "myVotes" | "documents" | "family" | "timeline"
+  >("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch real active elections & voting status on mount
+  useEffect(() => {
+    let active = true;
+    const fetchElectionsAndStatus = async () => {
+      try {
+        const items = await getElections(token);
+        if (!active) return;
+        const activeOnly = items.filter((e: any) => e.status === "Active" || e.active === true);
+        setActiveElections(activeOnly);
+
+        // Load receipts and server voted status
+        const receipts = getLocalVoteReceipts();
+        const votedSet = new Set(receipts.map((r: any) => r.electionId));
+        try {
+          const serverVoted = await getVotingStatus(token);
+          serverVoted.forEach((id: string) => votedSet.add(id));
+        } catch {
+          // ignore
+        }
+        if (active) {
+          setVotedElectionIds(votedSet);
+        }
+      } catch (err) {
+        console.error("Failed to load elections", err);
+      }
+    };
+    void fetchElectionsAndStatus();
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
   const safeProfile = profile || {
     user: user || null,
     profile: user || {},
@@ -69,7 +118,6 @@ export default function VoterDashboard({
     const profileSource = safeProfile?.profile || safeProfile || {};
     const documentSource = safeProfile?.document || {};
     const items: any[] = [...dbDocs];
-
     const existingLabels = new Set(items.map((d: any) => d?.label || d?.id));
 
     const addDocument = (url?: string, label?: string, extra: any = {}) => {
@@ -85,42 +133,25 @@ export default function VoterDashboard({
 
     addDocument(
       profileSource.faceImage ||
-      user?.faceImage ||
-      profileSource.profilePhoto ||
-      user?.profilePhoto ||
-      user?.profilePicture,
+        user?.faceImage ||
+        profileSource.profilePhoto ||
+        user?.profilePhoto ||
+        user?.profilePicture,
       "Live Face Capture Scan",
       {
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
+        uploadedAt: documentSource.createdAt || profileSource.createdAt || user?.createdAt,
+        verificationStatus: documentSource.verificationStatus || profileSource.verificationStatus || "Verified",
       },
     );
 
     addDocument(
-      profileSource.citizenshipFrontImage ||
-      documentSource.citizenshipFrontImage,
+      profileSource.citizenshipFrontImage || documentSource.citizenshipFrontImage,
       "Citizenship (Front)",
       {
-        documentNumber:
-          profileSource.citizenshipNumber ||
-          documentSource.citizenshipNumber ||
-          user?.nationalID,
-        issueDate:
-          profileSource.citizenshipIssueDate || documentSource.issueDate,
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
+        documentNumber: profileSource.citizenshipNumber || documentSource.citizenshipNumber || user?.nationalID,
+        issueDate: profileSource.citizenshipIssueDate || documentSource.issueDate,
+        uploadedAt: documentSource.createdAt || profileSource.createdAt || user?.createdAt,
+        verificationStatus: documentSource.verificationStatus || profileSource.verificationStatus || "Verified",
       },
     );
 
@@ -128,20 +159,10 @@ export default function VoterDashboard({
       profileSource.citizenshipBackImage || documentSource.citizenshipBackImage,
       "Citizenship (Back)",
       {
-        documentNumber:
-          profileSource.citizenshipNumber ||
-          documentSource.citizenshipNumber ||
-          user?.nationalID,
-        issueDate:
-          profileSource.citizenshipIssueDate || documentSource.issueDate,
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
+        documentNumber: profileSource.citizenshipNumber || documentSource.citizenshipNumber || user?.nationalID,
+        issueDate: profileSource.citizenshipIssueDate || documentSource.issueDate,
+        uploadedAt: documentSource.createdAt || profileSource.createdAt || user?.createdAt,
+        verificationStatus: documentSource.verificationStatus || profileSource.verificationStatus || "Verified",
       },
     );
 
@@ -151,14 +172,8 @@ export default function VoterDashboard({
       {
         documentNumber: profileSource.nidNumber || user?.nationalID,
         issueDate: profileSource.nidIssueDate || documentSource.issueDate,
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
+        uploadedAt: documentSource.createdAt || profileSource.createdAt || user?.createdAt,
+        verificationStatus: documentSource.verificationStatus || profileSource.verificationStatus || "Verified",
       },
     );
 
@@ -166,95 +181,42 @@ export default function VoterDashboard({
       profileSource.voterCardImage || documentSource.voterCardImage,
       "Voter ID Card",
       {
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
-      },
-    );
-
-
-
-    addDocument(
-      profileSource.fingerprintLeftImage ||
-      user?.fingerprintLeftImage ||
-      profileSource.fingerprintImage ||
-      user?.fingerprintImage,
-      "Left Thumb / Fingerprint Scan",
-      {
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
-      },
-    );
-
-    addDocument(
-      profileSource.fingerprintRightImage || user?.fingerprintRightImage,
-      "Right Thumb / Fingerprint Scan",
-      {
-        uploadedAt:
-          documentSource.createdAt ||
-          profileSource.createdAt ||
-          user?.createdAt,
-        verificationStatus:
-          documentSource.verificationStatus ||
-          profileSource.verificationStatus ||
-          "Verified",
+        uploadedAt: documentSource.createdAt || profileSource.createdAt || user?.createdAt,
+        verificationStatus: documentSource.verificationStatus || profileSource.verificationStatus || "Verified",
       },
     );
 
     return items;
   }, [safeProfile, user]);
 
-  const dashboardProfile = {
+  const renderProfile = {
     ...safeProfile,
     documents: fallbackDocuments,
     family: safeProfile?.family?.length
       ? safeProfile.family
       : Array.isArray(safeProfile?.profile?.familyMembers)
-        ? safeProfile.profile.familyMembers.map(
-          (member: any, index: number) => ({
-            id:
-              member?.id ||
-              member?._id ||
-              `${user?.id || "user"}-family-${index}`,
-            name: member?.name || member?.fullName || "Family Member",
-            relation: member?.relation || member?.relationship || "Other",
-            relationship: member?.relationship || member?.relation || "Other",
-            ...member,
-          }),
-        )
-        : [],
+      ? safeProfile.profile.familyMembers.map((member: any, index: number) => ({
+          id: member?.id || member?._id || `${user?.id || "user"}-family-${index}`,
+          name: member?.name || member?.fullName || "Family Member",
+          relation: member?.relation || member?.relationship || "Other",
+          relationship: member?.relationship || member?.relation || "Other",
+          ...member,
+        }))
+      : [],
   };
 
-  const renderProfile = dashboardProfile;
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [showFaceModal, setShowFaceModal] = useState(false);
-  const [showProfileDossier, setShowProfileDossier] = useState(false);
-  const [currentElection, setCurrentElection] = useState<any | null>(null);
-  const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
-  const [latestReceipt, setLatestReceipt] = useState<any | null>(null);
-  const [verificationResult, setVerificationResult] = useState<any | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
-  >("overview");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const primaryElection = activeElections[0] || null;
+  const userHasVoted = primaryElection ? votedElectionIds.has(primaryElection.id) : false;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await reload();
+    try {
+      const items = await getElections(token);
+      setActiveElections(items.filter((e: any) => e.status === "Active" || e.active === true));
+    } catch {
+      // ignore
+    }
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
@@ -294,7 +256,7 @@ export default function VoterDashboard({
             <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-7 w-7 text-blue-400" />
           </div>
           <p className="text-sm font-semibold text-slate-300 animate-pulse">
-            Loading secure voter dashboard...
+            Syncing voter election dashboard...
           </p>
         </div>
       </div>
@@ -310,18 +272,14 @@ export default function VoterDashboard({
               <AlertCircle className="h-6 w-6 text-red-400" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white">
-                Dashboard Sync Error
-              </h3>
-              <p className="text-xs text-slate-400">
-                Authentication token or network retry needed
-              </p>
+              <h3 className="font-bold text-lg text-white">Dashboard Sync Error</h3>
+              <p className="text-xs text-slate-400">Network connection or authentication token retry required</p>
             </div>
           </div>
           <p className="text-xs text-slate-300 mb-5 leading-relaxed">{error}</p>
           <button
             onClick={handleRefresh}
-            className="w-full py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <RefreshCw className="h-4 w-4" /> Retry Sync
           </button>
@@ -348,40 +306,41 @@ export default function VoterDashboard({
 
       {/* Main Container */}
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-6">
-        {/* Hero Welcome & Countdown Banner */}
+        {/* Priority 1 & 2 — Hero Welcome & Active Election Status Banner */}
         <DashboardHeroBanner
           user={user}
+          activeElection={primaryElection}
+          hasVoted={userHasVoted}
           onVoteClick={() => setActiveTab("elections")}
+          onVerifyClick={handleEditProfile}
         />
 
-        {/* Real-time Statistics Cards */}
+        {/* Real-time National & Voter Statistics */}
         <DashboardStatsCards token={token} user={user} />
 
-        {/* Tab Navigation Pill Selector (Mobile & Desktop) */}
+        {/* Priority Workflow Tab Selector */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-1.5 backdrop-blur-xl shadow-lg">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {[
-              { id: "overview", label: "Overview", icon: User },
-              { id: "elections", label: "Active Elections", icon: Activity },
+              { id: "overview", label: "Overview & Verification", icon: User },
+              { id: "elections", label: "Active Elections & Candidates", icon: Activity },
+              { id: "myVotes", label: "My Ballots & Receipts", icon: CheckCircle2 },
               { id: "documents", label: "Documents Vault", icon: FileText },
-              { id: "family", label: "Family & Audit", icon: Users },
+              { id: "family", label: "Family & Audit History", icon: Users },
               { id: "timeline", label: "Timeline History", icon: Clock },
-              {
-                id: "myVotes",
-                label: "My Ballots & Receipts",
-                icon: CheckCircle2,
-              },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${active
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                    active
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-                    }`}
+                  }`}
                 >
                   <Icon className="h-4 w-4" />
                   {tab.label}
@@ -413,29 +372,28 @@ export default function VoterDashboard({
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                          Security Dossier
+                          Identity Verification
                         </span>
                         <ShieldCheck className="h-5 w-5 text-emerald-400" />
                       </div>
-                      <h4 className="text-sm font-bold text-white">
-                        Full Biometric Dossier
-                      </h4>
+                      <h4 className="text-sm font-bold text-white">Full Biometric Dossier</h4>
                       <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                        Inspect every stored personal field, document status,
-                        address, and verification timeline.
+                        Inspect every stored personal field, document status, address, and verification timeline.
                       </p>
                     </div>
 
                     <div className="mt-4 space-y-2">
                       <button
+                        type="button"
                         onClick={() => setShowProfileDossier(true)}
-                        className="w-full py-2.5 px-3 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-3 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Eye className="h-4 w-4" /> View Full Profile Dossier
                       </button>
                       <button
+                        type="button"
                         onClick={handleEditProfile}
-                        className="w-full py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Edit className="h-4 w-4" /> Edit Profile Settings
                       </button>
@@ -445,12 +403,12 @@ export default function VoterDashboard({
               </>
             )}
 
-            {/* Elections Tab */}
+            {/* Elections & Candidates Tab */}
             {activeTab === "elections" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-xl text-white tracking-tight">
-                    Active Elections & Contesting Candidates
+                    Active Elections & Approved Candidates
                   </h3>
                   <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
                     Live Polling Open
@@ -469,7 +427,7 @@ export default function VoterDashboard({
               </div>
             )}
 
-            {/* My Votes Tab */}
+            {/* My Votes & Receipts Tab */}
             {activeTab === "myVotes" && (
               <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-6">
                 <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
@@ -478,10 +436,10 @@ export default function VoterDashboard({
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-white">
-                      Digital Ballot Receipts & Verification
+                      Digital Ballot Receipts & Verification Log
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Cryptographically sealed votes logged in real-time.
+                      Cryptographically sealed anonymous vote receipts logged in real-time.
                     </p>
                   </div>
                 </div>
@@ -507,8 +465,7 @@ export default function VoterDashboard({
                         </h4>
                         <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
                           When you select a candidate and complete live face verification,
-                          your cryptographically sealed anonymous SHA-256 vote receipt
-                          will be permanently logged here.
+                          your cryptographically sealed anonymous SHA-256 vote receipt will be permanently logged here.
                         </p>
                       </div>
                     );
@@ -585,7 +542,7 @@ export default function VoterDashboard({
               </div>
             )}
 
-            {/* Documents Tab */}
+            {/* Documents Vault Tab */}
             {activeTab === "documents" && (
               <DocumentGallery
                 documents={renderProfile?.documents || []}
@@ -673,8 +630,9 @@ export default function VoterDashboard({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-slate-950 border border-slate-800 p-6 shadow-2xl relative">
             <button
+              type="button"
               onClick={() => setShowProfileDossier(false)}
-              className="absolute top-5 right-5 p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-colors"
+              className="absolute top-5 right-5 p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -700,8 +658,9 @@ export default function VoterDashboard({
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowFaceModal(false)}
-                className="p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white"
+                className="p-2 rounded-full border border-slate-800 bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -713,7 +672,6 @@ export default function VoterDashboard({
               candidateLabel={currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
               onBack={() => setShowFaceModal(false)}
               onVerified={async (result: any) => {
-                // Store the verification result and show confirmation modal
                 setVerificationResult(result);
                 setShowFaceModal(false);
                 setShowConfirmModal(true);
@@ -723,7 +681,7 @@ export default function VoterDashboard({
         </div>
       )}
 
-      {/* Voter Confirmation Modal — Confirm & Submit Vote */}
+      {/* Voter Confirmation Modal — Review & Submit Vote */}
       {showConfirmModal && verificationResult && currentElection && currentCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
           <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-950 p-6 shadow-2xl relative space-y-5">
@@ -741,6 +699,7 @@ export default function VoterDashboard({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   if (!isSubmitting) {
                     setShowConfirmModal(false);
@@ -748,7 +707,7 @@ export default function VoterDashboard({
                   }
                 }}
                 disabled={isSubmitting}
-                className="p-2 rounded-full border border-slate-700 bg-slate-900 text-slate-400 hover:text-white disabled:opacity-40"
+                className="p-2 rounded-full border border-slate-700 bg-slate-900 text-slate-400 hover:text-white disabled:opacity-40 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -772,9 +731,9 @@ export default function VoterDashboard({
                 <span className="text-slate-400 font-semibold">Face Match Score</span>
                 <span className="font-black text-emerald-400">
                   {Math.round(
-                    (verificationResult.similarityScore <= 1
+                    verificationResult.similarityScore <= 1
                       ? verificationResult.similarityScore * 100
-                      : verificationResult.similarityScore)
+                      : verificationResult.similarityScore
                   )}% Matched
                 </span>
               </div>
@@ -819,7 +778,7 @@ export default function VoterDashboard({
                   }
                 }}
                 disabled={isSubmitting}
-                className="flex-1 py-3 rounded-2xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition-all disabled:opacity-40"
+                className="flex-1 py-3 rounded-2xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition-all disabled:opacity-40 cursor-pointer"
               >
                 Cancel
               </button>
@@ -845,6 +804,7 @@ export default function VoterDashboard({
                     if (res?.receipt) {
                       setLatestReceipt(res.receipt);
                     }
+                    setVotedElectionIds((prev) => new Set([...prev, currentElection.id]));
                     setActiveTab("myVotes");
                     void reload();
                   } catch (err: any) {
@@ -856,7 +816,7 @@ export default function VoterDashboard({
                     setIsSubmitting(false);
                   }
                 }}
-                className={`flex-2 flex-1 py-3 rounded-2xl font-black text-xs text-white transition-all ${
+                className={`flex-2 flex-1 py-3 rounded-2xl font-black text-xs text-white transition-all cursor-pointer ${
                   isSubmitting
                     ? "bg-emerald-700 cursor-wait opacity-70"
                     : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20 active:scale-95"
@@ -885,9 +845,7 @@ export default function VoterDashboard({
             </div>
 
             <div>
-              <h3 className="text-xl font-black text-white">
-                Digital Ballot Sealed & Cast!
-              </h3>
+              <h3 className="text-xl font-black text-white">Digital Ballot Sealed & Cast!</h3>
               <p className="text-xs text-slate-400 mt-1">
                 Your vote was authenticated via real-time face verification.
               </p>
@@ -915,8 +873,9 @@ export default function VoterDashboard({
             </div>
 
             <button
+              type="button"
               onClick={() => setLatestReceipt(null)}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
             >
               Done & View Receipts
             </button>
@@ -926,4 +885,3 @@ export default function VoterDashboard({
     </div>
   );
 }
-

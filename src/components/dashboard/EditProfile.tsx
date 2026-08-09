@@ -495,16 +495,29 @@ export default function EditProfile({
         }
       }
 
+      // Update local verifiedInfo & state immediately with saved server data
+      if (data.user) {
+        setVerifiedInfo((prev) => ({
+          ...prev,
+          fullName: data.user.fullName || prev.fullName,
+          username: data.user.username || prev.username,
+          email: data.user.email || prev.email,
+          dob: data.user.dob || prev.dob,
+          gender: data.user.gender || prev.gender,
+          citizenshipNumber: data.user.citizenshipNumber || prev.citizenshipNumber,
+          nationalID: data.user.nidNumber || data.user.nationalID || prev.nationalID,
+          voterId: data.user.voterIdNumber || prev.voterId,
+          verificationStatus: data.user.isVerified ? "Verified" : prev.verificationStatus,
+        }));
+      }
+
+      setIsFormDirty(false);
       setSuccessMsg("Profile updated successfully in MongoDB database!");
 
       // Refresh current user identity in app state if callback provided
       if (onUpdateComplete && data.user) {
         onUpdateComplete(data.user);
       }
-
-      setTimeout(() => {
-        setCurrentPath("/votexDashboard");
-      }, 1500);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to save profile changes.");
     } finally {

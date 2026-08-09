@@ -200,23 +200,29 @@ The system can also maintain permanent and temporary residence information where
 
 A typical voter workflow is:
 
-### Step 1 — Registration
+### Step 1 — Registration & Visual CAPTCHA Guard
 
-The voter creates an account and provides the required baseline information.
+The voter creates an account using JWT authentication protected by an in-house **HTML5 Canvas Visual CAPTCHA** engine:
+* Renders distorted 5-character challenges with gradient backgrounds, angled interference lines, noise dots, character rotation (`±12°`), and text shadow blur to block automated bot submissions.
+* Enforces real-time case-insensitive verification before allowing account registration.
 
-### Step 2 — Complete Profile
+### Step 2 — Idempotent Profile Completion
 
-The voter submits:
+The voter submits personal details, address information, national identity numbers, and document credentials:
+* **Same-User Idempotency**: If an authenticated voter resubmits or updates their completed profile, the backend updates existing records in-place without generating duplicate profile, document, or face-verification rows.
+* **Cross-User Uniqueness Enforcement**: Rejects duplicate citizenship numbers, National IDs, phone numbers, emails, or matching face templates belonging to *other* accounts with `HTTP 409 Conflict`.
 
-* Personal information
-* Contact information
-* Address
-* Identity information
-* Required documents
+### Step 3 — Verification & Single-Flight Biometric Initialization
 
-### Step 3 — Verification
+The voter completes identity verification:
+* Uses a single-flight TensorFlow.js and Face-API module singleton (`tensorflowFaceModulesPromise` & `faceApiLoadedPromise`) to prevent duplicate WebGL kernel registrations across concurrent React component mounts.
+* Captures high-definition 720p/1080p camera frames for real-time facial landmark detection and 128-dimensional embedding verification.
 
-The submitted information is reviewed according to the configured approval workflow.
+### Step 4 — Voter Roster Administration & Permanent Deletion
+
+Administrators review and manage voter credentials:
+* High-contrast status action toolbar (`Approve`, `Pending`, `Suspend`, `Reinstate`, `Delete`).
+* Confirmation modal for account termination featuring a red alert banner, warning notices, administrative log reasons, and explicit confirmation prompts before invoking `DELETE /api/voters/:id`.
 
 ### Step 4 — Biometric Enrollment
 

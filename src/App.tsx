@@ -310,15 +310,7 @@ export default function App() {
     }
   }, [currentUser, currentPath, loading, setCurrentPath]);
 
-  useEffect(() => {
-    if (
-      currentUser?.role === "Voter" &&
-      currentUser?.isProfileComplete &&
-      currentPath === "/complete-profile"
-    ) {
-      setCurrentPath("/votexDashboard");
-    }
-  }, [currentUser?.role, currentUser?.isProfileComplete, currentPath, setCurrentPath]);
+
 
 
   useEffect(() => {
@@ -508,7 +500,6 @@ export default function App() {
                     isProfileComplete: true,
                   };
                   setCurrentUser(finalUser);
-                  setCurrentPath("/votexDashboard");
                 }}
                 setCurrentPath={setCurrentPath}
                 theme={theme}

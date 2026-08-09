@@ -30,26 +30,11 @@ export default defineConfig(({ command, mode }) => {
 
       // Image optimization
       ViteImageOptimizer({
-        include: /\.(jpe?g|png|webp|gif|svg)$/i,
-        exclude: /node_modules/,
-        test: /\.(jpe?g|png|webp|gif|svg)$/i,
+        include: /\.(jpe?g|png|webp|gif)$/i,
+        test: /\.(jpe?g|png|webp|gif)$/i,
+        exclude: "node_modules/**",
         logStats: isDevelopment,
         ansiColors: true,
-        svg: {
-          multipass: true,
-          plugins: [
-            {
-              name: "preset-default",
-              params: {
-                overrides: {
-                  cleanupNumericValues: false,
-                  removeViewBox: false,
-                },
-              },
-            },
-            "removeDimensions",
-          ],
-        },
         png: {
           quality: 80,
         },
@@ -253,9 +238,10 @@ export default defineConfig(({ command, mode }) => {
             if (id.includes("node_modules")) {
               // React ecosystem
               if (
-                id.includes("react") ||
-                id.includes("react-dom") ||
-                id.includes("react-router")
+                id.includes("/node_modules/react/") ||
+                id.includes("/node_modules/react-dom/") ||
+                id.includes("/node_modules/react-router/") ||
+                id.includes("/node_modules/scheduler/")
               ) {
                 return "vendor-react";
               }
@@ -263,6 +249,7 @@ export default defineConfig(({ command, mode }) => {
               // TensorFlow (large dependency)
               if (
                 id.includes("@tensorflow") ||
+                id.includes("@vladmandic/face-api") ||
                 id.includes("face-landmarks-detection")
               ) {
                 return "vendor-tensorflow";
@@ -271,6 +258,7 @@ export default defineConfig(({ command, mode }) => {
               // UI libraries
               if (
                 id.includes("lucide-react") ||
+                id.includes("framer-motion") ||
                 id.includes("@headlessui") ||
                 id.includes("@radix-ui")
               ) {
@@ -286,9 +274,6 @@ export default defineConfig(({ command, mode }) => {
               if (id.includes("recharts") || id.includes("d3")) {
                 return "vendor-charts";
               }
-
-              // Everything else
-              return "vendor-common";
             }
 
             // App code splitting

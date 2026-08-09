@@ -1208,6 +1208,71 @@ Use this answer:
 
 ---
 
+---
+
+# Category 10: Recent Technical Updates, Bot Prevention & Architecture Innovations
+
+## Q35: How does VoTex block automated bots during user registration?
+
+### Answer
+
+VoTex uses an in-house **HTML5 Canvas Visual CAPTCHA engine** ([`RegisterPage.tsx`](file:///d:/My_Projects/VoTex-Election/src/components/auth/RegisterPage.tsx)) that generates dynamic visual challenges without third-party tracking cookies:
+
+1. **Unambiguous Character Generation**: Selects 5 random characters from a sanitized alphanumeric set (`23456789ABCDEFGHJKLMNPQRSTUVWXYZ`), eliminating easily confused characters like `0`, `O`, `1`, `I`.
+2. **Multi-Layered Graphic Distortions**: Renders the 5 characters onto a 130x38px 2D canvas with:
+   * A slate background gradient (`#0f172a` to `#1e293b`).
+   * **5 random interference lines** with variable thickness and alpha opacity.
+   * **35 random noise dots** scattered across the surface.
+   * **Individual character rotations** between **-12° and +12°** (`ctx.rotate(angle)`), vertical position jittering, distinct color hues, and shadow blur to defeat basic optical character recognition (OCR) scripts.
+3. **Real-time Case-Insensitive Validation**: Evaluates `userInput.trim().toUpperCase() === captchaCode.toUpperCase()` in real-time, providing immediate visual feedback (`✔ Verified Human` or `❌ Incorrect CAPTCHA`) and blocking form submission until passed.
+4. **Interactive Refresh**: Users can click the canvas or refresh icon (`<RefreshCw />`) to instantly generate a fresh challenge.
+
+---
+
+## Q36: How does VoTex solve TensorFlow.js and WebGL duplicate initialization warnings in React?
+
+### Answer
+
+In complex React applications (and especially under React `StrictMode` where components mount twice in development), repeatedly initializing TensorFlow.js or loading Face-API models causes console warnings like *"webgl backend was already registered"* or *"kernel Conv2D already registered"*.
+
+VoTex solves this by using a **Module-Level Single-Flight Singleton Pattern** ([`tensorflow.ts`](file:///d:/My_Projects/VoTex-Election/src/services/tensorflow.ts)):
+
+1. **Singleton Initialization Promises**: Module-level variables `tensorflowFaceModulesPromise` and `faceApiLoadedPromise` cache the active loading promise. All concurrent component mounts await the exact same promise.
+2. **Backend Guarding**: Before calling `tf.setBackend()`, the system checks `if (tf.getBackend() !== supportedBackend)` and skips redundant initialization if WebGL is already set up.
+3. **Model Caching**: Face-API network models (`tinyFaceDetector`, `faceLandmark68Net`, `faceRecognitionNet`) check `!net.isLoaded` before triggering network fetches, ensuring models are downloaded once per session.
+
+---
+
+## Q37: How does `POST /api/profile/complete` achieve idempotency without false 409 conflict errors?
+
+### Answer
+
+VoTex strictly separates **same-user updates** from **cross-user uniqueness conflicts**:
+
+1. **Ownership Boundary (`req.user.id`)**: When the authenticated user submits their profile completion request:
+   * If a profile for `req.user.id` already exists, the server updates that record in-place (`profiles[existingProfileIdx]`), preserving its original ID, `createdAt` timestamp, and unsubmitted fields.
+   * Documents (`docs`) and face verifications (`faceVers`) are upserted for `req.user.id` rather than appending duplicate rows.
+2. **Cross-User Conflict Guards (HTTP 409)**: The endpoint verifies that critical identity attributes (`citizenshipNumber`, `nidNumber`, `email`, `mobile`, and `faceTemplate`) do not belong to **ANOTHER user account** (`u.id !== userId`).
+3. **Removal of Dummy Vector Fallbacks**: Removed static dummy embedding fallbacks (`[0.1, 0.2, 0.3]`). Duplicate face detection only evaluates authentic 128/468-dimensional face vectors where `isMeaningfulFaceTemplate()` is true.
+
+---
+
+## Q38: How does the Admin Voter Roster handle voter management and account deletion?
+
+### Answer
+
+Administrators manage voters through a dedicated control panel ([`VotersPage.tsx`](file:///d:/My_Projects/VoTex-Election/src/pages/Admin/Voters/VotersPage.tsx)):
+
+1. **High-Contrast Action Toolbar**: Modern status buttons with icon badges (`Approve`, `Pending`, `Suspend`, `Reinstate`, `Delete`).
+2. **Confirmation Modal with Safeguards**: Clicking **Delete** opens a glassmorphic confirmation modal displaying:
+   * Target voter name and email.
+   * Prominent warning alert regarding permanent data erasure.
+   * Optional administrative removal reason note.
+   * Action buttons for **Cancel** and **Confirm Delete** (with active spinner state).
+3. **Backend Audit & Deletion Route**: Calls `DELETE /api/voters/:id` on the server ([`server.ts`](file:///d:/My_Projects/VoTex-Election/server.ts#L3772)), which performs permanent user deletion and logs an entry to the system audit trail (`Database.addAuditLog`).
+
+---
+
 # 🧠 Five Points to Remember During Viva
 
 If you forget everything else, remember these five points:
@@ -1261,3 +1326,4 @@ Database Integrity
 **Author:** Subhash Sharma
 
 **Project:** VoTex — Digital Election & Biometric Voting Platform
+
