@@ -6,7 +6,7 @@ import type {
 } from "../validators/faceVerification.validator.js";
 import { VerificationRequirements } from "@/middleware/verifyFace.js";
 
-const DEFAULT_FACE_MATCH_THRESHOLD = 0.82;
+const DEFAULT_FACE_MATCH_THRESHOLD = 0.60;
 const VERIFICATION_TTL_MS = 10 * 60 * 1000;
 
 export type FaceVerificationDecision = {

@@ -76,6 +76,7 @@ interface VerificationResult {
   similarityScore: number;
   threshold: number;
   message: string;
+  capturedImage?: string;
 }
 
 interface QualityMetrics {
@@ -255,6 +256,8 @@ export default function FaceVerification({
   });
   const [verificationAttempt, setVerificationAttempt] = useState(0);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [registeredImage, setRegisteredImage] = useState<string>("");
+  const [liveImage, setLiveImage] = useState<string>("");
 
   // ============================================
   // Network & Battery Monitoring
@@ -397,60 +400,68 @@ export default function FaceVerification({
           quality: payload.quality,
         };
 
-        let similarityScore = 0.968;
-        let threshold = 0.75;
-        let matchMessage = "Live face features matched registered voter template.";
+        // No fake fallback — real API score only
+        let similarityScore: number | null = null;
+        let threshold = 0.60;
+        let matchMessage = "Face verification pending.";
         let verificationId = verificationBody.verificationId;
 
-        try {
-          // Step 1: Verify liveness via API
-          const verifyRes = await fetch("/api/face/verify", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(verificationBody),
-          });
+        // Step 1: Verify liveness via API
+        const verifyRes = await fetch("/api/face/verify", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(verificationBody),
+        });
 
-          if (verifyRes.ok) {
-            const verifyData = await verifyRes.json();
-            if (verifyData.passed) {
-              const matchRes = await fetch("/api/face/match", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  ...verificationBody,
-                  capturedImage: payload.capturedImage,
-                  faceTemplate: payload.faceTemplate,
-                }),
-              });
-              if (matchRes.ok) {
-                const matchData = await matchRes.json();
-                if (matchData.verificationResult === "Passed") {
-                  similarityScore = matchData.similarityScore ?? 0.88;
-                  threshold = matchData.threshold ?? 0.75;
-                  matchMessage = matchData.message || matchMessage;
-                  verificationId = matchData.verificationId || verificationId;
-                } else {
-                  throw new Error(matchData.message || "Face identity verification failed.");
-                }
-              } else {
-                const matchErr = await matchRes.json().catch(() => ({}));
-                throw new Error(matchErr.message || matchErr.error || "Face identity matching failed.");
-              }
-            } else {
-              throw new Error(verifyData.message || "Liveness verification failed.");
-            }
-          } else {
-            const verifyErr = await verifyRes.json().catch(() => ({}));
-            throw new Error(verifyErr.message || verifyErr.error || "Server liveness verification failed.");
-          }
-        } catch {
-          // Graceful fallback for mock elections
+        if (!verifyRes.ok) {
+          const verifyErr = await verifyRes.json().catch(() => ({}));
+          throw new Error(verifyErr.message || verifyErr.error || "Server liveness verification failed.");
+        }
+
+        const verifyData = await verifyRes.json();
+        if (!verifyData.passed) {
+          throw new Error(verifyData.message || "Liveness verification failed.");
+        }
+
+        // Step 2: Face match via API
+        const matchRes = await fetch("/api/face/match", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...verificationBody,
+            capturedImage: payload.capturedImage,
+            faceTemplate: payload.faceTemplate,
+          }),
+        });
+
+        if (!matchRes.ok) {
+          const matchErr = await matchRes.json().catch(() => ({}));
+          throw new Error(matchErr.message || matchErr.error || "Face identity matching failed.");
+        }
+
+        const matchData = await matchRes.json();
+        similarityScore = matchData.similarityScore ?? 0;
+        threshold = matchData.threshold ?? 0.60;
+        matchMessage = matchData.message || matchMessage;
+        verificationId = matchData.verificationId || verificationId;
+
+        if (matchData.verificationResult !== "Passed") {
+          throw new Error(matchData.message || "Face identity verification failed.");
+        }
+
+        // Frontend 60% guard — belt-and-suspenders
+        const resolvedSimilarityScore = similarityScore ?? 0;
+        const scorePercent = resolvedSimilarityScore <= 1 ? resolvedSimilarityScore * 100 : resolvedSimilarityScore;
+        if (scorePercent < 60) {
+          throw new Error(
+            `Face Match Score ${scorePercent.toFixed(2)}% is below the required 60% minimum. Voting is blocked. Please retry.`
+          );
         }
 
         // Clear timeout on success
@@ -458,31 +469,41 @@ export default function FaceVerification({
           clearTimeout(verificationTimeoutRef.current);
         }
 
+        const resolvedScore = resolvedSimilarityScore;
+
         updateStage(
           "success",
-          "Real-time face verification successful. Ballot sealed and cast.",
+          "Real-time face verification successful. Proceed to ballot confirmation.",
         );
         setMatchResult({
           status: "success",
-          score: similarityScore,
+          score: resolvedScore,
           threshold,
           message: matchMessage,
         });
 
         onVerified({
           verificationId,
-          similarityScore,
+          similarityScore: resolvedScore,
           threshold,
           message: matchMessage,
+          capturedImage: payload.capturedImage || "",
         });
       } catch (err: any) {
         if (verificationTimeoutRef.current) {
           clearTimeout(verificationTimeoutRef.current);
         }
         stopCamera();
-        updateStage("failed", "Verification failed. Please retry.");
-        setError(err.message || "Face verification failed.");
-        setMatchResult({ status: "failed", message: err.message });
+        const errMsg = err.message || "Face verification failed.";
+        updateStage("failed", errMsg);
+        setError(errMsg);
+        // Show failed score if we got one before the block
+        setMatchResult({
+          status: "failed",
+          message: errMsg,
+          score: err.score,
+          threshold: 0.60,
+        });
 
         // Retry logic for network errors
         if (
@@ -530,6 +551,8 @@ export default function FaceVerification({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         capturedImage = canvas.toDataURL("image/jpeg", 0.80);
+        // Save live capture for side-by-side display
+        setLiveImage(capturedImage);
       }
 
       // Fallback payload if latestPayloadRef isn't populated yet
@@ -901,6 +924,26 @@ export default function FaceVerification({
         verificationIdRef.current = `FACE-${Date.now()}`;
       }
 
+      // Fetch registered biometric image for side-by-side comparison display
+      try {
+        const profileRes = await fetch("/api/profile/my-profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          // /api/profile/my-profile returns: { user, profile, faceVerification }
+          const biometricUrl =
+            profileData?.user?.faceImage ||
+            profileData?.profile?.faceImage ||
+            profileData?.faceVerification?.faceImage ||
+            profileData?.faceImage ||
+            "";
+          if (biometricUrl) setRegisteredImage(biometricUrl);
+        }
+      } catch {
+        // Non-blocking; side-by-side display degrades gracefully
+      }
+
       // Load Face-API models from local /models
       setLoadingLabel("Loading Face-API models from /models...");
       await loadFaceApiModels();
@@ -1171,6 +1214,8 @@ export default function FaceVerification({
             score={matchResult.score}
             threshold={matchResult.threshold}
             message={matchResult.message}
+            registeredImage={registeredImage}
+            liveImage={liveImage}
           />
 
           {stage === "failed" && error && (

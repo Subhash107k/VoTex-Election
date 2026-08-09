@@ -32,12 +32,12 @@ interface FaceVerificationRequest extends Request {
 // Configuration constants
 const CONFIG = {
   VERIFICATION_EXPIRY: 15 * 60 * 1000, // 15 minutes
-  MIN_MATCH_SCORE: 0.85, // 85% minimum match
-  MIN_LIVENESS_SCORE: 0.9, // 90% minimum liveness
+  MIN_MATCH_SCORE: 0.60, // 60% minimum match
+  MIN_LIVENESS_SCORE: 0.50, // 50% minimum liveness
   MAX_VERIFICATION_AGE: 30 * 60 * 1000, // 30 minutes max age
   RETRY_COOLDOWN: 5 * 60 * 1000, // 5 minutes between retries
-  MAX_DAILY_ATTEMPTS: 10,
-  SUSPICIOUS_THRESHOLD: 3, // Flag after 3 suspicious activities
+  MAX_DAILY_ATTEMPTS: 20,
+  SUSPICIOUS_THRESHOLD: 5, // Flag after 5 suspicious activities
 };
 
 interface VerificationRequirements {

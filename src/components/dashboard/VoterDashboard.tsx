@@ -28,7 +28,9 @@ import {
   Eye,
   Edit,
   X,
+  AlertTriangle,
 } from "lucide-react";
+
 
 import type { ThemeMode } from "../../types/auth";
 
@@ -241,6 +243,10 @@ export default function VoterDashboard({
   const [currentElection, setCurrentElection] = useState<any | null>(null);
   const [currentCandidate, setCurrentCandidate] = useState<any | null>(null);
   const [latestReceipt, setLatestReceipt] = useState<any | null>(null);
+  const [verificationResult, setVerificationResult] = useState<any | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [activeTab, setActiveTab] = useState<
     "overview" | "documents" | "family" | "timeline" | "elections" | "myVotes"
   >("overview");
@@ -699,26 +705,165 @@ export default function VoterDashboard({
               candidateLabel={currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
               onBack={() => setShowFaceModal(false)}
               onVerified={async (result: any) => {
-                try {
-                  const { castVote } =
-                    await import("../../services/electionService");
-                  const res = await castVote(token, {
-                    electionId: currentElection.id,
-                    candidateId: currentCandidate.id,
-                    faceVerificationId: result.verificationId,
-                  });
-                  setShowFaceModal(false);
-                  if (res?.receipt) {
-                    setLatestReceipt(res.receipt);
-                  }
-                  setActiveTab("myVotes");
-                  void reload();
-                } catch (err: any) {
-                  console.error(err);
-                  alert(err?.message || "Failed to cast vote.");
-                }
+                // Store the verification result and show confirmation modal
+                setVerificationResult(result);
+                setShowFaceModal(false);
+                setShowConfirmModal(true);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Voter Confirmation Modal — Confirm & Submit Vote */}
+      {showConfirmModal && verificationResult && currentElection && currentCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-950 p-6 shadow-2xl relative space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="font-black text-white text-base">Review & Confirm Your Vote</h4>
+                  <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">
+                    ✓ Identity Verified — Ready to Submit
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowConfirmModal(false);
+                    setVerificationResult(null);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="p-2 rounded-full border border-slate-700 bg-slate-900 text-slate-400 hover:text-white disabled:opacity-40"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Election & Candidate Details */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-semibold">Election</span>
+                <span className="font-black text-white">
+                  {currentElection.title || currentElection.name || currentElection.id}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-semibold">Selected Candidate</span>
+                <span className="font-black text-blue-400">
+                  {currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-semibold">Face Match Score</span>
+                <span className="font-black text-emerald-400">
+                  {Math.round(
+                    (verificationResult.similarityScore <= 1
+                      ? verificationResult.similarityScore * 100
+                      : verificationResult.similarityScore)
+                  )}% Matched
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-semibold">Min. Threshold</span>
+                <span className="font-black text-slate-300">60%</span>
+              </div>
+            </div>
+
+            {/* Captured Live Image */}
+            {verificationResult.capturedImage && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 flex items-center gap-3">
+                <img
+                  src={verificationResult.capturedImage}
+                  alt="Verified Live Capture"
+                  className="h-16 w-16 rounded-xl object-cover border border-emerald-500/30 shrink-0"
+                />
+                <div className="text-xs">
+                  <p className="font-black text-white">Live Verification Capture</p>
+                  <p className="text-slate-400 mt-0.5">Captured during face verification</p>
+                  <p className="text-emerald-400 font-semibold mt-1">✓ Identity Confirmed</p>
+                </div>
+              </div>
+            )}
+
+            {/* Warning */}
+            <div className="flex items-start gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-300 leading-relaxed">
+                <strong>This action is irreversible.</strong> Once submitted, your ballot cannot be changed or withdrawn. Please confirm your candidate selection carefully.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowConfirmModal(false);
+                    setVerificationResult(null);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="flex-1 py-3 rounded-2xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition-all disabled:opacity-40"
+              >
+                Cancel
+              </button>
+
+              <button
+                id="confirm-submit-vote-btn"
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  if (isSubmitting) return;
+                  setIsSubmitting(true);
+                  try {
+                    const { castVote } = await import("../../services/electionService");
+                    const res = await castVote(token, {
+                      electionId: currentElection.id,
+                      candidateId: currentCandidate.id,
+                      faceVerificationId: verificationResult.verificationId,
+                    });
+                    setShowConfirmModal(false);
+                    setVerificationResult(null);
+                    setCurrentElection(null);
+                    setCurrentCandidate(null);
+                    if (res?.receipt) {
+                      setLatestReceipt(res.receipt);
+                    }
+                    setActiveTab("myVotes");
+                    void reload();
+                  } catch (err: any) {
+                    console.error(err);
+                    setShowConfirmModal(false);
+                    setVerificationResult(null);
+                    alert(err?.message || "Failed to cast vote. Please try again.");
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className={`flex-2 flex-1 py-3 rounded-2xl font-black text-xs text-white transition-all ${
+                  isSubmitting
+                    ? "bg-emerald-700 cursor-wait opacity-70"
+                    : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20 active:scale-95"
+                }`}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Submitting Ballot…
+                  </span>
+                ) : (
+                  "✓ Confirm & Submit Vote"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

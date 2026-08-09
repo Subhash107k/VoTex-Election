@@ -114,32 +114,40 @@ export function createFaceVerificationRouter(authenticateToken: any) {
   ];
 
   const verifyFaceValidation = [
-    body("sessionId")
+    body("verificationId")
       .isString()
       .trim()
       .notEmpty()
-      .withMessage("Session ID is required"),
-    body("faceImage")
+      .withMessage("Verification ID is required"),
+    body("electionId")
       .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Face image is required")
-      .custom((value: string) => {
-        // Validate base64 image format
-        if (!value.startsWith("data:image/")) {
-          throw new Error(
-            "Invalid image format. Must be base64 encoded image.",
-          );
-        }
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (value.length > maxSize) {
-          throw new Error("Image size exceeds 10MB limit.");
-        }
-        return true;
-      }),
-    body("challengeResponse")
-      .optional()
+      .withMessage("Election ID is required"),
+    body("livenessChecks")
       .isObject()
-      .withMessage("Challenge response must be an object"),
+      .withMessage("Liveness checks are required"),
+    body("livenessChecks.*")
+      .isBoolean()
+      .withMessage("Each liveness check must be a boolean"),
+    body("quality")
+      .isObject()
+      .withMessage("Quality metrics are required"),
+    body("quality.brightness")
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Brightness must be between 0 and 100"),
+    body("quality.sharpness")
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Sharpness must be between 0 and 100"),
+    body("quality.qualityScore")
+      .isFloat({ min: 50, max: 100 })
+      .withMessage("Quality score must be at least 50"),
+    body("quality.livenessScore")
+      .isFloat({ min: 70, max: 100 })
+      .withMessage("Liveness score must be at least 70"),
+    body("quality.confidenceScore")
+      .isFloat({ min: 0.5, max: 1 })
+      .withMessage("Confidence score must be between 0.5 and 1"),
     body("metadata")
       .optional()
       .isObject()
@@ -159,18 +167,29 @@ export function createFaceVerificationRouter(authenticateToken: any) {
   ];
 
   const matchFaceValidation = [
-    body("faceImage")
+    ...verifyFaceValidation,
+    body("capturedImage")
       .isString()
       .notEmpty()
-      .withMessage("Face image is required")
+      .withMessage("Captured image is required")
       .custom((value: string) => {
         if (!value.startsWith("data:image/")) {
           throw new Error(
-            "Invalid image format. Must be base64 encoded image.",
+            "Invalid captured image format. Must be base64 encoded image.",
           );
+        }
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (value.length > maxSize) {
+          throw new Error("Image size exceeds 10MB limit.");
         }
         return true;
       }),
+    body("faceTemplate")
+      .isArray({ min: 8, max: 256 })
+      .withMessage("Face template must contain 8 to 256 numeric values"),
+    body("faceTemplate.*")
+      .isFloat({ min: -10, max: 10 })
+      .withMessage("Face template values must be numeric and within range"),
     body("documentImage")
       .optional()
       .isString()
@@ -188,6 +207,53 @@ export function createFaceVerificationRouter(authenticateToken: any) {
       .optional()
       .isBoolean()
       .withMessage("Check liveness must be a boolean"),
+  ];
+
+  const updateTemplateValidation = [
+    body("faceImage")
+      .isString()
+      .notEmpty()
+      .withMessage("Face image is required")
+      .custom((value: string) => {
+        if (!value.startsWith("data:image/")) {
+          throw new Error(
+            "Invalid face image format. Must be base64 encoded image.",
+          );
+        }
+        return true;
+      }),
+    body("faceTemplate")
+      .isArray({ min: 8, max: 256 })
+      .withMessage("Face template must contain 8 to 256 numeric values"),
+    body("faceTemplate.*")
+      .isFloat({ min: -10, max: 10 })
+      .withMessage("Face template values must be numeric and within range"),
+    body("quality")
+      .isObject()
+      .withMessage("Quality metrics are required"),
+    body("quality.brightness")
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Brightness must be between 0 and 100"),
+    body("quality.sharpness")
+      .isFloat({ min: 0, max: 100 })
+      .withMessage("Sharpness must be between 0 and 100"),
+    body("quality.qualityScore")
+      .isFloat({ min: 50, max: 100 })
+      .withMessage("Quality score must be at least 50"),
+    body("quality.livenessScore")
+      .isFloat({ min: 70, max: 100 })
+      .withMessage("Liveness score must be at least 70"),
+    body("quality.confidenceScore")
+      .isFloat({ min: 0.5, max: 1 })
+      .withMessage("Confidence score must be between 0.5 and 1"),
+    body("confirmation")
+      .equals("UPDATE_MY_FACE_TEMPLATE")
+      .withMessage("Invalid template update confirmation"),
+    body("reason")
+      .optional()
+      .isString()
+      .isLength({ min: 10, max: 500 })
+      .withMessage("Reason must be 10 to 500 characters"),
   ];
 
   const statusValidation = [
@@ -295,7 +361,7 @@ export function createFaceVerificationRouter(authenticateToken: any) {
     "/template",
     faceLimiter,
     failedAttemptLimiter,
-    verifyFaceValidation,
+    updateTemplateValidation,
     validateRequest,
     FaceVerificationController.updateTemplate,
   );
@@ -449,7 +515,7 @@ export function createFaceVerificationRouter(authenticateToken: any) {
   );
 
   // Error handling middleware
-  router.use((err: any, req: any, res: any, next: any) => {
+  router.use((err: any, req: any, res: any, _next: any) => {
     console.error("Face Verification Router Error:", {
       error: err.message,
       stack: err.stack,

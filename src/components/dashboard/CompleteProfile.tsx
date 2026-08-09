@@ -3436,7 +3436,7 @@ export default function CompleteProfile({
                   }
                 >
                   <BiometricScanner
-                    onCapture={(img, template) => {
+                    onCapture={(img: string, template?: number[]) => {
                       setFaceImage(img);
                       setFaceTemplate(template || [0.1, 0.2, 0.3]);
                     }}

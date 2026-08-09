@@ -1795,7 +1795,7 @@ export default function EditProfile({
                     subtitle="Align face inside frame. Scans landmarks, checks liveness, and builds vector embedding."
                     buttonLabel="Capture & Extract Face Vector"
                     initialImage={faceImage}
-                    onCapture={(base64, template) => {
+                    onCapture={(base64: string, template?: number[]) => {
                       setFaceImage(base64);
                       if (template) setFaceTemplate(template);
                       setIsFormDirty(true);

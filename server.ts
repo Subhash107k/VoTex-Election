@@ -322,7 +322,7 @@ app.put(
 );
 
 // Return the authenticated user's complete, read-only profile dossier.
-app.get("/api/profile/my-profile", authenticateToken, (req: any, res: any) => {
+app.get(["/api/profile", "/api/profile/my-profile"], authenticateToken, (req: any, res: any) => {
   try {
     const userId = req.user.id;
     const user = Database.getUsers().find(

@@ -1729,6 +1729,61 @@ export default function BiometricScanner({
                   <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent top-0 animate-[shimmer_2s_infinite] shadow-[0_0_8px_#3b82f6] opacity-35" />
                 )}
 
+                <div
+                  className={`absolute inset-0 pointer-events-none rounded-2xl border-4 transition-all duration-300 ${
+                    faceCount === 1 && isValidReady
+                      ? "border-emerald-400 shadow-[inset_0_0_24px_rgba(16,185,129,0.25),0_0_24px_rgba(16,185,129,0.2)]"
+                      : faceCount === 1
+                        ? "border-blue-400 shadow-[inset_0_0_20px_rgba(59,130,246,0.2)]"
+                        : "border-rose-500/60 shadow-[inset_0_0_20px_rgba(239,68,68,0.1)]"
+                  }`}
+                />
+
+                <div className="absolute top-10 inset-x-0 flex justify-center pointer-events-none transition-all duration-300">
+                  <div
+                    className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md border shadow-lg ${
+                      faceCount === 1 && isValidReady
+                        ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
+                        : faceCount === 1
+                          ? "bg-blue-950/80 border-blue-500/40 text-blue-300"
+                          : "bg-rose-950/80 border-rose-500/30 text-rose-300"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        faceCount === 1 && isValidReady
+                          ? "bg-emerald-400 animate-pulse"
+                          : faceCount === 1
+                            ? "bg-blue-400 animate-pulse"
+                            : "bg-rose-400"
+                      }`}
+                    />
+                    {faceCount === 0
+                      ? "⚠ No Face Detected - Show Your Face"
+                      : faceCount > 1
+                        ? "⚠ Multiple Faces - Single Person Only"
+                        : isValidReady
+                          ? countdown !== null
+                            ? `Auto-Capturing in ${countdown}s - Hold Still`
+                            : "✓ Face Locked - Preparing Auto-Capture"
+                          : "Aligning - Position Face in Frame"}
+                  </div>
+                </div>
+
+                {faceCount === 1 && !isValidReady && (
+                  <div className="absolute bottom-16 inset-x-0 flex justify-center pointer-events-none">
+                    <div className="bg-slate-950/80 backdrop-blur-md border border-slate-700 rounded-xl px-3 py-1.5 text-[10px] font-mono text-amber-300 text-center max-w-[240px]">
+                      {faceDistance === "too_close"
+                        ? "Move farther from the camera"
+                        : faceDistance === "too_far"
+                          ? "Move closer to the camera"
+                          : facePlane !== "Centered"
+                            ? "Center your face in the oval"
+                            : "Hold face straight and open eyes"}
+                    </div>
+                  </div>
+                )}
+
                 {countdown !== null && (
                   <div className="absolute inset-0 flex flex-col justify-center items-center bg-slate-950/70 backdrop-blur-xs">
                     <motion.div
