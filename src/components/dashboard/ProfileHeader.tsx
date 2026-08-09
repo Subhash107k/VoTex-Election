@@ -125,12 +125,7 @@ export default function ProfileHeader({
             </button>
           )}
 
-          <button
-            onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl text-xs font-semibold transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-blue-500" /> Export Dossier
-          </button>
+
 
           <button
             onClick={handlePrint}

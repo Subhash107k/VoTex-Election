@@ -24,6 +24,10 @@ import {
   Sparkles,
   BadgeCheck,
   UserCheck,
+  Users,
+  Fingerprint,
+  Scan,
+  Eye,
   Bell,
   Shield,
 } from "lucide-react";
@@ -35,6 +39,8 @@ import ProfileNotificationSettings from "./ProfileNotificationSettings";
 import ProfilePrivacySettings from "./ProfilePrivacySettings";
 import UnsavedChangesModal from "../ui/UnsavedChangesModal";
 import ProfileSkeleton from "./ProfileSkeleton";
+
+const BiometricScanner = React.lazy(() => import("./BiometricScanner"));
 
 interface EditProfileProps {
   token: string;
@@ -57,7 +63,7 @@ export default function EditProfile({
 }: EditProfileProps) {
   const isLight = theme === "light";
 
-  const [activeTab, setActiveTab] = useState<"personal" | "documents" | "security" | "notifications" | "privacy">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "documents" | "biometrics" | "security" | "notifications" | "privacy">("personal");
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
@@ -71,6 +77,7 @@ export default function EditProfile({
   // Verified / Non-editable fields (loaded from backend DB)
   const [verifiedInfo, setVerifiedInfo] = useState({
     fullName: user?.fullName || "",
+    username: user?.username || "",
     email: user?.email || "",
     dob: user?.dob || "",
     gender: user?.gender || "Male",
@@ -113,8 +120,13 @@ export default function EditProfile({
 
   // Family details
   const [fatherName, setFatherName] = useState("");
+  const [fatherNameNepali, setFatherNameNepali] = useState("");
   const [motherName, setMotherName] = useState("");
+  const [motherNameNepali, setMotherNameNepali] = useState("");
+  const [grandfatherName, setGrandfatherName] = useState("");
+  const [grandfatherNameNepali, setGrandfatherNameNepali] = useState("");
   const [spouseName, setSpouseName] = useState("");
+  const [spouseNameNepali, setSpouseNameNepali] = useState("");
 
   // Profile Photo
   const [profilePhoto, setProfilePhoto] = useState(user?.profilePhoto || user?.profilePicture || "");
@@ -129,6 +141,11 @@ export default function EditProfile({
   const [nidFrontImage, setNidFrontImage] = useState("");
   const [voterCardImage, setVoterCardImage] = useState("");
   const [signatureImage, setSignatureImage] = useState("");
+  const [fingerprintImage, setFingerprintImage] = useState(user?.fingerprintImage || "");
+  const [fingerprintLeftImage, setFingerprintLeftImage] = useState(user?.fingerprintLeftImage || "");
+  const [fingerprintRightImage, setFingerprintRightImage] = useState(user?.fingerprintRightImage || "");
+  const [faceImage, setFaceImage] = useState<string>(user?.faceImage || user?.profilePhoto || "");
+  const [faceTemplate, setFaceTemplate] = useState<number[] | null>(user?.faceTemplate || [0.1, 0.2, 0.3]);
 
   // Live Camera Photo Capture
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -199,10 +216,11 @@ export default function EditProfile({
 
       // Populate verified fields
       setVerifiedInfo({
-        fullName: profile.personal?.fullName || user?.fullName || "",
-        email: profile.contactInfo?.email || user?.email || "",
-        dob: profile.personal?.dob || user?.dob || "",
-        gender: profile.personal?.gender || user?.gender || "Male",
+        fullName: profile.personal?.fullName || profile.fullName || user?.fullName || "",
+        username: profile.username || user?.username || "",
+        email: profile.contactInfo?.email || profile.email || user?.email || "",
+        dob: profile.personal?.dob || profile.dob || user?.dob || "",
+        gender: profile.personal?.gender || profile.gender || user?.gender || "Male",
         citizenshipNumber: profile.citizenshipNumber || user?.citizenshipNumber || "",
         nationalID: profile.nidNumber || user?.nationalID || "",
         voterId: profile.voterIdNumber || "VOT-NEPAL-889102",
@@ -241,8 +259,13 @@ export default function EditProfile({
       if (profile.tempStreetAddress) setTempStreetAddress(profile.tempStreetAddress);
 
       if (profile.fatherName) setFatherName(profile.fatherName);
+      if (profile.fatherNameNepali) setFatherNameNepali(profile.fatherNameNepali);
       if (profile.motherName) setMotherName(profile.motherName);
+      if (profile.motherNameNepali) setMotherNameNepali(profile.motherNameNepali);
+      if (profile.grandfatherName) setGrandfatherName(profile.grandfatherName);
+      if (profile.grandfatherNameNepali) setGrandfatherNameNepali(profile.grandfatherNameNepali);
       if (profile.spouseName) setSpouseName(profile.spouseName);
+      if (profile.spouseNameNepali) setSpouseNameNepali(profile.spouseNameNepali);
 
       if (profile.profilePhoto) {
         setProfilePhoto(profile.profilePhoto);
@@ -250,6 +273,7 @@ export default function EditProfile({
       }
 
       const doc = data?.document || {};
+      const userRec = data?.user || user || {};
       if (profile.citizenshipType || doc.citizenshipType) setCitizenshipType(profile.citizenshipType || doc.citizenshipType || "By Descent");
       if (profile.citizenshipIssueDate || doc.citizenshipIssueDate || doc.issueDate) setCitizenshipIssueDate(profile.citizenshipIssueDate || doc.citizenshipIssueDate || doc.issueDate || "");
       if (profile.citizenshipIssueDistrict || doc.citizenshipIssueDistrict || doc.issueDistrict) setCitizenshipIssueDistrict(profile.citizenshipIssueDistrict || doc.citizenshipIssueDistrict || doc.issueDistrict || "Kathmandu");
@@ -258,6 +282,11 @@ export default function EditProfile({
       if (profile.nidFrontImage || doc.nidFrontImage) setNidFrontImage(profile.nidFrontImage || doc.nidFrontImage || "");
       if (profile.voterCardImage || doc.voterCardImage) setVoterCardImage(profile.voterCardImage || doc.voterCardImage || "");
       if (profile.signatureImage || doc.signatureImage) setSignatureImage(profile.signatureImage || doc.signatureImage || "");
+      if (profile.fingerprintImage || userRec.fingerprintImage) setFingerprintImage(profile.fingerprintImage || userRec.fingerprintImage || "");
+      if (profile.fingerprintLeftImage || userRec.fingerprintLeftImage) setFingerprintLeftImage(profile.fingerprintLeftImage || userRec.fingerprintLeftImage || "");
+      if (profile.fingerprintRightImage || userRec.fingerprintRightImage) setFingerprintRightImage(profile.fingerprintRightImage || userRec.fingerprintRightImage || "");
+      if (profile.faceImage || userRec.faceImage) setFaceImage(profile.faceImage || userRec.faceImage || "");
+      if (profile.faceTemplate || userRec.faceTemplate) setFaceTemplate(profile.faceTemplate || userRec.faceTemplate || null);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to load current profile");
     } finally {
@@ -295,6 +324,7 @@ export default function EditProfile({
     try {
       const payload = {
         fullName: verifiedInfo.fullName || user?.fullName || "Voter Identity",
+        username: verifiedInfo.username || user?.username || "",
         email: verifiedInfo.email || user?.email || "",
         mobile: primaryPhone || user?.mobile || "",
         phone: primaryPhone || user?.mobile || "",
@@ -331,8 +361,13 @@ export default function EditProfile({
         tempTole,
         tempStreetAddress,
         fatherName,
+        fatherNameNepali,
         motherName,
+        motherNameNepali,
+        grandfatherName,
+        grandfatherNameNepali,
         spouseName,
+        spouseNameNepali,
         profilePhoto,
         citizenshipType,
         citizenshipIssueDate,
@@ -342,6 +377,11 @@ export default function EditProfile({
         nidFrontImage,
         voterCardImage,
         signatureImage,
+        fingerprintImage,
+        fingerprintLeftImage,
+        fingerprintRightImage,
+        faceImage,
+        faceTemplate,
       };
 
       const res = await fetch("/api/profile/complete", {
@@ -480,11 +520,10 @@ export default function EditProfile({
           <button
             type="button"
             onClick={() => setActiveTab("personal")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "personal"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "personal"
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+              }`}
           >
             <User className="h-4 w-4" />
             <span>Personal Details</span>
@@ -493,11 +532,10 @@ export default function EditProfile({
           <button
             type="button"
             onClick={() => setActiveTab("documents")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "documents"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "documents"
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+              }`}
           >
             <FileText className="h-4 w-4" />
             <span>Verification Documents</span>
@@ -505,12 +543,23 @@ export default function EditProfile({
 
           <button
             type="button"
-            onClick={() => setActiveTab("security")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "security"
+            onClick={() => setActiveTab("biometrics")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "biometrics"
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+              }`}
+          >
+            <Camera className="h-4 w-4" />
+            <span>Live Face & Biometrics</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("security")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "security"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+              }`}
           >
             <Lock className="h-4 w-4" />
             <span>Security & Sessions</span>
@@ -519,11 +568,10 @@ export default function EditProfile({
           <button
             type="button"
             onClick={() => setActiveTab("notifications")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "notifications"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "notifications"
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+              }`}
           >
             <Bell className="h-4 w-4" />
             <span>Notification Alerts</span>
@@ -532,11 +580,10 @@ export default function EditProfile({
           <button
             type="button"
             onClick={() => setActiveTab("privacy")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "privacy"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${activeTab === "privacy"
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+              }`}
           >
             <Shield className="h-4 w-4" />
             <span>Privacy & Data Rights</span>
@@ -578,368 +625,484 @@ export default function EditProfile({
             />
 
 
-          {/* Section 1: Citizen Identity & Verification Credentials (Editable) */}
-          <div className={`rounded-3xl border p-6 ${bgCard}`}>
-            <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
-              <div className="flex items-center gap-2">
-                <Edit3 className="h-4 w-4 text-emerald-400" />
-                <h2 className="text-base font-bold text-white">
-                  Citizen Identity Credentials (Editable)
-                </h2>
-              </div>
-              <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Fully Editable
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 text-xs">
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Full Legal Name</label>
-                <input
-                  type="text"
-                  value={verifiedInfo.fullName}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, fullName: e.target.value })}
-                  placeholder="Enter full name"
-                  className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Date of Birth (AD)</label>
-                <input
-                  type="date"
-                  value={verifiedInfo.dob}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, dob: e.target.value })}
-                  className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Gender</label>
-                <select
-                  value={verifiedInfo.gender}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, gender: e.target.value })}
-                  className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Citizenship Number</label>
-                <input
-                  type="text"
-                  value={verifiedInfo.citizenshipNumber}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, citizenshipNumber: e.target.value })}
-                  placeholder="Enter citizenship number"
-                  className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">National ID (NID)</label>
-                <input
-                  type="text"
-                  value={verifiedInfo.nationalID}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, nationalID: e.target.value })}
-                  placeholder="Enter NID number"
-                  className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Registered Voter ID</label>
-                <input
-                  type="text"
-                  value={verifiedInfo.voterId}
-                  onChange={(e) => setVerifiedInfo({ ...verifiedInfo, voterId: e.target.value })}
-                  placeholder="Enter voter ID"
-                  className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold text-emerald-400 transition ${inputBg}`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Editable Personal & Demographic Information */}
-          <div className={`rounded-3xl border p-6 ${bgCard}`}>
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
-              <UserCheck className="h-4 w-4 text-emerald-400" />
-              <h2 className="text-base font-bold text-white">
-                Personal & Demographic Details
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">
-                  Full Name in Nepali (पुरा नाम देवनागरीमा)
-                </label>
-                <input
-                  type="text"
-                  placeholder="उदा: रामप्रसाद शर्मा"
-                  value={fullNameNepali}
-                  onChange={(e) => setFullNameNepali(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Marital Status</label>
-                <select
-                  value={maritalStatus}
-                  onChange={(e) => setMaritalStatus(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                >
-                  <option value="Single">Single</option>
-                  <option value="Married">Married</option>
-                  <option value="Divorced">Divorced</option>
-                  <option value="Widowed">Widowed</option>
-                  <option value="Separated">Separated</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Education Level</label>
-                <select
-                  value={educationStatus}
-                  onChange={(e) => setEducationStatus(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                >
-                  <option value="Primary">Primary Education</option>
-                  <option value="Secondary">Secondary (SEE / SLC)</option>
-                  <option value="Higher Secondary">Higher Secondary (+2 / PCL)</option>
-                  <option value="Bachelor">Bachelor Degree</option>
-                  <option value="Master">Master Degree</option>
-                  <option value="PhD">Doctorate (PhD)</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Occupation</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Civil Servant, Engineer, Teacher"
-                  value={occupation}
-                  onChange={(e) => setOccupation(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Blood Group</label>
-                <select
-                  value={bloodGroup}
-                  onChange={(e) => setBloodGroup(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                >
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Nationality</label>
-                <input
-                  type="text"
-                  value={nationality}
-                  onChange={(e) => setNationality(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Editable Contact & Emergency Details */}
-          <div className={`rounded-3xl border p-6 ${bgCard}`}>
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
-              <Phone className="h-4 w-4 text-emerald-400" />
-              <h2 className="text-base font-bold text-white">
-                Contact & Emergency Information
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Primary Mobile Number (+977)</label>
-                <input
-                  type="text"
-                  value={primaryPhone}
-                  onChange={(e) => setPrimaryPhone(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Secondary Contact Phone</label>
-                <input
-                  type="text"
-                  placeholder="Optional alternate mobile"
-                  value={secondaryPhone}
-                  onChange={(e) => setSecondaryPhone(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Emergency Contact Full Name</label>
-                <input
-                  type="text"
-                  placeholder="Name of emergency contact"
-                  value={emergencyName}
-                  onChange={(e) => setEmergencyName(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-medium mb-1">Emergency Relationship</label>
-                <select
-                  value={emergencyRelation}
-                  onChange={(e) => setEmergencyRelation(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                >
-                  <option value="Father">Father</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Spouse">Spouse</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Sister">Sister</option>
-                  <option value="Son">Son</option>
-                  <option value="Daughter">Daughter</option>
-                  <option value="Guardian">Guardian / Relative</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-slate-400 font-medium mb-1">Emergency Mobile Number</label>
-                <input
-                  type="text"
-                  placeholder="+977 98xxxxxxxx"
-                  value={emergencyPhone}
-                  onChange={(e) => setEmergencyPhone(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Address Details (Permanent vs Temporary) */}
-          <div className={`rounded-3xl border p-6 ${bgCard}`}>
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
-              <MapPin className="h-4 w-4 text-emerald-400" />
-              <h2 className="text-base font-bold text-white">
-                Voter Residence Address
-              </h2>
-            </div>
-
-            {/* Permanent Address Summary */}
-            <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-slate-200">Official Permanent Address</span>
-                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Verified Voting District
+            {/* Section 1: Citizen Identity & Verification Credentials (Editable) */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-4 w-4 text-emerald-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Citizen Identity Credentials (Editable)
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Fully Editable
                 </span>
               </div>
-              <p className="text-slate-400 font-medium">
-                {permMunicipality}, Ward No. {permWardNumber}, {permDistrict}, {permProvince}, Nepal
-              </p>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Full Legal Name</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.fullName}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, fullName: e.target.value })}
+                    placeholder="Enter full name"
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Username (Editable)</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.username}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, username: e.target.value })}
+                    placeholder="Enter unique username"
+                    className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Date of Birth (AD)</label>
+                  <input
+                    type="date"
+                    value={verifiedInfo.dob}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, dob: e.target.value })}
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Gender</label>
+                  <select
+                    value={verifiedInfo.gender}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, gender: e.target.value })}
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Citizenship Number</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.citizenshipNumber}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, citizenshipNumber: e.target.value })}
+                    placeholder="Enter citizenship number"
+                    className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">National ID (NID)</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.nationalID}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, nationalID: e.target.value })}
+                    placeholder="Enter NID number"
+                    className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Registered Voter ID</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.voterId}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, voterId: e.target.value })}
+                    placeholder="Enter voter ID"
+                    className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold text-emerald-400 transition ${inputBg}`}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Temporary Address Update */}
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center justify-between">
-                <label className="font-bold text-white">Current Temporary Address</label>
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={sameAsPermanent}
-                    onChange={(e) => setSameAsPermanent(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Same as Permanent Address</span>
-                </label>
+            {/* Section 2: Family & Ancestry Details (Editable) */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-emerald-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Family & Ancestry Details (Editable)
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Family Credentials
+                </span>
               </div>
 
-              {!sameAsPermanent && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">Country</label>
-                    <select
-                      value={tempCountry}
-                      onChange={(e) => setTempCountry(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    >
-                      {COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">Province</label>
-                    <select
-                      value={tempProvince}
-                      onChange={(e) => setTempProvince(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    >
-                      {Object.keys(NEPAL_ADDRESS_DATA).map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">District</label>
-                    <input
-                      type="text"
-                      value={tempDistrict}
-                      onChange={(e) => setTempDistrict(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">Municipality / Local Body</label>
-                    <input
-                      type="text"
-                      value={tempMunicipality}
-                      onChange={(e) => setTempMunicipality(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">Ward Number</label>
-                    <input
-                      type="text"
-                      value={tempWardNumber}
-                      onChange={(e) => setTempWardNumber(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1">Tole / Locality</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. New Road"
-                      value={tempTole}
-                      onChange={(e) => setTempTole(e.target.value)}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
-                    />
-                  </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Father's Full Name (English)</label>
+                  <input
+                    type="text"
+                    value={fatherName}
+                    onChange={(e) => setFatherName(e.target.value)}
+                    placeholder="Enter father's full name"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Father's Name in Nepali (बुबाको नाम)</label>
+                  <input
+                    type="text"
+                    value={fatherNameNepali}
+                    onChange={(e) => setFatherNameNepali(e.target.value)}
+                    placeholder="उदा: रामप्रसाद शर्मा"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Mother's Full Name (English)</label>
+                  <input
+                    type="text"
+                    value={motherName}
+                    onChange={(e) => setMotherName(e.target.value)}
+                    placeholder="Enter mother's full name"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Mother's Name in Nepali (आमाको नाम)</label>
+                  <input
+                    type="text"
+                    value={motherNameNepali}
+                    onChange={(e) => setMotherNameNepali(e.target.value)}
+                    placeholder="उदा: सीतादेवी शर्मा"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Grandfather's Full Name (English)</label>
+                  <input
+                    type="text"
+                    value={grandfatherName}
+                    onChange={(e) => setGrandfatherName(e.target.value)}
+                    placeholder="Enter grandfather's full name"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Grandfather's Name in Nepali (हजुरबुबाको नाम)</label>
+                  <input
+                    type="text"
+                    value={grandfatherNameNepali}
+                    onChange={(e) => setGrandfatherNameNepali(e.target.value)}
+                    placeholder="उदा: हरिप्रसाद शर्मा"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Spouse's Full Name (English - Optional)</label>
+                  <input
+                    type="text"
+                    value={spouseName}
+                    onChange={(e) => setSpouseName(e.target.value)}
+                    placeholder="Enter spouse's full name"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Spouse's Name in Nepali (पति/पत्नीको नाम)</label>
+                  <input
+                    type="text"
+                    value={spouseNameNepali}
+                    onChange={(e) => setSpouseNameNepali(e.target.value)}
+                    placeholder="उदा: गीता शर्मा"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+
+            {/* Section 2: Editable Personal & Demographic Information */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
+                <UserCheck className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-bold text-white">
+                  Personal & Demographic Details
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">
+                    Full Name in Nepali (पुरा नाम देवनागरीमा)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="उदा: रामप्रसाद शर्मा"
+                    value={fullNameNepali}
+                    onChange={(e) => setFullNameNepali(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Marital Status</label>
+                  <select
+                    value={maritalStatus}
+                    onChange={(e) => setMaritalStatus(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  >
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Separated">Separated</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Education Level</label>
+                  <select
+                    value={educationStatus}
+                    onChange={(e) => setEducationStatus(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  >
+                    <option value="Primary">Primary Education</option>
+                    <option value="Secondary">Secondary (SEE / SLC)</option>
+                    <option value="Higher Secondary">Higher Secondary (+2 / PCL)</option>
+                    <option value="Bachelor">Bachelor Degree</option>
+                    <option value="Master">Master Degree</option>
+                    <option value="PhD">Doctorate (PhD)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Civil Servant, Engineer, Teacher"
+                    value={occupation}
+                    onChange={(e) => setOccupation(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Blood Group</label>
+                  <select
+                    value={bloodGroup}
+                    onChange={(e) => setBloodGroup(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  >
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Nationality</label>
+                  <input
+                    type="text"
+                    value={nationality}
+                    onChange={(e) => setNationality(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Editable Contact & Emergency Details */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
+                <Phone className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-bold text-white">
+                  Contact & Emergency Information
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Primary Mobile Number (+977)</label>
+                  <input
+                    type="text"
+                    value={primaryPhone}
+                    onChange={(e) => setPrimaryPhone(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Secondary Contact Phone</label>
+                  <input
+                    type="text"
+                    placeholder="Optional alternate mobile"
+                    value={secondaryPhone}
+                    onChange={(e) => setSecondaryPhone(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Emergency Contact Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Name of emergency contact"
+                    value={emergencyName}
+                    onChange={(e) => setEmergencyName(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Emergency Relationship</label>
+                  <select
+                    value={emergencyRelation}
+                    onChange={(e) => setEmergencyRelation(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  >
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                    <option value="Guardian">Guardian / Relative</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-slate-400 font-medium mb-1">Emergency Mobile Number</label>
+                  <input
+                    type="text"
+                    placeholder="+977 98xxxxxxxx"
+                    value={emergencyPhone}
+                    onChange={(e) => setEmergencyPhone(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Address Details (Permanent vs Temporary) */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-800/80 pb-3">
+                <MapPin className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-base font-bold text-white">
+                  Voter Residence Address
+                </h2>
+              </div>
+
+              {/* Permanent Address Summary */}
+              <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-slate-200">Official Permanent Address</span>
+                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Verified Voting District
+                  </span>
+                </div>
+                <p className="text-slate-400 font-medium">
+                  {permMunicipality}, Ward No. {permWardNumber}, {permDistrict}, {permProvince}, Nepal
+                </p>
+              </div>
+
+              {/* Temporary Address Update */}
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-white">Current Temporary Address</label>
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={sameAsPermanent}
+                      onChange={(e) => setSameAsPermanent(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Same as Permanent Address</span>
+                  </label>
+                </div>
+
+                {!sameAsPermanent && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">Country</label>
+                      <select
+                        value={tempCountry}
+                        onChange={(e) => setTempCountry(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">Province</label>
+                      <select
+                        value={tempProvince}
+                        onChange={(e) => setTempProvince(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      >
+                        {Object.keys(NEPAL_ADDRESS_DATA).map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">District</label>
+                      <input
+                        type="text"
+                        value={tempDistrict}
+                        onChange={(e) => setTempDistrict(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">Municipality / Local Body</label>
+                      <input
+                        type="text"
+                        value={tempMunicipality}
+                        onChange={(e) => setTempMunicipality(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">Ward Number</label>
+                      <input
+                        type="text"
+                        value={tempWardNumber}
+                        onChange={(e) => setTempWardNumber(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 font-medium mb-1">Tole / Locality</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. New Road"
+                        value={tempTole}
+                        onChange={(e) => setTempTole(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
 
 
@@ -1411,6 +1574,162 @@ export default function EditProfile({
               </div>
             </div>
 
+            {/* Section: Biometric Fingerprint Scans Upload */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Fingerprint className="h-5 w-5 text-emerald-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Biometric Fingerprint Scans (Left & Right Thumb)
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Biometric Identity Record
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Thumb Print */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200">Left Thumb / Fingerprint Scan</span>
+                    {fingerprintLeftImage || fingerprintImage ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                        <CheckCircle2 className="h-3 w-3" /> Registered
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Optional</span>
+                    )}
+                  </div>
+
+                  {fingerprintLeftImage || fingerprintImage ? (
+                    <div className="relative aspect-[4/3] w-full rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group flex items-center justify-center">
+                      <img src={fingerprintLeftImage || fingerprintImage} alt="Left Fingerprint" className="h-full object-contain filter drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                        <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                          <span>Replace Scan</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  const img = reader.result as string;
+                                  setFingerprintLeftImage(img);
+                                  if (!fingerprintImage) setFingerprintImage(img);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFingerprintLeftImage("");
+                            if (fingerprintImage === fingerprintLeftImage) setFingerprintImage(fingerprintRightImage || "");
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800 hover:border-emerald-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                      <Fingerprint className="h-8 w-8 text-slate-500 group-hover:text-emerald-400 transition mb-2" />
+                      <span className="text-xs font-semibold text-slate-300">Upload Left Thumb Scan</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">High-contrast ridge scan (Max 5MB)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const img = reader.result as string;
+                              setFingerprintLeftImage(img);
+                              if (!fingerprintImage) setFingerprintImage(img);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Right Thumb Print */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200">Right Thumb / Fingerprint Scan</span>
+                    {fingerprintRightImage ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                        <CheckCircle2 className="h-3 w-3" /> Registered
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Optional</span>
+                    )}
+                  </div>
+
+                  {fingerprintRightImage ? (
+                    <div className="relative aspect-[4/3] w-full rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 group flex items-center justify-center">
+                      <img src={fingerprintRightImage} alt="Right Fingerprint" className="h-full object-contain filter drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                        <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                          <span>Replace Scan</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setFingerprintRightImage(reader.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setFingerprintRightImage("")}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800 hover:border-emerald-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                      <Fingerprint className="h-8 w-8 text-slate-500 group-hover:text-emerald-400 transition mb-2" />
+                      <span className="text-xs font-semibold text-slate-300">Upload Right Thumb Scan</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">High-contrast ridge scan (Max 5MB)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setFingerprintRightImage(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
               <button
@@ -1435,6 +1754,126 @@ export default function EditProfile({
                   <>
                     <Save className="h-4 w-4" />
                     <span>Save Document Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 3: Live Face & Biometric Capture (Face-API) */}
+        {activeTab === "biometrics" && (
+          <form
+            onSubmit={handleSaveProfile}
+            onChange={() => setIsFormDirty(true)}
+            className="space-y-6 animate-fade-in"
+          >
+            {/* Section: Live Face Camera & Face-API Scanner */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Camera className="h-5 w-5 text-emerald-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Live Face Capture & Face-API Biometrics
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" /> TensorFlow & Face-API Active
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-400 mb-6">
+                Capture your live face image using TensorFlow AI & Face-API for instant biometric feature vector generation, liveness detection, and secure voter identity matching.
+              </p>
+
+              {/* Biometric Scanner Component */}
+              <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+                <React.Suspense fallback={<ProfileSkeleton />}>
+                  <BiometricScanner
+                    mode="face-api"
+                    title="Real-Time AI Face Scanner"
+                    subtitle="Align face inside frame. Scans landmarks, checks liveness, and builds vector embedding."
+                    buttonLabel="Capture & Extract Face Vector"
+                    initialImage={faceImage}
+                    onCapture={(base64, template) => {
+                      setFaceImage(base64);
+                      if (template) setFaceTemplate(template);
+                      setIsFormDirty(true);
+                    }}
+                  />
+                </React.Suspense>
+              </div>
+
+              {/* Status and Active Vector Metadata Panel */}
+              <div className="pt-2">
+                {/* Active Reference Face Image */}
+                <div className="space-y-3 max-w-xl">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-200">Registered Reference Face Scan</label>
+                    {faceImage ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Biometric Face Active
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        No Face Scan Active
+                      </span>
+                    )}
+                  </div>
+
+                  {faceImage && (
+                    <div className="relative aspect-[4/3] w-full rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 flex items-center justify-center">
+                      <img src={faceImage} alt="Live Face Scan" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={startLiveCamera}
+                      className="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Camera className="h-4 w-4 text-emerald-400" />
+                      <span>Launch Live Camera Portal</span>
+                    </button>
+                    {faceImage && (
+                      <button
+                        type="button"
+                        onClick={() => setFaceImage("")}
+                        className="py-2.5 px-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-bold text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={handleBackToDashboard}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Saving Updates…</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Save Biometric Changes</span>
                   </>
                 )}
               </button>

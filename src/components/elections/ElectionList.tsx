@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import CandidateCard from "../dashboard/CandidateCard";
 import type { Election, Candidate } from "../../services/electionService";
-import { getElections, getLocalVoteReceipts } from "../../services/electionService";
+import { getElections, getLocalVoteReceipts, getVotingStatus } from "../../services/electionService";
 import {
   Vote,
   Search,
@@ -46,10 +46,20 @@ export default function ElectionList({
         if (!active) return;
         setElections(items.filter((e) => e.status === "Active" || e.active === true));
 
-        // Load voted elections from receipts
+        // Load voted elections from receipts and backend voting-status
         const receipts = getLocalVoteReceipts();
         const votedSet = new Set(receipts.map((r) => r.electionId));
-        setVotedElectionIds(votedSet);
+        
+        try {
+          const serverVoted = await getVotingStatus(token);
+          serverVoted.forEach((id: string) => votedSet.add(id));
+        } catch {
+          // ignore
+        }
+
+        if (active) {
+          setVotedElectionIds(votedSet);
+        }
       } catch (err: any) {
         console.error(err);
         setError(err?.message || "Failed to load active elections");

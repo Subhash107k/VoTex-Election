@@ -1386,9 +1386,9 @@ export const authController = {
       const permissions = {
         isElectionActive,
         hasVoted,
-        canEditIdentity: !isElectionActive && !hasVoted,
+        canEditIdentity: !hasVoted,
         canEditGeneral: true,
-        lockedFields: (!isElectionActive && !hasVoted) ? [] : [
+        lockedFields: !hasVoted ? [] : [
           "citizenshipNumber",
           "nationalID",
           "nidNumber",
@@ -1403,7 +1403,9 @@ export const authController = {
         ],
       };
 
-      res.json({ profile: profile || null, permissions });
+      const users = Database.getUsers();
+      const user = users.find((u: any) => u.id === userId) || null;
+      res.json({ profile: profile || null, user, permissions });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1432,7 +1434,7 @@ export const authController = {
         }
       }
 
-      const isIdentityLocked = (isElectionActive && !!user.isProfileComplete) || hasVoted;
+      const isIdentityLocked = hasVoted;
       const body = req.body || {};
 
       if (isIdentityLocked) {
@@ -1658,6 +1660,7 @@ export const authController = {
 
     try {
       const {
+        username,
         dob,
         gender,
         permanentAddress,
@@ -1795,7 +1798,7 @@ export const authController = {
         }
       }
 
-      const isIdentityLocked = (isElectionActive && !!matchedUser.isProfileComplete) || hasVoted;
+      const isIdentityLocked = hasVoted;
       if (isIdentityLocked) {
         const identityFields = [
           "nationalID",
@@ -1980,6 +1983,7 @@ export const authController = {
         tempStreetAddress: tempStreetAddress || "",
         tempPostalCode: tempPostalCode || "",
         isTemporarySameAsPermanent: !!isTemporarySameAsPermanent,
+        username: username || matchedUser.username || "",
         fullNameNepali: fullNameNepali || "",
         maritalStatus: maritalStatus || "Single",
         educationStatus: educationStatus || "",
@@ -2003,6 +2007,8 @@ export const authController = {
         citizenshipIssueDate: citizenshipIssueDate || "",
         citizenshipIssueDistrict: citizenshipIssueDistrict || "",
         citizenshipIssueAuthority: citizenshipIssueAuthority || "",
+        faceImage: faceImage || "",
+        faceTemplate: faceTemplateArray,
         fingerprintImage: fingerprintImage || "",
         fingerprintLeftImage: fingerprintLeftImage || "",
         fingerprintRightImage: fingerprintRightImage || "",
@@ -2068,6 +2074,7 @@ export const authController = {
       await Database.saveFaceVerifications(faceVers);
 
       matchedUser.fullName = validatedProfile.fullName || matchedUser.fullName;
+      if (username) matchedUser.username = username;
       matchedUser.email = validatedProfile.email || matchedUser.email;
       matchedUser.mobile = validatedProfile.mobile || matchedUser.mobile;
       matchedUser.dob = dob;
@@ -2075,15 +2082,14 @@ export const authController = {
       matchedUser.address = address || permanentAddress || matchedUser.address;
       matchedUser.nationalID = nidNumber || matchedUser.nationalID;
       matchedUser.citizenshipNumber = citizenshipNumber || matchedUser.citizenshipNumber;
-      const isLargeBase64 = (str?: string) => Boolean(str && str.length > 5000000);
       matchedUser.faceImage = faceImage || matchedUser.faceImage;
       matchedUser.faceTemplate = faceTemplateArray;
       (matchedUser as any).faceEmbedding = faceTemplateArray;
       matchedUser.profilePhoto = profilePhoto || matchedUser.profilePhoto;
       matchedUser.profilePicture = profilePhoto || matchedUser.profilePicture;
-      matchedUser.fingerprintImage = isLargeBase64(fingerprintImage) ? "captured" : (fingerprintImage || "");
-      matchedUser.fingerprintLeftImage = isLargeBase64(fingerprintLeftImage) ? "captured" : (fingerprintLeftImage || "");
-      matchedUser.fingerprintRightImage = isLargeBase64(fingerprintRightImage) ? "captured" : (fingerprintRightImage || "");
+      matchedUser.fingerprintImage = fingerprintImage || matchedUser.fingerprintImage || "";
+      matchedUser.fingerprintLeftImage = fingerprintLeftImage || matchedUser.fingerprintLeftImage || "";
+      matchedUser.fingerprintRightImage = fingerprintRightImage || matchedUser.fingerprintRightImage || "";
       matchedUser.fingerprintHash = fingerprintImage
         ? createFingerprintHash(fingerprintImage)
         : "";

@@ -1,4 +1,4 @@
-import { requestJson, authHeader } from "./apiClient";
+import { requestJson, authHeader, ApiError } from "./apiClient";
 
 export interface Candidate {
   id: string;
@@ -158,6 +158,26 @@ export async function getElections(token: string | null): Promise<Election[]> {
   return MOCK_ELECTIONS;
 }
 
+export async function getVotingStatus(token: string | null): Promise<Set<string>> {
+  if (!token) return new Set();
+  try {
+    const headers = authHeader(token);
+    const data = await requestJson<{ statuses: Array<{ electionId: string; voted: boolean }> }>("/api/users/voting-status", {
+      headers,
+    });
+    if (data?.statuses && Array.isArray(data.statuses)) {
+      const votedSet = new Set<string>();
+      data.statuses.forEach((s) => {
+        if (s.voted) votedSet.add(s.electionId);
+      });
+      return votedSet;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return new Set();
+}
+
 export async function castVote(
   token: string | null,
   payload: {
@@ -177,8 +197,10 @@ export async function castVote(
     if (data?.success) {
       return data;
     }
-  } catch (e) {
-    // Fall back to client-side cryptographic receipt generation for active mock elections
+  } catch (e: any) {
+    if (e instanceof ApiError || (e && typeof e.status === "number")) {
+      throw e;
+    }
   }
 
   const receiptId = `VOTEX-RCT-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;

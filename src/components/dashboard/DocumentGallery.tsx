@@ -122,9 +122,9 @@ export default function DocumentGallery({
           No documents uploaded
         </div>
       ) : (
-        docs.map((d) => (
+        docs.map((d, index) => (
           <DocCard
-            key={d.label || d.id}
+            key={d.id ? `${d.id}-${index}` : `${d.label || "doc"}-${index}`}
             doc={d}
             onView={onView}
             onDownload={onDownload}

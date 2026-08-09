@@ -219,6 +219,28 @@ export function normalizeProfilePayload(data: any) {
   };
 
   appendDocument(
+    data.user?.faceImage ||
+    profile.faceImage ||
+    data.user?.profilePhoto ||
+    profile.profilePhoto ||
+    data.user?.profilePicture,
+    "Live Face Capture Scan",
+    {
+      uploadedAt: doc.createdAt || profile.createdAt || data.user.createdAt,
+      status:
+        data.user?.accountStatus || data.profile?.accountStatus || "Verified",
+      documentStatus:
+        data.user?.accountStatus || data.profile?.accountStatus || "Verified",
+      verificationStatus:
+        doc.verificationStatus ||
+        profile.verificationStatus ||
+        data.user?.accountStatus ||
+        data.profile?.accountStatus ||
+        "Verified",
+    },
+  );
+
+  appendDocument(
     profile.citizenshipFrontImage || doc.citizenshipFrontImage,
     "Citizenship (Front)",
     {

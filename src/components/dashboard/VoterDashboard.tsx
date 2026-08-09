@@ -63,27 +63,46 @@ export default function VoterDashboard({
   };
 
   const fallbackDocuments = useMemo(() => {
-    if (Array.isArray(safeProfile?.documents) && safeProfile.documents.length) {
-      return safeProfile.documents;
-    }
-
-    const profileSource = safeProfile?.profile || {};
+    const dbDocs = Array.isArray(safeProfile?.documents) ? safeProfile.documents : [];
+    const profileSource = safeProfile?.profile || safeProfile || {};
     const documentSource = safeProfile?.document || {};
-    const items: any[] = [];
+    const items: any[] = [...dbDocs];
+
+    const existingLabels = new Set(items.map((d: any) => d?.label || d?.id));
 
     const addDocument = (url?: string, label?: string, extra: any = {}) => {
-      if (!url) return;
+      if (!url || !label || existingLabels.has(label)) return;
+      existingLabels.add(label);
       items.push({
-        id: `${label || "document"}-${items.length}`,
+        id: `${label}-${items.length}`,
         url,
-        label: label || "Document",
+        label,
         ...extra,
       });
     };
 
     addDocument(
+      profileSource.faceImage ||
+      user?.faceImage ||
+      profileSource.profilePhoto ||
+      user?.profilePhoto ||
+      user?.profilePicture,
+      "Live Face Capture Scan",
+      {
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    addDocument(
       profileSource.citizenshipFrontImage ||
-        documentSource.citizenshipFrontImage,
+      documentSource.citizenshipFrontImage,
       "Citizenship (Front)",
       {
         documentNumber:
@@ -142,8 +161,43 @@ export default function VoterDashboard({
     );
 
     addDocument(
-      profileSource.signatureImage || documentSource.signatureImage,
-      "Signature",
+      profileSource.voterCardImage || documentSource.voterCardImage,
+      "Voter ID Card",
+      {
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+
+
+    addDocument(
+      profileSource.fingerprintLeftImage ||
+      user?.fingerprintLeftImage ||
+      profileSource.fingerprintImage ||
+      user?.fingerprintImage,
+      "Left Thumb / Fingerprint Scan",
+      {
+        uploadedAt:
+          documentSource.createdAt ||
+          profileSource.createdAt ||
+          user?.createdAt,
+        verificationStatus:
+          documentSource.verificationStatus ||
+          profileSource.verificationStatus ||
+          "Verified",
+      },
+    );
+
+    addDocument(
+      profileSource.fingerprintRightImage || user?.fingerprintRightImage,
+      "Right Thumb / Fingerprint Scan",
       {
         uploadedAt:
           documentSource.createdAt ||
@@ -166,17 +220,17 @@ export default function VoterDashboard({
       ? safeProfile.family
       : Array.isArray(safeProfile?.profile?.familyMembers)
         ? safeProfile.profile.familyMembers.map(
-            (member: any, index: number) => ({
-              id:
-                member?.id ||
-                member?._id ||
-                `${user?.id || "user"}-family-${index}`,
-              name: member?.name || member?.fullName || "Family Member",
-              relation: member?.relation || member?.relationship || "Other",
-              relationship: member?.relationship || member?.relation || "Other",
-              ...member,
-            }),
-          )
+          (member: any, index: number) => ({
+            id:
+              member?.id ||
+              member?._id ||
+              `${user?.id || "user"}-family-${index}`,
+            name: member?.name || member?.fullName || "Family Member",
+            relation: member?.relation || member?.relationship || "Other",
+            relationship: member?.relationship || member?.relation || "Other",
+            ...member,
+          }),
+        )
         : [],
   };
 
@@ -318,11 +372,10 @@ export default function VoterDashboard({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-                    active
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${active
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   {tab.label}

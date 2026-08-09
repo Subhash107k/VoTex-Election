@@ -253,7 +253,7 @@ export default function ComprehensiveProfile({
         uploadedAt: document?.createdAt,
         status: document?.signatureImage ? "Verified" : "Pending",
       },
-    ],
+    ].filter((item) => Boolean(item.url)),
     [profile, document],
   );
 

@@ -106,7 +106,10 @@ export interface UserProfile {
   municipality?: string;
   fingerprintHash?: string;
   fingerprintImage?: string;
+  fingerprintLeftImage?: string;
+  fingerprintRightImage?: string;
   fingerprintCaptureMethod?: string;
+  faceTemplate?: number[];
 
   // Address fields
   permCountry?: string;
