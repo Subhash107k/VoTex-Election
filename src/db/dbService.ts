@@ -87,6 +87,18 @@ export interface User {
   newsletterStatus?: "Active" | "Inactive" | "Pending";
 }
 
+export interface LoginAttempt {
+  id: string;
+  identifier: string;
+  userId?: string;
+  failedAttempts: number;
+  lockoutLevel: number;
+  lockedUntil: number;
+  lastFailedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   id: string;
   userId: string;
@@ -229,6 +241,7 @@ export interface Candidate {
   electionId: string;
   name: string;
   party: string;
+  partyId?: string;
   keyPromises?: string[];
   politicalPartyName?: string;
   fullName?: string;
@@ -768,14 +781,9 @@ export class Database {
   private static ensureSeedData(): void {
     if (process.env.NODE_ENV === "production" || process.env.USE_MOCK_DATA === "false") return;
 
-    const hasUsers = (this.inMemStore.get("users") || []).length > 0;
-    
-    // If we already have users in memory or DB, DO NOT re-seed or overwrite valid user data.
-    if (hasUsers) return;
-
     const passwordHash = bcrypt.hashSync("Password123!", 12);
     
-    // Sample Voters
+    // Sample Voters & Candidates
     const seedUsers: User[] = [
       {
         id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001",
@@ -804,6 +812,42 @@ export class Database {
         fingerprintImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
         profilePhoto: "https://ui-avatars.com/api/?name=Voter+" + (i + 1),
       })),
+      // Sample Candidates
+      {
+        id: "usr_seed_cand_1", fullName: "Gagan Thapa", username: "candidate1", nationalID: "CAND001",
+        citizenshipNumber: "99901-0001-C1", email: "gagan.thapa@nc.org.np", mobile: "+9779800000010",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_2", fullName: "Gokarna Bista", username: "candidate2", nationalID: "CAND002",
+        citizenshipNumber: "99902-0002-C2", email: "gokarna.bista@cpnuml.org", mobile: "+9779800000011",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_3", fullName: "Barshaman Pun", username: "candidate3", nationalID: "CAND003",
+        citizenshipNumber: "99903-0003-C3", email: "barshaman.pun@cpmmaoist.org", mobile: "+9779800000012",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_4", fullName: "Swarnim Wagle", username: "candidate4", nationalID: "CAND004",
+        citizenshipNumber: "99904-0004-C4", email: "swarnim.wagle@rsp.org.np", mobile: "+9779800000013",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_5", fullName: "Rajendra Lingden", username: "candidate5", nationalID: "CAND005",
+        citizenshipNumber: "99905-0005-C5", email: "rajendra.lingden@rpp.org.np", mobile: "+9779800000014",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
     ];
 
     const seedUserProfiles: UserProfile[] = seedUsers.filter(u => u.role === "Voter").map((u, i) => ({
@@ -888,35 +932,35 @@ export class Database {
 
     const seedCandidates: Candidate[] = [
       {
-        id: "cand_seed_1", electionId: seedElections[0].id, name: "Gagan Thapa", party: "Nepali Congress",
+        id: "cand_seed_1", userId: "usr_seed_cand_1", electionId: seedElections[0].id, name: "Gagan Thapa", party: "Nepali Congress",
         biography: "Youth leader and community-focused public servant. Known for advocating democratic reforms.", manifestoText: "Improving access to secure digital civic services.",
         photoUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Gagan_Thapa.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         dateOfBirth: "1976-07-16", gender: "Male", profession: "Politician", education: "Masters in Political Science",
         contactNumber: "+9779800000010", emailAddress: "gagan.thapa@nc.org.np", permanentAddress: "Kathmandu, Nepal"
       },
       {
-        id: "cand_seed_2", electionId: seedElections[0].id, name: "Gokarna Bista", party: "CPN-UML",
+        id: "cand_seed_2", userId: "usr_seed_cand_2", electionId: seedElections[0].id, name: "Gokarna Bista", party: "CPN-UML",
         biography: "Technology and transparency advocate. Former minister of energy.", manifestoText: "Building transparent and accessible elections and eradicating load shedding.",
         photoUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3f/Gokarna_Bista.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         dateOfBirth: "1965-07-01", gender: "Male", profession: "Politician", education: "Bachelors Degree",
         contactNumber: "+9779800000011", emailAddress: "gokarna.bista@cpnuml.org", permanentAddress: "Gulmi, Nepal"
       },
       {
-        id: "cand_seed_3", electionId: seedElections[0].id, name: "Barshaman Pun", party: "CPN-Maoist Centre",
+        id: "cand_seed_3", userId: "usr_seed_cand_3", electionId: seedElections[0].id, name: "Barshaman Pun", party: "CPN-Maoist Centre",
         biography: "Advocating for rural development and digital equality.", manifestoText: "Connecting every village to the digital grid.",
         photoUrl: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Barshaman_Pun.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         dateOfBirth: "1971-06-18", gender: "Male", profession: "Politician", education: "Bachelors Degree",
         contactNumber: "+9779800000012", emailAddress: "barshaman.pun@cpmmaoist.org", permanentAddress: "Rolpa, Nepal"
       },
       {
-        id: "cand_seed_4", electionId: seedElections[0].id, name: "Swarnim Wagle", party: "Rastriya Swatantra Party",
+        id: "cand_seed_4", userId: "usr_seed_cand_4", electionId: seedElections[0].id, name: "Swarnim Wagle", party: "Rastriya Swatantra Party",
         biography: "Economic reform and transparency advocate. Prominent economist.", manifestoText: "Data-driven governance and anti-corruption.",
         photoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Swarnim_Wagle.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         dateOfBirth: "1974-05-10", gender: "Male", profession: "Economist", education: "PhD in Economics",
         contactNumber: "+9779800000013", emailAddress: "swarnim.wagle@rsp.org.np", permanentAddress: "Tanahun, Nepal"
       },
       {
-        id: "cand_seed_5", electionId: seedElections[0].id, name: "Rajendra Lingden", party: "Rastriya Prajatantra Party",
+        id: "cand_seed_5", userId: "usr_seed_cand_5", electionId: seedElections[0].id, name: "Rajendra Lingden", party: "Rastriya Prajatantra Party",
         biography: "Traditional values with modern technological adoption.", manifestoText: "Preserving heritage while modernizing infrastructure.",
         photoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Rajendra_Lingden.jpg", status: "Approved", voteCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         dateOfBirth: "1965-09-08", gender: "Male", profession: "Politician", education: "Masters in History",
@@ -924,14 +968,66 @@ export class Database {
       },
     ];
 
-    this.inMemStore.set("users", seedUsers);
-    this.inMemStore.set("user_profiles", seedUserProfiles);
-    this.inMemStore.set("identity_documents", seedIdentityDocuments);
-    this.inMemStore.set("face_verifications", seedFaceVerifications);
-    this.inMemStore.set("elections", seedElections);
-    this.inMemStore.set("candidates", seedCandidates);
-    this.inMemStore.set("parties", seedParties);
-    this.inMemStore.set("political_parties", seedParties);
+    // Check & Merge Seed Users
+    const existingUsers = (this.inMemStore.get("users") || []) as User[];
+    let usersUpdated = false;
+    let currentUsers = [...existingUsers];
+
+    if (currentUsers.length === 0) {
+      currentUsers = seedUsers;
+      usersUpdated = true;
+    } else {
+      for (const su of seedUsers) {
+        const foundIdx = currentUsers.findIndex((u) => u.id === su.id || (u.email && u.email.toLowerCase() === su.email.toLowerCase()) || (u.username && u.username.toLowerCase() === su.username?.toLowerCase()));
+        if (foundIdx === -1) {
+          currentUsers.push(su);
+          usersUpdated = true;
+        } else {
+          if (su.role === "Candidate" && (currentUsers[foundIdx].role !== "Candidate" || !currentUsers[foundIdx].passwordHash)) {
+            currentUsers[foundIdx] = { ...currentUsers[foundIdx], role: "Candidate", passwordHash: su.passwordHash };
+            usersUpdated = true;
+          }
+        }
+      }
+    }
+
+    if (usersUpdated) {
+      this.inMemStore.set("users", currentUsers);
+      void this.saveUsers(currentUsers);
+    }
+
+    // Check & Merge Seed Candidates
+    const existingCandidates = (this.inMemStore.get("candidates") || []) as Candidate[];
+    let candidatesUpdated = false;
+    let currentCandidates = [...existingCandidates];
+
+    if (currentCandidates.length === 0) {
+      currentCandidates = seedCandidates;
+      candidatesUpdated = true;
+    } else {
+      for (const sc of seedCandidates) {
+        const foundIdx = currentCandidates.findIndex((c) => c.id === sc.id || (c.emailAddress && c.emailAddress.toLowerCase() === sc.emailAddress?.toLowerCase()));
+        if (foundIdx === -1) {
+          currentCandidates.push(sc);
+          candidatesUpdated = true;
+        } else if (!currentCandidates[foundIdx].userId && sc.userId) {
+          currentCandidates[foundIdx] = { ...currentCandidates[foundIdx], userId: sc.userId };
+          candidatesUpdated = true;
+        }
+      }
+    }
+
+    if (candidatesUpdated) {
+      this.inMemStore.set("candidates", currentCandidates);
+      void this.saveCandidates(currentCandidates);
+    }
+
+    if (!this.inMemStore.has("user_profiles")) this.inMemStore.set("user_profiles", seedUserProfiles);
+    if (!this.inMemStore.has("identity_documents")) this.inMemStore.set("identity_documents", seedIdentityDocuments);
+    if (!this.inMemStore.has("face_verifications")) this.inMemStore.set("face_verifications", seedFaceVerifications);
+    if (!this.inMemStore.has("elections")) this.inMemStore.set("elections", seedElections);
+    if (!this.inMemStore.has("parties")) this.inMemStore.set("parties", seedParties);
+    if (!this.inMemStore.has("political_parties")) this.inMemStore.set("political_parties", seedParties);
     if (!this.inMemStore.has("votes")) this.inMemStore.set("votes", []);
     if (!this.inMemStore.has("notifications")) this.inMemStore.set("notifications", []);
     if (!this.inMemStore.has("faqs")) this.inMemStore.set("faqs", []);
@@ -943,14 +1039,6 @@ export class Database {
     if (!this.inMemStore.has("user_preferences")) this.inMemStore.set("user_preferences", {});
     if (!this.inMemStore.has("profile_drafts")) this.inMemStore.set("profile_drafts", {});
     if (!this.inMemStore.has("idempotency_records")) this.inMemStore.set("idempotency_records", {});
-
-    void this.saveUsers(seedUsers);
-    void this.saveUserProfiles(seedUserProfiles);
-    void this.saveIdentityDocuments(seedIdentityDocuments);
-    void this.saveFaceVerifications(seedFaceVerifications);
-    void this.saveElections(seedElections);
-    void this.saveCandidates(seedCandidates);
-    void this.savePoliticalParties(seedParties);
   }
 
   // ============================================
@@ -1446,6 +1534,55 @@ export class Database {
       .toArray();
 
     return results;
+  }
+
+  static async reconcileVoteCounts(targetElectionId?: string): Promise<{
+    electionDiscrepancies: Array<{ electionId: string; cachedTotal: number; actualTotal: number }>;
+    candidateDiscrepancies: Array<{ candidateId: string; candidateName: string; cachedVotes: number; actualVotes: number }>;
+  }> {
+    const votes = (this.inMemStore.get("votes") || []) as Vote[];
+    const candidates = (this.inMemStore.get("candidates") || []) as Candidate[];
+    const elections = (this.inMemStore.get("elections") || []) as Election[];
+
+    const voteCountsByCandidate: Record<string, number> = {};
+    const voteCountsByElection: Record<string, number> = {};
+
+    for (const v of votes) {
+      if (targetElectionId && v.electionId !== targetElectionId) continue;
+      voteCountsByCandidate[v.candidateId] = (voteCountsByCandidate[v.candidateId] || 0) + 1;
+      voteCountsByElection[v.electionId] = (voteCountsByElection[v.electionId] || 0) + 1;
+    }
+
+    const candidateDiscrepancies: any[] = [];
+    for (const c of candidates) {
+      if (targetElectionId && c.electionId !== targetElectionId) continue;
+      const actualVotes = voteCountsByCandidate[c.id] || 0;
+      const cachedVotes = c.voteCount || 0;
+      if (actualVotes !== cachedVotes) {
+        candidateDiscrepancies.push({
+          candidateId: c.id,
+          candidateName: c.name,
+          cachedVotes,
+          actualVotes,
+        });
+      }
+    }
+
+    const electionDiscrepancies: any[] = [];
+    for (const e of elections) {
+      if (targetElectionId && e.id !== targetElectionId) continue;
+      const actualTotal = voteCountsByElection[e.id] || 0;
+      const cachedTotal = (e as any).totalVotes || 0;
+      if (actualTotal !== cachedTotal) {
+        electionDiscrepancies.push({
+          electionId: e.id,
+          cachedTotal,
+          actualTotal,
+        });
+      }
+    }
+
+    return { electionDiscrepancies, candidateDiscrepancies };
   }
 
   // ============================================
@@ -2202,6 +2339,110 @@ export class Database {
     return this.insertOne<Faq>("faqs", faq);
   }
 
+  // ============================================
+  // Login Attempt Progressive Lockout Management
+  // ============================================
+
+  static async getLoginAttempt(identifier: string): Promise<LoginAttempt | null> {
+    this.ensureSeedData();
+    const raw = String(identifier || "").trim().toLowerCase();
+    if (!raw) return null;
+
+    if (this.db) {
+      const attempt = await this.findOne<LoginAttempt>("login_attempts", { identifier: raw } as Filter<LoginAttempt>);
+      if (attempt) return attempt;
+    }
+    const attempts = (this.inMemStore.get("login_attempts") || []) as LoginAttempt[];
+    return attempts.find((a) => a.identifier === raw) || null;
+  }
+
+  static async recordFailedLogin(
+    identifier: string,
+    userId?: string,
+  ): Promise<{ attempt: LoginAttempt; lockoutDurationMs: number; lockedUntil: number }> {
+    this.ensureSeedData();
+    const raw = String(identifier || "").trim().toLowerCase();
+    const now = Date.now();
+    const nowIso = new Date().toISOString();
+
+    const attempts = (this.inMemStore.get("login_attempts") || []) as LoginAttempt[];
+    let existing = attempts.find((a) => a.identifier === raw);
+
+    if (!existing && this.db) {
+      existing = (await this.findOne<LoginAttempt>("login_attempts", { identifier: raw } as Filter<LoginAttempt>)) || undefined;
+    }
+
+    const failedCount = (existing?.failedAttempts || 0) + 1;
+    let lockoutLevel = existing?.lockoutLevel || 0;
+
+    // Progression:
+    // 1-2 failures: no lockout (lockoutLevel=0, 0ms)
+    // 3rd failure: 5m (lockoutLevel=1)
+    // 4th failure: 10m (lockoutLevel=2)
+    // 5th failure: 30m (lockoutLevel=3)
+    // 6th failure: 1h (lockoutLevel=4)
+    // 7th+ failure: 24h (lockoutLevel=5)
+    let lockoutDurationMs = 0;
+    if (failedCount === 3) {
+      lockoutLevel = 1;
+      lockoutDurationMs = 5 * 60 * 1000;
+    } else if (failedCount === 4) {
+      lockoutLevel = 2;
+      lockoutDurationMs = 10 * 60 * 1000;
+    } else if (failedCount === 5) {
+      lockoutLevel = 3;
+      lockoutDurationMs = 30 * 60 * 1000;
+    } else if (failedCount === 6) {
+      lockoutLevel = 4;
+      lockoutDurationMs = 60 * 60 * 1000;
+    } else if (failedCount >= 7) {
+      lockoutLevel = 5;
+      lockoutDurationMs = 24 * 60 * 60 * 1000;
+    }
+
+    const lockedUntil = lockoutDurationMs > 0 ? now + lockoutDurationMs : 0;
+
+    const attemptRecord: LoginAttempt = {
+      id: existing?.id || this.createId("lat"),
+      identifier: raw,
+      userId: userId || existing?.userId,
+      failedAttempts: failedCount,
+      lockoutLevel,
+      lockedUntil,
+      lastFailedAt: nowIso,
+      createdAt: existing?.createdAt || nowIso,
+      updatedAt: nowIso,
+    };
+
+    const idx = attempts.findIndex((a) => a.identifier === raw);
+    if (idx >= 0) {
+      attempts[idx] = attemptRecord;
+    } else {
+      attempts.push(attemptRecord);
+    }
+    this.inMemStore.set("login_attempts", attempts);
+
+    if (this.db) {
+      await this.upsertOne("login_attempts", { identifier: raw } as Filter<LoginAttempt>, attemptRecord);
+    }
+
+    return { attempt: attemptRecord, lockoutDurationMs, lockedUntil };
+  }
+
+  static async recordSuccessfulLogin(identifier: string): Promise<void> {
+    this.ensureSeedData();
+    const raw = String(identifier || "").trim().toLowerCase();
+    if (!raw) return;
+
+    const attempts = (this.inMemStore.get("login_attempts") || []) as LoginAttempt[];
+    const filtered = attempts.filter((a) => a.identifier !== raw);
+    this.inMemStore.set("login_attempts", filtered);
+
+    if (this.db) {
+      await this.deleteOne("login_attempts", { identifier: raw } as Filter<LoginAttempt>);
+    }
+  }
+
 
   // ============================================
   // JWT Token Utilities
@@ -2467,6 +2708,11 @@ export class Database {
         { key: { userId: 1, electionId: 1 }, name: "face_user_election" },
         { key: { verificationStatus: 1 }, name: "face_status" },
         { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "face_expiry" },
+      ]);
+
+      // Login attempts indexes
+      await this.safeCreateIndexes(this.getCollection("login_attempts"), [
+        { key: { identifier: 1 }, unique: true, name: "login_attempts_identifier_unique" },
       ]);
 
       console.log("✅ Database ready");

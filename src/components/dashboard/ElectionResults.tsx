@@ -65,11 +65,15 @@ interface PublishedResultDetail {
 interface ElectionResultsProps {
   onBack: () => void;
   isLight: boolean;
+  filterCandidateId?: string;
+  candidateName?: string;
 }
 
 export default function ElectionResults({
   onBack,
   isLight,
+  filterCandidateId,
+  candidateName,
 }: ElectionResultsProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +82,7 @@ export default function ElectionResults({
     useState<PublishedResultDetail | null>(null);
 
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(candidateName || "");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedArea, setSelectedArea] = useState("all");
   const [selectedWinnerFilter, setSelectedWinnerFilter] = useState("all");
@@ -103,10 +107,21 @@ export default function ElectionResults({
         throw new Error("Failed to load official published results.");
       const data = await res.json();
 
-      setResults(data.results || []);
-      if (data.results && data.results.length > 0) {
-        // Default to select first result
-        setSelectedResult(data.results[0]);
+      const loadedResults = data.results || [];
+      setResults(loadedResults);
+      if (loadedResults.length > 0) {
+        let matchingResult = null;
+        if (filterCandidateId || candidateName) {
+          const lowerName = candidateName?.toLowerCase() || "";
+          matchingResult = loadedResults.find((r: PublishedResultDetail) =>
+            r.tallies.some(
+              (t) =>
+                (filterCandidateId && t.candidate.id === filterCandidateId) ||
+                (lowerName && t.candidate.name.toLowerCase().includes(lowerName)),
+            ),
+          );
+        }
+        setSelectedResult(matchingResult || loadedResults[0]);
       } else {
         setSelectedResult(null);
       }

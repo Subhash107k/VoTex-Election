@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2, CheckCircle2, XCircle, Clock, Users } from "lucide-react";
 import type { Candidate, Election } from "../../../types.js";
 import { PageHeader } from "../../../components/Admin/Shared/PageHeader.tsx";
 import { SectionCard } from "../../../components/Admin/Shared/SectionCard.tsx";
@@ -86,12 +86,55 @@ export default function CandidatesPage({
     }
   };
 
+  const candidateStats = useMemo(() => {
+    const total = candidates.length;
+    const verified = candidates.filter((c) => {
+      const status = getCandidateStatus(c);
+      return status === "Verified" || status === "Approved" || isCandidateApproved(c);
+    }).length;
+    const unverified = total - verified;
+    return { total, verified, unverified };
+  }, [candidates]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Candidates"
         description="Review candidate profiles and apply status updates while preserving existing verification workflows."
       />
+
+      {/* Stat Summary Box Container */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/70">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Candidates</span>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{candidateStats.total}</p>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <Users className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 shadow-sm backdrop-blur">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Verified Candidates</span>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{candidateStats.verified}</p>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 shadow-sm backdrop-blur">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Unverified / Pending</span>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{candidateStats.unverified}</p>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+            <Clock className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
 
       <SectionCard
         title="Candidate registry"
@@ -131,40 +174,55 @@ export default function CandidatesPage({
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                      className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       onClick={() => setDetailId(candidate.id)}
                     >
                       <Eye className="mr-1 inline h-3.5 w-3.5" />
                       View details
                     </button>
-                    {!approved ? (
+                    {status !== "Verified" && status !== "Approved" && (
                       <button
                         type="button"
                         disabled={updating}
-                        className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+                        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors cursor-pointer"
                         onClick={() =>
                           void handleVerify(candidate.id, "Verified")
                         }
                       >
+                        <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
                         Approve
                       </button>
-                    ) : null}
-                    {!approved ? (
+                    )}
+                    {status !== "Rejected" && (
                       <button
                         type="button"
                         disabled={updating}
-                        className="rounded-lg border border-amber-200 px-2.5 py-1.5 text-xs font-semibold text-amber-700 disabled:opacity-50"
+                        className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-50 transition-colors cursor-pointer"
+                        onClick={() =>
+                          void handleVerify(candidate.id, "Rejected")
+                        }
+                      >
+                        <XCircle className="mr-1 inline h-3.5 w-3.5" />
+                        Reject / Disapprove
+                      </button>
+                    )}
+                    {status !== "Pending" && (
+                      <button
+                        type="button"
+                        disabled={updating}
+                        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 transition-colors cursor-pointer"
                         onClick={() =>
                           void handleVerify(candidate.id, "Pending")
                         }
                       >
+                        <Clock className="mr-1 inline h-3.5 w-3.5" />
                         Pending
                       </button>
-                    ) : null}
+                    )}
                     <button
                       type="button"
                       disabled={updating}
-                      className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50"
+                      className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 transition-colors cursor-pointer"
                       onClick={() => void onDeleteCandidate(candidate.id)}
                     >
                       <Trash2 className="mr-1 inline h-3.5 w-3.5" />
@@ -255,6 +313,8 @@ export default function CandidatesPage({
         type="candidate"
         recordId={detailId}
         token={token}
+        onVerify={onVerifyCandidate}
+        onDelete={onDeleteCandidate}
       />
     </div>
   );

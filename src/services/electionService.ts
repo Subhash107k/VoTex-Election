@@ -6,6 +6,7 @@ export interface Candidate {
   fullName?: string;
   label: string;
   party?: string;
+  partyId?: string;
   politicalPartyName?: string;
   partyLogo?: string | null;
   partyLogoUrl?: string | null;
@@ -240,7 +241,15 @@ export async function castVote(
 export function getLocalVoteReceipts(): VoteReceipt[] {
   try {
     const raw = localStorage.getItem("votex_voter_receipts");
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const list: VoteReceipt[] = JSON.parse(raw);
+    const seen = new Set<string>();
+    return list.filter((r) => {
+      const key = r.electionId || r.receiptId;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   } catch {
     return [];
   }

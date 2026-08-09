@@ -369,15 +369,16 @@ export default function BiometricScanner({
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         setBiometricsLog([
-          "Initializing hardware client local stream...",
+          "Initializing hardware client local HD stream...",
           "Requesting camera permissions...",
         ]);
 
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: CANVAS_DIMENSIONS.width,
-            height: CANVAS_DIMENSIONS.height,
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
             facingMode: "user",
+            frameRate: { ideal: 60, min: 30 },
           },
         });
 
@@ -395,8 +396,8 @@ export default function BiometricScanner({
         setScanStep("aligning");
         setBiometricsLog((prev: string[]) => [
           ...prev,
-          "✔ Native hardware stream bound successfully.",
-          "Align your face with the central guidelines tracker.",
+          "✔ High-Definition camera stream initialized.",
+          "Align your face inside the central optical guide.",
         ]);
       } else {
         throw new Error("Local platform has no media device access routes");
@@ -432,13 +433,14 @@ export default function BiometricScanner({
 
   // ==================== Video Stream Binding ====================
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      if (stream) {
-        videoRef.current.play().catch((err: unknown) => {
+    if (videoRef.current && stream) {
+      const vid = videoRef.current;
+      vid.srcObject = stream;
+      vid.onloadedmetadata = () => {
+        vid.play().catch((err: unknown) => {
           console.warn("Error playing video:", err);
         });
-      }
+      };
     }
   }, [stream]);
 
@@ -457,7 +459,9 @@ export default function BiometricScanner({
       try {
         const { tf, faceLandmarksDetection } =
           await loadTensorflowFaceModules();
-        await tf.setBackend("webgl");
+        if (tf.getBackend() !== "webgl") {
+          await tf.setBackend("webgl");
+        }
         await tf.ready();
         const model = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
@@ -1422,6 +1426,8 @@ export default function BiometricScanner({
 
           // Draw video feed or simulation backdrop
           if (!isSimulated && video && !video.paused && !video.ended) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
             ctx.drawImage(video, 0, 0, width, height);
           } else {
             ctx.fillStyle = "#0f172a";

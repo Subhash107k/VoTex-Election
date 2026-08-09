@@ -459,6 +459,7 @@ export default function VoterDashboard({
 
                 <ElectionList
                   token={token}
+                  user={user}
                   onVote={(e: any, c: any) => {
                     setCurrentElection(e);
                     setCurrentCandidate(c);
@@ -486,7 +487,14 @@ export default function VoterDashboard({
                 </div>
 
                 {(() => {
-                  const receipts = getLocalVoteReceipts();
+                  const rawReceipts = getLocalVoteReceipts();
+                  const seen = new Set();
+                  const receipts = rawReceipts.filter((r: any) => {
+                    const key = r.electionId || r.receiptId;
+                    if (!key || seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  });
 
                   if (receipts.length === 0) {
                     return (

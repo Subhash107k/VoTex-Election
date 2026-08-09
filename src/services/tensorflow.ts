@@ -218,13 +218,19 @@ async function loadRealModules(): Promise<TensorflowFaceModules> {
     await tf.ready();
 
     const supportedBackend = getOptimalBackend();
-    await tf.setBackend(supportedBackend);
+    if (tf.getBackend() !== supportedBackend) {
+      await tf.setBackend(supportedBackend);
+    }
 
     console.log(`✅ TensorFlow.js loaded with ${supportedBackend} backend`);
 
     return {
       tf: {
-        setBackend: async (backend: string) => { await tf.setBackend(backend); },
+        setBackend: async (backend: string) => {
+          if (tf.getBackend() !== backend) {
+            await tf.setBackend(backend);
+          }
+        },
         ready: () => tf.ready(),
         getBackend: () => tf.getBackend(),
         memory: () => tf.memory(),

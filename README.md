@@ -397,6 +397,18 @@ Candidate profiles may contain:
 
 Candidate information is presented to voters before ballot submission to support informed decision-making.
 
+### Pre-seeded Demo Credentials
+
+| Role | Username / Email | Password | National ID |
+| --- | --- | --- | --- |
+| **Administrator** | `admin` / `admin@votex.gov` | `Password123!` | `ADMIN001` |
+| **Voter** | `voter1` to `voter5` / `voter1@votex.gov` | `Password123!` | `VOTER001` to `VOTER005` |
+| **Candidate** | `candidate1` / `gagan.thapa@nc.org.np` | `Password123!` | `CAND001` |
+| **Candidate** | `candidate2` / `gokarna.bista@cpnuml.org` | `Password123!` | `CAND002` |
+| **Candidate** | `candidate3` / `barshaman.pun@cpmmaoist.org` | `Password123!` | `CAND003` |
+| **Candidate** | `candidate4` / `swarnim.wagle@rsp.org.np` | `Password123!` | `CAND004` |
+| **Candidate** | `candidate5` / `rajendra.lingden@rpp.org.np` | `Password123!` | `CAND005` |
+
 ---
 
 # 🛡️ Administrative Console

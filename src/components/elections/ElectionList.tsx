@@ -18,9 +18,11 @@ import {
 
 export default function ElectionList({
   token,
+  user,
   onVote,
 }: {
   token: string | null;
+  user?: any;
   onVote: (election: Election, candidate: Candidate) => void;
 }) {
   const [elections, setElections] = useState<Election[]>([]);
@@ -212,6 +214,7 @@ export default function ElectionList({
                   candidate={candidate}
                   electionStatus={election.status || "Active"}
                   hasVoted={hasVoted}
+                  currentUser={user}
                   onVote={(cand) => {
                     setPendingSelection({
                       election,

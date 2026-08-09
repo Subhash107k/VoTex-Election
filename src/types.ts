@@ -73,6 +73,7 @@ export interface Candidate {
   id: string;
   name: string;
   party: string;
+  partyId?: string;
   fullName?: string;
   candidatePhoto?: string;
   gender?: string;
@@ -232,6 +233,7 @@ export interface DashboardStats {
     verifiedVoters: number;
     totalCandidates: number;
     totalVotes: number;
+    totalAdmins?: number;
     turnoutPercent: number;
   };
   candidateVotes: Array<{

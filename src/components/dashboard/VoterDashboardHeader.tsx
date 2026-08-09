@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Shield,
   Bell,
@@ -49,6 +49,29 @@ export default function VoterDashboardHeader({
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+
+  const fetchRealNotifs = useCallback(async () => {
+    const token = localStorage.getItem("votex_token");
+    if (!token) return;
+    try {
+      const res = await fetch("/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.notifications) && data.notifications.length > 0) {
+          setNotificationsList(data.notifications);
+        }
+      }
+    } catch {
+      // ignore network errors gracefully
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchRealNotifs();
+  }, [fetchRealNotifs]);
 
   const toggleTheme = () => {
     if (setTheme) {
@@ -59,10 +82,13 @@ export default function VoterDashboardHeader({
   const name = user?.fullName || "Voter Citizen";
   const customAvatar =
     user?.profilePhoto || user?.profilePicture || user?.faceImage;
-  const isCustomPhoto =
+  const isCustomPhoto = Boolean(
     customAvatar &&
-    !customAvatar.includes("unsplash.com") &&
-    !customAvatar.includes("ui-avatars.com");
+      typeof customAvatar === "string" &&
+      customAvatar.trim().length > 0 &&
+      !customAvatar.includes("unsplash.com") &&
+      !customAvatar.includes("ui-avatars.com"),
+  );
 
   const getInitials = (fullName: string): string => {
     if (!fullName) return "V";
@@ -150,29 +176,64 @@ export default function VoterDashboardHeader({
                 <div className="absolute right-0 mt-3 w-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xl z-50">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-                      Notifications
+                      System Notifications
                     </h4>
                     <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                      3 New
+                      {notificationsList.length > 0 ? `${notificationsList.length} New` : "Live Feed"}
                     </span>
                   </div>
-                  <div className="mt-3 space-y-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
-                      <p className="font-semibold text-slate-800 dark:text-slate-200">
-                        Election Opened
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        House of Representatives voting is live.
-                      </p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40">
-                      <p className="font-semibold text-slate-800 dark:text-slate-200">
-                        Profile Verified
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Your identity biometrics passed security checks.
-                      </p>
-                    </div>
+                  <div className="mt-3 space-y-2 text-xs max-h-72 overflow-y-auto pr-1">
+                    {notificationsList.length > 0 ? (
+                      notificationsList.map((notif: any, index: number) => (
+                        <div
+                          key={notif.id || index}
+                          className={`p-2.5 rounded-xl border transition-colors ${
+                            notif.type === "success" || notif.type === "verified"
+                              ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30"
+                              : notif.type === "warning" || notif.type === "alert"
+                                ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30"
+                                : "bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20"
+                          }`}
+                        >
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            {notif.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                            {notif.message}
+                          </p>
+                          {notif.timestamp ? (
+                            <span className="mt-1 block text-[9px] font-medium text-slate-400">
+                              {new Date(notif.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            Election Session Open
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                            Federal House of Representatives election poll is open. Verify your biometrics to cast your ballot.
+                          </p>
+                          <span className="mt-1 block text-[9px] font-medium text-slate-400">
+                            System Live • Just now
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            Profile & Biometrics Verified
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                            Your citizen credentials and live biometric identity check passed security audit.
+                          </p>
+                          <span className="mt-1 block text-[9px] font-medium text-slate-400">
+                            Official Registry Audit
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -262,57 +323,6 @@ export default function VoterDashboardHeader({
             </button>
           </div>
         </div>
-
-        {/* Mobile Dropdown Drawer */}
-        {mobileOpen && (
-          <div className="sm:hidden border-t border-slate-200 dark:border-slate-800 py-3 space-y-2">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2">
-                {isCustomPhoto ? (
-                  <img
-                    src={customAvatar}
-                    alt={name}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 font-extrabold text-[11px] text-white shadow-xs tracking-wider">
-                    {getInitials(name)}
-                  </div>
-                )}
-                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  {name}
-                </span>
-              </div>
-              {setTheme && (
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300"
-                >
-                  {theme === "dark" ? (
-                    <Sun className="h-4 w-4 text-amber-400" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                setMobileOpen(false);
-                setCurrentPath("/profile/edit");
-              }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
-            >
-              View / Edit Profile
-            </button>
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
-            >
-              <LogOut className="h-4 w-4 text-red-500" /> Sign Out
-            </button>
-          </div>
-        )}
       </div>
     </nav>
   );

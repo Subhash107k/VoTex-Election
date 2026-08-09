@@ -368,6 +368,30 @@ export function normalizeProfilePayload(data: any) {
       "Pending",
   });
 
+  if (data.candidate) {
+    const cand = data.candidate;
+    appendDocument(cand.photoUrl || cand.candidatePhoto, "Candidate Campaign Photo", {
+      status: cand.status || "Verified",
+    });
+    appendDocument(cand.partyLogoUrl, "Political Party Logo", {
+      status: "Verified",
+    });
+    appendDocument(cand.citizenshipFront, "Citizenship Document (Front)", {
+      documentNumber: cand.citizenshipNumber,
+      status: cand.status || "Verified",
+    });
+    appendDocument(cand.citizenshipBack, "Citizenship Document (Back)", {
+      documentNumber: cand.citizenshipNumber,
+      status: cand.status || "Verified",
+    });
+    appendDocument(cand.nominationFormUrl, "Nomination Form Paper", {
+      status: cand.status || "Verified",
+    });
+    appendDocument(cand.manifestoFileUrl, "Manifesto Document File", {
+      status: cand.status || "Verified",
+    });
+  }
+
   const documentList = Array.isArray(data.documents)
     ? data.documents
     : Array.isArray(data.profile?.documents)

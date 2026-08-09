@@ -61,7 +61,7 @@ export default function AdminPanel({
     elections,
     candidates,
     notifications,
-    newsletterSubscribers,
+    auditLogs,
     voters,
     loading,
     sidebarCollapsed,
@@ -71,19 +71,24 @@ export default function AdminPanel({
     searchQuery,
     setSearchQuery,
     smtpForm,
+    setSmtpForm,
     twilioForm,
-    parties,
+    setTwilioForm,
     handleCreateOrUpdateElection,
     handleDeleteElection,
     handleToggleElectionStatus,
     handleCreateOrUpdateCandidate,
     handleDeleteCandidate,
     handleVerifyCandidate,
+    handlePublishAnnouncement,
     handleUpdateNewsletterStatus,
     handleDeleteNewsletterSubscriber,
     handleUpdateVoterStatus,
+    handleDeleteVoter,
     handleSaveSystemConfig,
     handleChangeAdminPassword,
+    parties,
+    newsletterSubscribers,
     team,
     successMsg,
     errorMsg,
@@ -158,6 +163,7 @@ export default function AdminPanel({
                   elections={elections}
                   notifications={notifications}
                   voters={voters}
+                  team={team}
                   loading={loading}
                 />
               ) : null}
@@ -193,6 +199,7 @@ export default function AdminPanel({
                   voters={voters}
                   token={token}
                   onUpdateVoterStatus={handleUpdateVoterStatus}
+                  onDeleteVoter={handleDeleteVoter}
                 />
               ) : null}
 

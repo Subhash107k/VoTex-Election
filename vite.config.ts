@@ -409,7 +409,7 @@ export default defineConfig(({ command, mode }) => {
           target:
             env.VITE_API_URL ||
             env.VITE_API_BASE_URL ||
-            "http://localhost:3001",
+            "http://localhost:3000",
           changeOrigin: true,
           secure: false,
           configure: (proxy) => {

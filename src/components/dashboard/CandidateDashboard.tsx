@@ -50,10 +50,18 @@ import {
   Filter,
   ExternalLink,
   Copy,
+  Vote,
+  CheckCircle2,
+  Receipt,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { PoliticalParty, Candidate, Election } from "../../types.js";
 import type { ThemeMode } from "../../types/auth.ts";
+import ElectionResults from "./ElectionResults.tsx";
+import ElectionList from "../elections/ElectionList.tsx";
+import FaceVerification from "../../pages/FaceVerification.tsx";
+import EditProfile from "./EditProfile.tsx";
+import { castVote, getLocalVoteReceipts } from "../../services/electionService.ts";
 
 interface CandidateDashboardProps {
   token: string;
@@ -80,10 +88,22 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<"edit" | "preview" | "analytics">(
-    "edit",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "edit" | "preview" | "analytics" | "vote" | "results"
+  >("edit");
   const [showPublicLink, setShowPublicLink] = useState(false);
+
+  // Candidate Voting State
+  const [currentElection, setCurrentElection] = useState<any>(null);
+  const [currentCandidate, setCurrentCandidate] = useState<any>(null);
+  const [showFaceModal, setShowFaceModal] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [isSubmittingVote, setIsSubmittingVote] = useState<boolean>(false);
+  const [latestReceipt, setLatestReceipt] = useState<any>(null);
+  const [receipts, setReceipts] = useState<any[]>(() =>
+    getLocalVoteReceipts(),
+  );
 
   const [toast, setToast] = useState<{ msg: string; isError?: boolean } | null>(
     null,
@@ -377,25 +397,38 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   const currentStatus = profile ? profile.status || "Pending" : "Pending";
   const isVerified = currentStatus === "Verified";
 
+  if (activeTab === "edit") {
+    return (
+      <EditProfile
+        token={token}
+        user={user}
+        onLogout={onLogout}
+        setCurrentPath={() => setActiveTab("preview")}
+        theme={theme}
+        setTheme={setTheme}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Toast Notifications */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-200">
+      {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -20, x: 20 }}
-            animate={{ opacity: 1, y: 0, x: 0 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-20 right-4 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-sm ${
+            className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-2 ${
               toast.isError
-                ? "bg-red-500/90 border-red-400 text-white"
-                : "bg-emerald-500/90 border-emerald-400 text-white"
+                ? "bg-red-50 dark:bg-red-900/50 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+                : "bg-emerald-50 dark:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
             }`}
           >
             {toast.isError ? (
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <AlertTriangle className="w-4 h-4" />
             ) : (
-              <CheckCircle className="w-4 h-4 shrink-0" />
+              <CheckCircle className="w-4 h-4" />
             )}
             <span className="text-sm font-medium">{toast.msg}</span>
           </motion.div>
@@ -501,6 +534,8 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
             { id: "edit", label: "Edit Profile", icon: Edit3 },
             { id: "preview", label: "Public Preview", icon: Eye },
             { id: "analytics", label: "Analytics", icon: BarChart3 },
+            { id: "vote", label: "Cast Vote", icon: Vote },
+            { id: "results", label: "Published Results", icon: Award },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -518,156 +553,383 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {activeTab === "edit" && !isVerified && (
-              <EditProfileForm
-                formData={formData}
-                setFormData={setFormData}
-                touched={touched}
-                setTouched={setTouched}
-                parties={parties}
-                elections={elections}
-                handlePartyChange={handlePartyChange}
-                handleSave={handleSave}
-                saving={saving}
-                isFormValid={isFormValid}
-                fileInputRef={fileInputRef}
-                dragActive={dragActive}
-                handleDrag={handleDrag}
-                handleDrop={handleDrop}
-                handleFileChange={handleFileChange}
-                errors={{
-                  name: touched.name && !isNameValid ? "Required" : "",
-                  party: touched.party && !isPartyValid ? "Required" : "",
-                  electionId:
-                    touched.electionId && !isElectionValid ? "Required" : "",
-                  photoUrl: touched.photoUrl && !isPhotoValid ? "Required" : "",
-                  manifestoText:
-                    touched.manifestoText && !isManifestoValid
-                      ? "Required"
-                      : "",
+        {activeTab === "results" ? (
+          <div className="mt-4">
+            <ElectionResults
+              onBack={() => setActiveTab("edit")}
+              isLight={theme === "light"}
+              filterCandidateId={profile?.id}
+              candidateName={profile?.name || user?.fullName}
+            />
+          </div>
+        ) : activeTab === "vote" ? (
+          <div className="space-y-6 mt-4">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900/90 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-500">
+                    <Vote className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tight">
+                      Active Elections & Contesting Candidates
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      As a registered citizen and candidate, cast your secure ballot in active elections.
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-500 self-start sm:self-auto">
+                  Live Polling Open
+                </span>
+              </div>
+
+              <ElectionList
+                token={token}
+                user={user}
+                onVote={(e: any, c: any) => {
+                  setCurrentElection(e);
+                  setCurrentCandidate(c);
+                  setShowFaceModal(true);
                 }}
               />
-            )}
+            </div>
 
-            {activeTab === "preview" && (
-              <PublicPreview
-                formData={formData}
-                parties={parties}
-                elections={elections}
-                profile={profile}
-                publicProfile={publicProfile}
-              />
-            )}
-
-            {activeTab === "analytics" && analytics && (
-              <AnalyticsPanel analytics={analytics} />
-            )}
-
-            {isVerified && (
-              <VerifiedProfileView
-                formData={formData}
-                parties={parties}
-                elections={elections}
-                profile={profile}
-              />
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Public Link Card */}
-            {publicProfile && (
-              <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
-                <h3 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-blue-500" />
-                  Public Profile
-                </h3>
+            {/* Voter Receipts */}
+            {receipts.length > 0 && (
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900/90 space-y-4">
+                <h4 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" /> Your Digital Ballot Receipts ({receipts.length})
+                </h4>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <Link className="w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      readOnly
-                      value={publicProfile.publicUrl || ""}
-                      className="flex-1 bg-transparent text-sm text-slate-600 dark:text-slate-300 truncate"
-                    />
-                    <button
-                      onClick={copyPublicLink}
-                      className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
-                    >
-                      <Copy className="w-4 h-4 text-slate-500" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() =>
-                      window.open(publicProfile.publicUrl, "_blank")
-                    }
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View Public Profile
-                  </button>
+                  {receipts.map((r: any) => (
+                    <div key={r.receiptId} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-xs flex flex-col sm:flex-row justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white">{r.electionTitle}</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-0.5">Voted For: <strong className="text-blue-600 dark:text-blue-400">{r.candidateName}</strong> ({r.candidateParty})</p>
+                      </div>
+                      <div className="font-mono text-[11px] text-right">
+                        <span className="text-slate-400 block">Receipt: {r.receiptId}</span>
+                        <span className="text-emerald-500 font-bold block truncate max-w-[220px]">{r.anonymousVoterHash}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Area */}
+            <div className="lg:col-span-2 space-y-6">
+              {activeTab === "preview" && (
+                <PublicPreview
+                  formData={formData}
+                  parties={parties}
+                  elections={elections}
+                  profile={profile}
+                  publicProfile={publicProfile}
+                />
+              )}
 
-            {/* Quick Stats */}
-            <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
-              <h3 className="font-semibold text-slate-800 dark:text-white mb-4">
-                Profile Overview
-              </h3>
-              <div className="space-y-3">
-                <ProgressItem
-                  label="Profile Completion"
-                  value={calculateCompletion(formData)}
-                />
-                <ProgressItem
-                  label="Documents Verified"
-                  value={profile ? 100 : 0}
-                />
-                <ProgressItem
-                  label="Public Visibility"
-                  value={publicProfile ? 100 : 0}
-                />
-              </div>
+              {activeTab === "analytics" && analytics && (
+                <AnalyticsPanel analytics={analytics} />
+              )}
             </div>
 
-            {/* Recent Notifications */}
-            <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
-              <h3 className="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Bell className="w-4 h-4 text-amber-500" />
-                Notifications
-              </h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.slice(0, 5).map((notif: any) => (
-                    <div
-                      key={notif.id}
-                      className="p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg text-sm"
-                    >
-                      <p className="font-medium text-slate-800 dark:text-slate-200">
-                        {notif.title}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {notif.message}
-                      </p>
-                      <span className="text-[10px] text-slate-400 mt-1 block">
-                        {new Date(notif.createdAt).toLocaleString()}
-                      </span>
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Public Link Card */}
+              {publicProfile && (
+                <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
+                  <h3 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    Public Profile
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                      <Link className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        readOnly
+                        value={publicProfile.publicUrl || ""}
+                        className="flex-1 bg-transparent text-sm text-slate-600 dark:text-slate-300 truncate"
+                      />
+                      <button
+                        onClick={copyPublicLink}
+                        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
+                      >
+                        <Copy className="w-4 h-4 text-slate-500" />
+                      </button>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500 text-center py-4">
-                    No notifications yet
-                  </p>
-                )}
+                    <button
+                      onClick={() =>
+                        window.open(publicProfile.publicUrl, "_blank")
+                      }
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Public Profile
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Stats */}
+              <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
+                <h3 className="font-semibold text-slate-800 dark:text-white mb-4">
+                  Profile Overview
+                </h3>
+                <div className="space-y-3">
+                  <ProgressItem
+                    label="Profile Completion"
+                    value={calculateCompletion(formData)}
+                  />
+                  <ProgressItem
+                    label="Documents Verified"
+                    value={profile ? 100 : 0}
+                  />
+                  <ProgressItem
+                    label="Public Visibility"
+                    value={publicProfile ? 100 : 0}
+                  />
+                </div>
+              </div>
+
+              {/* Recent Notifications */}
+              <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-5">
+                <h3 className="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-500" />
+                  Notifications
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((notif: any) => (
+                      <div
+                        key={notif.id}
+                        className="p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg text-sm"
+                      >
+                        <p className="font-medium text-slate-800 dark:text-slate-200">
+                          {notif.title}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {notif.message}
+                        </p>
+                        <span className="text-[10px] text-slate-400 mt-1 block">
+                          {new Date(notif.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                      No notifications yet
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Biometric Face Verification Modal */}
+        {showFaceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-700 bg-slate-950 p-6 shadow-2xl relative">
+              <button
+                onClick={() => setShowFaceModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full border border-slate-700 bg-slate-900 text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <FaceVerification
+                token={token}
+                electionId={currentElection?.id || ""}
+                candidateLabel={currentCandidate?.fullName || currentCandidate?.label || currentCandidate?.name || ""}
+                onBack={() => setShowFaceModal(false)}
+                onVerified={(result: any) => {
+                  setVerificationResult(result);
+                  setShowFaceModal(false);
+                  setShowConfirmModal(true);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Confirm Vote Modal */}
+        {showConfirmModal && verificationResult && currentElection && currentCandidate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+            <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-950 p-6 shadow-2xl relative space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                    <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-white text-base">Review & Confirm Your Vote</h4>
+                    <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">
+                      ✓ Identity Verified — Ready to Submit
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!isSubmittingVote) {
+                      setShowConfirmModal(false);
+                      setVerificationResult(null);
+                    }
+                  }}
+                  disabled={isSubmittingVote}
+                  className="p-2 rounded-full border border-slate-700 bg-slate-900 text-slate-400 hover:text-white disabled:opacity-40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-semibold">Election</span>
+                  <span className="font-black text-white">
+                    {currentElection.title || currentElection.name || currentElection.id}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-semibold">Selected Candidate</span>
+                  <span className="font-black text-blue-400">
+                    {currentCandidate.fullName || currentCandidate.label || currentCandidate.name}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-semibold">Face Match Score</span>
+                  <span className="font-black text-emerald-400">
+                    {Math.round(
+                      (verificationResult.similarityScore <= 1
+                        ? verificationResult.similarityScore * 100
+                        : verificationResult.similarityScore)
+                    )}% Matched
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-300 leading-relaxed">
+                  <strong>This action is irreversible.</strong> Once submitted, your ballot cannot be changed or withdrawn.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isSubmittingVote) {
+                      setShowConfirmModal(false);
+                      setVerificationResult(null);
+                    }
+                  }}
+                  disabled={isSubmittingVote}
+                  className="flex-1 py-3 rounded-2xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition-all disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmittingVote}
+                  onClick={async () => {
+                    if (isSubmittingVote) return;
+                    setIsSubmittingVote(true);
+                    try {
+                      const res = await castVote(token, {
+                        electionId: currentElection.id,
+                        candidateId: currentCandidate.id,
+                        faceVerificationId: verificationResult.verificationId || verificationResult.token,
+                      });
+                      setShowConfirmModal(false);
+                      setVerificationResult(null);
+                      setCurrentElection(null);
+                      setCurrentCandidate(null);
+                      if (res?.receipt) {
+                        setLatestReceipt(res.receipt);
+                        setReceipts(getLocalVoteReceipts());
+                      }
+                      setActiveTab("vote");
+                    } catch (err: any) {
+                      console.error(err);
+                      setShowConfirmModal(false);
+                      setVerificationResult(null);
+                      alert(err?.message || "Failed to cast vote. Please try again.");
+                    } finally {
+                      setIsSubmittingVote(false);
+                    }
+                  }}
+                  className={`flex-1 py-3 rounded-2xl font-black text-xs text-white transition-all ${
+                    isSubmittingVote
+                      ? "bg-emerald-700 cursor-wait opacity-70"
+                      : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20 active:scale-95"
+                  }`}
+                >
+                  {isSubmittingVote ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      Submitting Ballot…
+                    </span>
+                  ) : (
+                    "✓ Confirm & Submit Vote"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Successful Vote Receipt Confirmation Modal */}
+        {latestReceipt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl">
+            <div className="w-full max-w-lg rounded-3xl border border-emerald-500/30 bg-slate-950 p-6 shadow-2xl relative space-y-6 text-center">
+              <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-white">
+                  Digital Ballot Sealed & Cast!
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Your vote was authenticated via real-time face verification.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 text-left space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Election:</span>
+                  <span className="font-bold text-white">{latestReceipt.electionTitle}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Selected Candidate:</span>
+                  <span className="font-bold text-blue-400">{latestReceipt.candidateName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Receipt ID:</span>
+                  <span className="font-mono text-slate-300">{latestReceipt.receiptId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Anonymous Voter Hash:</span>
+                  <span className="font-mono text-emerald-400 text-[11px] truncate max-w-[200px]">
+                    {latestReceipt.anonymousVoterHash}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setLatestReceipt(null)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20"
+              >
+                Done & View Receipts
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

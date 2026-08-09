@@ -28,7 +28,13 @@ export default function NotificationConsole({
     return token ? { Authorization: `Bearer ${token}` } : null;
   };
 
+  const isFetchingRef = React.useRef(false);
+  const coolOffUntilRef = React.useRef(0);
+
   const fetchLogs = async () => {
+    if (isFetchingRef.current || Date.now() < coolOffUntilRef.current) return;
+    isFetchingRef.current = true;
+
     const headers = getAuthHeaders();
     const role = String(userRole || "").toLowerCase();
     const isPrivileged = [
@@ -44,28 +50,25 @@ export default function NotificationConsole({
     try {
       setLoading(true);
 
-      if (!headers || !isPrivileged) {
-        const res = await fetch("/api/system/dispatches/public");
-        if (res.ok) {
-          const data = await res.json();
-          setLogs(data.logs || []);
-        } else {
-          setLogs([]);
-        }
+      const endpoint = !headers || !isPrivileged ? "/api/system/dispatches/public" : "/api/system/dispatches";
+      const reqHeaders = !headers || !isPrivileged ? undefined : headers;
+
+      const res = await fetch(endpoint, { headers: reqHeaders });
+      if (res.status === 429) {
+        const retryHeader = res.headers.get("retry-after");
+        const retrySec = retryHeader ? parseInt(retryHeader, 10) : 30;
+        coolOffUntilRef.current = Date.now() + (retrySec || 30) * 1000;
         return;
       }
-
-      const res = await fetch("/api/system/dispatches", { headers });
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
-      } else {
-        setLogs([]);
       }
     } catch (e) {
-      setLogs([]);
+      // keep current logs on network glitch
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -86,11 +89,35 @@ export default function NotificationConsole({
     }
   };
 
-  // Poll for logs
+  // Poll for logs with strict single-timer deduplication
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 10000);
-    return () => clearInterval(interval);
+    let mounted = true;
+
+    const executeFetch = () => {
+      if (mounted && !document.hidden && !isFetchingRef.current) {
+        void fetchLogs();
+      }
+    };
+
+    // Initial fetch on mount
+    executeFetch();
+
+    // Ensure previous interval is cleared before starting a new one
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    intervalRef.current = setInterval(executeFetch, 15000);
+
+    return () => {
+      mounted = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, []);
 
   const handleCopy = (text: string, id: string) => {

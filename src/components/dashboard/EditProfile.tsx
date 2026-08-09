@@ -30,6 +30,7 @@ import {
   Eye,
   Bell,
   Shield,
+  Flag,
 } from "lucide-react";
 import type { ThemeMode } from "../../types/auth";
 import { NEPAL_ADDRESS_DATA, COUNTRIES } from "../../data/nepalAddressData";
@@ -95,6 +96,16 @@ export default function EditProfile({
   const [bloodGroup, setBloodGroup] = useState("A+");
   const [nationality, setNationality] = useState("Nepali");
 
+  // Candidate Campaign Fields
+  const [candidateBio, setCandidateBio] = useState("");
+  const [candidateParty, setCandidateParty] = useState("");
+  const [candidateElectionId, setCandidateElectionId] = useState("");
+  const [candidateManifesto, setCandidateManifesto] = useState("");
+  const [candidateExperience, setCandidateExperience] = useState("");
+  const [candidateWebsite, setCandidateWebsite] = useState("");
+  const [politicalParties, setPoliticalParties] = useState<any[]>([]);
+  const [activeElectionsList, setActiveElectionsList] = useState<any[]>([]);
+
   // Contact Info
   const [primaryPhone, setPrimaryPhone] = useState(user?.mobile || "");
   const [secondaryPhone, setSecondaryPhone] = useState("");
@@ -145,7 +156,7 @@ export default function EditProfile({
   const [fingerprintLeftImage, setFingerprintLeftImage] = useState(user?.fingerprintLeftImage || "");
   const [fingerprintRightImage, setFingerprintRightImage] = useState(user?.fingerprintRightImage || "");
   const [faceImage, setFaceImage] = useState<string>(user?.faceImage || user?.profilePhoto || "");
-  const [faceTemplate, setFaceTemplate] = useState<number[] | null>(user?.faceTemplate || [0.1, 0.2, 0.3]);
+  const [faceTemplate, setFaceTemplate] = useState<number[] | null>(user?.faceTemplate || null);
 
   // Live Camera Photo Capture
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -287,6 +298,45 @@ export default function EditProfile({
       if (profile.fingerprintRightImage || userRec.fingerprintRightImage) setFingerprintRightImage(profile.fingerprintRightImage || userRec.fingerprintRightImage || "");
       if (profile.faceImage || userRec.faceImage) setFaceImage(profile.faceImage || userRec.faceImage || "");
       if (profile.faceTemplate || userRec.faceTemplate) setFaceTemplate(profile.faceTemplate || userRec.faceTemplate || null);
+      // Fetch Political Parties & Active Elections
+      try {
+        const [partiesRes, electionsRes] = await Promise.all([
+          fetch("/api/parties"),
+          fetch("/api/elections"),
+        ]);
+        if (partiesRes.ok) {
+          const partiesData = await partiesRes.json();
+          setPoliticalParties(partiesData.parties || []);
+        }
+        if (electionsRes.ok) {
+          const electionsData = await electionsRes.json();
+          setActiveElectionsList(electionsData.elections || []);
+        }
+      } catch (optErr) {
+        console.error("Failed to load political options:", optErr);
+      }
+
+      // If user is candidate, fetch candidate profile
+      if (user?.role === "Candidate" || user?.role === "candidate") {
+        try {
+          const candRes = await fetch("/api/candidates/profile/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (candRes.ok) {
+            const candData = await candRes.json();
+            const cand = candData.candidate || {};
+            if (cand.biography) setCandidateBio(cand.biography);
+            if (cand.party) setCandidateParty(cand.party);
+            if (cand.electionId) setCandidateElectionId(cand.electionId);
+            if (cand.manifestoText) setCandidateManifesto(cand.manifestoText);
+            if (cand.experience) setCandidateExperience(cand.experience);
+            if (cand.officialWebsite || cand.website) setCandidateWebsite(cand.officialWebsite || cand.website || "");
+            if (cand.photoUrl || cand.candidatePhoto) setProfilePhoto(cand.photoUrl || cand.candidatePhoto || "");
+          }
+        } catch (candErr) {
+          console.error("Failed to load candidate profile:", candErr);
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to load current profile");
     } finally {
@@ -315,8 +365,12 @@ export default function EditProfile({
     }
   };
 
+  const isSubmittingRef = React.useRef(false);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setErrorMsg("");
     setSuccessMsg("");
     setSaving(true);
@@ -403,6 +457,44 @@ export default function EditProfile({
         throw new Error(msg);
       }
 
+      // If user is candidate, also update candidate campaign profile
+      if (user?.role === "Candidate" || user?.role === "candidate" || candidateParty || candidateBio || candidateManifesto) {
+        const candRes = await fetch("/api/candidates/profile/me", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: verifiedInfo.fullName,
+            fullName: verifiedInfo.fullName,
+            party: candidateParty,
+            isIndependent: candidateParty === "Independent",
+            electionId: candidateElectionId,
+            biography: candidateBio,
+            candidateBio,
+            manifestoText: candidateManifesto,
+            candidateManifesto,
+            education: educationStatus,
+            experience: candidateExperience,
+            candidateExperience,
+            photoUrl: profilePhoto,
+            candidatePhoto: profilePhoto,
+            phone: primaryPhone,
+            phoneNumber: primaryPhone,
+            email: verifiedInfo.email,
+            emailAddress: verifiedInfo.email,
+            website: candidateWebsite,
+            officialWebsite: candidateWebsite,
+          }),
+        });
+
+        const candData = await candRes.json();
+        if (!candRes.ok || candData.error) {
+          throw new Error(candData.error || "Failed to update candidate campaign profile.");
+        }
+      }
+
       setSuccessMsg("Profile updated successfully in MongoDB database!");
 
       // Refresh current user identity in app state if callback provided
@@ -417,6 +509,7 @@ export default function EditProfile({
       setErrorMsg(err.message || "Failed to save profile changes.");
     } finally {
       setSaving(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -487,7 +580,7 @@ export default function EditProfile({
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-emerald-500" />
               <span className="font-bold text-sm sm:text-base tracking-tight text-[var(--text-primary)]">
-                Voter Profile & Preferences
+                Voter & Candidate Profile & Preferences
               </span>
             </div>
           </div>
@@ -920,6 +1013,114 @@ export default function EditProfile({
                 </div>
               </div>
             </div>
+
+            {/* Section: Campaign Declaration & Political Candidate Details */}
+            {(user?.role === "Candidate" || user?.role === "candidate" || candidateParty || candidateBio || candidateManifesto) && (
+              <div className={`rounded-3xl border p-6 ${bgCard}`}>
+                <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Flag className="h-5 w-5 text-blue-500" />
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      Campaign & Political Candidate Details
+                    </h2>
+                  </div>
+                  <span className="text-xs font-semibold text-blue-500 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
+                    Official Campaign Declaration
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Political Party <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={candidateParty}
+                      onChange={(e) => setCandidateParty(e.target.value)}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                    >
+                      <option value="">Select party</option>
+                      {politicalParties.map((p: any) => (
+                        <option key={p.id || p.partyId || p.code || p.name} value={p.id || p.partyId || p.name}>
+                          {p.name}
+                        </option>
+                      ))}
+                      <option value="Independent">Independent</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Contesting Election <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={candidateElectionId}
+                      onChange={(e) => setCandidateElectionId(e.target.value)}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                    >
+                      <option value="">Select election</option>
+                      {activeElectionsList.map((el: any) => (
+                        <option key={el.id} value={el.id}>
+                          {el.title || el.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Candidate Biography
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={candidateBio}
+                      onChange={(e) => setCandidateBio(e.target.value)}
+                      placeholder="Brief biography outlining public service and leadership"
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-medium ${inputBg}`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Campaign Manifesto <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={candidateManifesto}
+                      onChange={(e) => setCandidateManifesto(e.target.value)}
+                      placeholder="Your campaign promises, policy goals, and civic vision"
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-medium ${inputBg}`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Candidate Professional Experience
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={candidateExperience}
+                      onChange={(e) => setCandidateExperience(e.target.value)}
+                      placeholder="Past roles, achievements, and professional background"
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-medium ${inputBg}`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                      Official Campaign Website
+                    </label>
+                    <input
+                      type="url"
+                      value={candidateWebsite}
+                      onChange={(e) => setCandidateWebsite(e.target.value)}
+                      placeholder="https://yourwebsite.org"
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold ${inputBg}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Section 3: Editable Contact & Emergency Details */}
             <div className={`rounded-3xl border p-6 ${bgCard}`}>
@@ -1804,50 +2005,7 @@ export default function EditProfile({
                 </React.Suspense>
               </div>
 
-              {/* Status and Active Vector Metadata Panel */}
-              <div className="pt-2">
-                {/* Active Reference Face Image */}
-                <div className="space-y-3 max-w-xl">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-200">Registered Reference Face Scan</label>
-                    {faceImage ? (
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Biometric Face Active
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                        No Face Scan Active
-                      </span>
-                    )}
-                  </div>
 
-                  {faceImage && (
-                    <div className="relative aspect-[4/3] w-full rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 flex items-center justify-center">
-                      <img src={faceImage} alt="Live Face Scan" className="h-full w-full object-cover" />
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={startLiveCamera}
-                      className="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Camera className="h-4 w-4 text-emerald-400" />
-                      <span>Launch Live Camera Portal</span>
-                    </button>
-                    {faceImage && (
-                      <button
-                        type="button"
-                        onClick={() => setFaceImage("")}
-                        className="py-2.5 px-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-bold text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Action Buttons */}

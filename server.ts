@@ -163,23 +163,50 @@ app.use(
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 1000,
+  limit: 5000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Too many API requests. Please wait before retrying." },
+  skip: (req: any) =>
+    req.originalUrl?.includes("/dispatches") ||
+    req.url?.includes("/dispatches") ||
+    req.originalUrl?.includes("/auth/login") ||
+    req.url?.includes("/auth/login"),
 });
+
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: "Too many login attempts from this network location. Please wait before retrying.",
+  },
+});
+
+const dispatchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: "Too many dispatch notification requests. Please wait before retrying.",
+  },
+});
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 50,
+  limit: 300,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
     error: "Too many authentication attempts. Please wait before retrying.",
   },
 });
+
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 8,
+  limit: 50,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -188,9 +215,11 @@ const otpLimiter = rateLimit({
 });
 
 app.use("/api", apiLimiter);
+app.use("/api/auth/login", loginIpLimiter);
+app.use("/api/system/dispatches/public", dispatchLimiter);
+app.use("/api/system/dispatches", dispatchLimiter);
 app.use(
   [
-    "/api/auth/login",
     "/api/auth/register",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
@@ -212,7 +241,6 @@ app.use(
 // Body parser with size limits for biometric captures
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
 
 // Helper Middleware: Require Auth Token
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -295,6 +323,7 @@ const requireRoles = (...roles: string[]) => {
 
 app.use("/api/face", createFaceVerificationRouter(authenticateToken));
 app.use("/api/auth", createAuthRouter(authenticateToken, requireRoles));
+
 app.post(
   "/api/profile/complete",
   authenticateToken,
@@ -982,12 +1011,23 @@ app.get("/api/elections", (req, res) => {
       const party = parties.find((p) => p.name === c.party || p.id === c.party);
       return {
         id: c.id,
+        userId: (c as any).userId,
+        email: (c as any).email,
         label: c.fullName || c.name || "Unknown Candidate",
+        fullName: c.fullName || c.name || "Unknown Candidate",
+        name: c.fullName || c.name || "Unknown Candidate",
         photo: (c as any).photoUrl || (c as any).profileImage || null,
+        photoUrl: (c as any).photoUrl || (c as any).profileImage || null,
+        candidatePhoto: (c as any).photoUrl || (c as any).profileImage || null,
         party: c.party || "Independent",
+        politicalPartyName: c.party || "Independent",
         partyLogo: (party as any)?.logo || null,
         symbol: (c as any).electionSymbol || (party as any)?.symbol || null,
         description: (c as any).biography || (c as any).bio || (c as any).description || "",
+        manifestoText: (c as any).manifestoText || (c as any).biography || (c as any).bio || (c as any).description || "",
+        visionStatement: (c as any).biography || (c as any).bio || "",
+        electionPosition: (c as any).electionPosition || `Contesting Candidate`,
+        status: (c as any).status || "Verified",
       };
     });
 
@@ -1227,10 +1267,63 @@ const normalizeCandidatePayload = (
   const isIndependent =
     body.isIndependent === true ||
     body.party === "Independent" ||
-    existing?.isIndependent === true;
-  const partyName = isIndependent
-    ? "Independent"
-    : body.politicalPartyName || body.party || existing?.party || "";
+    (existing?.isIndependent === true && body.party === undefined);
+
+  let partyName = "";
+  let partyId: string | undefined = existing?.partyId;
+  let partyLogoUrl = existing?.partyLogoUrl || DEFAULT_PARTY_LOGO;
+  let partyAbbreviation = existing?.partyAbbreviation || "";
+
+  if (isIndependent) {
+    partyName = "Independent";
+    partyId = undefined;
+    partyLogoUrl = "";
+    partyAbbreviation = "IND";
+  } else {
+    const rawParty =
+      body.politicalPartyName || body.party || body.partyId || existing?.party || "";
+    const parties = Database.getPoliticalParties();
+    const matchedParty = parties.find(
+      (p) =>
+        (body.partyId && p.id === body.partyId) ||
+        (p.code && p.code.toUpperCase() === String(rawParty).trim().toUpperCase()) ||
+        (p.name && p.name.toLowerCase() === String(rawParty).trim().toLowerCase()),
+    );
+
+    if (matchedParty) {
+      partyName = matchedParty.name;
+      partyId = matchedParty.id;
+      partyLogoUrl =
+        body.partyLogoUrl ||
+        body.partyLogo ||
+        existing?.partyLogoUrl ||
+        existing?.partyLogo ||
+        matchedParty.logoUrl ||
+        DEFAULT_PARTY_LOGO;
+      partyAbbreviation = matchedParty.code;
+    } else {
+      partyName = String(rawParty || "").trim();
+      partyId = body.partyId || existing?.partyId;
+      partyLogoUrl =
+        body.partyLogoUrl ||
+        body.partyLogo ||
+        existing?.partyLogoUrl ||
+        existing?.partyLogo ||
+        DEFAULT_PARTY_LOGO;
+      partyAbbreviation =
+        body.partyAbbreviation ||
+        existing?.partyAbbreviation ||
+        (partyName
+          ? partyName
+              .split(/\s+/)
+              .map((w: string) => w[0])
+              .join("")
+              .substring(0, 6)
+              .toUpperCase()
+          : "IND");
+    }
+  }
+
   const symbol =
     body.electionSymbol || existing?.electionSymbol || DEFAULT_SYMBOL;
   const status = toLegacyStatus(
@@ -1246,9 +1339,16 @@ const normalizeCandidatePayload = (
     dateOfBirth: body.dateOfBirth || existing?.dateOfBirth || "",
     citizenshipNumber:
       body.citizenshipNumber || existing?.citizenshipNumber || "",
-    contactNumber: body.contactNumber || existing?.contactNumber || "",
-    emailAddress: body.emailAddress || existing?.emailAddress || "",
-    permanentAddress: body.permanentAddress || existing?.permanentAddress || "",
+    contactNumber:
+      body.contactNumber ||
+      body.phoneNumber ||
+      body.phone ||
+      existing?.contactNumber ||
+      "",
+    emailAddress:
+      body.emailAddress || body.email || existing?.emailAddress || "",
+    permanentAddress:
+      body.permanentAddress || existing?.permanentAddress || "",
     currentAddress: body.currentAddress || existing?.currentAddress || "",
     electionType: body.electionType || existing?.electionType || "Federal",
     electionPosition:
@@ -1274,56 +1374,41 @@ const normalizeCandidatePayload = (
     status,
     party: partyName,
     politicalPartyName: partyName as any,
-    partyLogo: isIndependent
-      ? ""
-      : body.partyLogo ||
-        body.partyLogoUrl ||
-        existing?.partyLogo ||
-        existing?.partyLogoUrl ||
-        DEFAULT_PARTY_LOGO,
-    partyLogoUrl: isIndependent
-      ? ""
-      : body.partyLogoUrl ||
-        body.partyLogo ||
-        existing?.partyLogoUrl ||
-        existing?.partyLogo ||
-        DEFAULT_PARTY_LOGO,
-    partyAbbreviation: isIndependent
-      ? "IND"
-      : body.partyAbbreviation ||
-        existing?.partyAbbreviation ||
-        partyName
-          .split(/\s+/)
-          .map((w: string) => w[0])
-          .join("")
-          .substring(0, 6)
-          .toUpperCase(),
+    partyId,
+    partyLogo: partyLogoUrl,
+    partyLogoUrl: partyLogoUrl,
+    partyAbbreviation,
     partyColorTheme:
       body.partyColorTheme ||
       existing?.partyColorTheme ||
       (isIndependent ? "#475569" : "#2563eb"),
     isIndependent,
-    biography: body.biography || existing?.biography || "",
+    biography:
+      body.biography || body.candidateBio || existing?.biography || "",
     visionStatement: body.visionStatement || existing?.visionStatement || "",
-    manifestoText: body.manifestoText || existing?.manifestoText || "",
+    manifestoText:
+      body.manifestoText || body.candidateManifesto || existing?.manifestoText || "",
     keyPromises: normalizePromises(
       body.keyPromises !== undefined ? body.keyPromises : existing?.keyPromises,
     ) as any,
     education: body.education || existing?.education || "",
     experience:
       body.experience ||
+      body.candidateExperience ||
       body.previousPoliticalExperience ||
       existing?.experience ||
       "",
     profession: body.profession || existing?.profession || "",
+    officialWebsite:
+      body.officialWebsite || body.website || existing?.officialWebsite || "",
     assetsDeclaration:
       body.assetsDeclaration || existing?.assetsDeclaration || "",
     criminalCaseDeclaration:
       body.criminalCaseDeclaration ||
       existing?.criminalCaseDeclaration ||
       "No criminal case declared.",
-    socialMediaLinks: body.socialMediaLinks || existing?.socialMediaLinks || "",
-    officialWebsite: body.officialWebsite || existing?.officialWebsite || "",
+    socialMediaLinks:
+      body.socialMediaLinks || existing?.socialMediaLinks || "",
     manifestoPdfUrl: body.manifestoPdfUrl || existing?.manifestoPdfUrl || "",
     coverBannerUrl: body.coverBannerUrl || existing?.coverBannerUrl || "",
     verificationQrCode:
@@ -1398,99 +1483,146 @@ app.get("/api/candidates/profile/me", authenticateToken, (req: any, res) => {
 });
 
 // CREATE or UPDATE candidate's own profile details
+const handleSaveCandidateProfileMe = (req: any, res: any) => {
+  try {
+    const { name, fullName, party, partyId, electionId, isIndependent } = req.body;
+
+    if (!(name || fullName) || (!party && !partyId && !isIndependent) || !electionId) {
+      return res.status(400).json({
+        error:
+          "Candidate full name, target political party, and election identifier are required.",
+      });
+    }
+
+    // Validate election existence
+    const elections = Database.getElections();
+    const validElection = elections.find((e) => e.id === electionId);
+    if (!validElection) {
+      return res.status(400).json({
+        error: "Selected election does not exist or is invalid.",
+      });
+    }
+
+    // Validate political party existence if not independent
+    if (!isIndependent && party !== "Independent") {
+      const parties = Database.getPoliticalParties();
+      const rawParty = party || partyId;
+      const validParty = parties.find(
+        (p) =>
+          (partyId && p.id === partyId) ||
+          (p.code && p.code.toUpperCase() === String(rawParty).trim().toUpperCase()) ||
+          (p.name && p.name.toLowerCase() === String(rawParty).trim().toLowerCase()),
+      );
+      if (!validParty) {
+        return res.status(400).json({
+          error: "Selected political party is invalid or does not exist.",
+        });
+      }
+    }
+
+    const candidates = Database.getCandidates();
+    let candidate = candidates.find((c) => c.userId === req.user.id);
+
+    if (candidate) {
+      // Check locks
+      if (candidate.status === "Verified") {
+        return res.status(400).json({
+          error:
+            "Your profile has been officially verified and locked from editing.",
+        });
+      }
+
+      // Update existing draft without overwriting protected fields
+      const updatedData = normalizeCandidatePayload(
+        {
+          ...req.body,
+          status: "Pending",
+          candidateStatus: "Pending",
+          voteCount: candidate.voteCount,
+        },
+        candidate,
+      );
+      candidate = {
+        ...updatedData,
+        voteCount: candidate.voteCount || 0,
+        userId: req.user.id,
+      };
+
+      const candidateIndex = candidates.findIndex(
+        (c) => c.id === candidate!.id,
+      );
+      if (candidateIndex >= 0) candidates[candidateIndex] = candidate;
+      candidate.status = "Pending";
+      candidate.candidateStatus = "Pending";
+      candidate.rejectionReason = "";
+      candidate.updatedAt = new Date().toISOString();
+
+      if (!candidate.history) candidate.history = [];
+      candidate.history.push({
+        status: "Pending",
+        timestamp: new Date().toISOString(),
+        note: "Candidate re-submitted profile updates.",
+        actor: req.user.fullName,
+      });
+    } else {
+      // Create new draft
+      candidate = {
+        ...normalizeCandidatePayload({
+          ...req.body,
+          userId: req.user.id,
+          status: "Pending",
+          candidateStatus: "Pending",
+        }),
+        userId: req.user.id,
+        status: "Pending",
+        candidateStatus: "Pending",
+        rejectionReason: "",
+        updatedAt: new Date().toISOString(),
+        history: [
+          {
+            status: "Pending",
+            timestamp: new Date().toISOString(),
+            note: "Candidate registered profile in system.",
+            actor: req.user.fullName,
+          },
+        ],
+      };
+      candidates.push(candidate);
+    }
+
+    Database.saveCandidates(candidates);
+
+    const ip =
+      (req.headers["x-forwarded-for"] as string) ||
+      req.socket.remoteAddress ||
+      "127.0.0.1";
+    Database.addAuditLog(
+      req.user.id,
+      req.user.email,
+      `Candidate Profile updated for: "${candidate.name}"`,
+      ip,
+      req.headers["user-agent"] || "",
+    );
+
+    res.json({ candidate });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 app.post(
   "/api/candidates/profile/me",
   authenticateToken,
   requireRoles("Candidate", "Super Administrator", "Administrator"),
-  (req: any, res) => {
-    try {
-      const { name, fullName, party, electionId, isIndependent } = req.body;
+  handleSaveCandidateProfileMe,
+);
 
-      if (!(name || fullName) || (!party && !isIndependent) || !electionId) {
-        return res.status(400).json({
-          error:
-            "Candidate full name, target political party, and election identifier are required.",
-        });
-      }
-
-      const candidates = Database.getCandidates();
-      let candidate = candidates.find((c) => c.userId === req.user.id);
-
-      if (candidate) {
-        // Check locks
-        if (candidate.status === "Verified") {
-          return res.status(400).json({
-            error:
-              "Your profile has been officially verified and locked from editing.",
-          });
-        }
-
-        // Update existing draft
-        candidate = normalizeCandidatePayload(
-          { ...req.body, status: "Pending", candidateStatus: "Pending" },
-          candidate,
-        );
-        const candidateIndex = candidates.findIndex(
-          (c) => c.id === candidate!.id,
-        );
-        if (candidateIndex >= 0) candidates[candidateIndex] = candidate;
-        candidate.status = "Pending";
-        candidate.candidateStatus = "Pending";
-        candidate.rejectionReason = "";
-        candidate.updatedAt = new Date().toISOString();
-
-        if (!candidate.history) candidate.history = [];
-        candidate.history.push({
-          status: "Pending",
-          timestamp: new Date().toISOString(),
-          note: "Candidate re-submitted profile updates.",
-          actor: req.user.fullName,
-        });
-      } else {
-        // Create new draft
-        candidate = {
-          ...normalizeCandidatePayload({
-            ...req.body,
-            userId: req.user.id,
-            status: "Pending",
-            candidateStatus: "Pending",
-          }),
-          userId: req.user.id,
-          status: "Pending",
-          candidateStatus: "Pending",
-          rejectionReason: "",
-          updatedAt: new Date().toISOString(),
-          history: [
-            {
-              status: "Pending",
-              timestamp: new Date().toISOString(),
-              note: "Candidate registered profile in system.",
-              actor: req.user.fullName,
-            },
-          ],
-        };
-        candidates.push(candidate);
-      }
-
-      Database.saveCandidates(candidates);
-
-      const ip =
-        (req.headers["x-forwarded-for"] as string) ||
-        req.socket.remoteAddress ||
-        "127.0.0.1";
-      Database.addAuditLog(
-        req.user.id,
-        req.user.email,
-        `Candidate Profile updated for: "${candidate.name}"`,
-        ip,
-        req.headers["user-agent"] || "",
-      );
-
-      res.json({ candidate });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+// Alias route for backward compatibility and fallback
+app.put(
+  "/api/candidates/profile",
+  authenticateToken,
+  requireRoles("Candidate", "Super Administrator", "Administrator"),
+  handleSaveCandidateProfileMe,
 );
 
 // Admin verify candidate endpoint
@@ -2051,17 +2183,22 @@ app.post("/api/vote", authenticateToken, verifyFace, async (req: any, res) => {
     const candidate = candidates.find(
       (c) => c.id === candidateId && c.electionId === electionId,
     );
-    if (!candidate) {
+    const isApprovedAndVisible =
+      candidate &&
+      (candidate.status === "Approved" || candidate.status === "Verified") &&
+      candidate.isVisible !== false;
+
+    if (!candidate || !isApprovedAndVisible) {
       Database.addAuditLog(
         req.user.id,
         req.user.email,
-        `Voting rejected for election "${election.title}": candidate not valid for election`,
+        `Voting rejected for election "${election.title}": candidate not approved or not visible for election`,
         ip,
         userAgent,
       );
       return res
         .status(400)
-        .json({ error: "Selected candidate is not valid for this election." });
+        .json({ error: "Selected candidate is not eligible or approved for this election." });
     }
 
     // Verify timeframe window checks precisely
@@ -2289,6 +2426,9 @@ app.get(
     ).length;
     const totalCandidates = candidates.length;
     const totalVotes = votes.length;
+    const totalAdmins = users.filter(
+      (u) => u.role !== "Voter" && u.role !== "Candidate",
+    ).length;
 
     // Compute Turnout %
     const turnoutPercent =
@@ -2349,6 +2489,7 @@ app.get(
         verifiedVoters,
         totalCandidates,
         totalVotes,
+        totalAdmins,
         turnoutPercent,
       },
       candidateVotes,
@@ -3625,6 +3766,38 @@ app.put(
     Database.saveNotifications(notifications);
 
     res.json({ success: true, voter: user });
+  },
+);
+
+// DELETE /api/voters/:id: Remove voter account permanently
+app.delete(
+  "/api/voters/:id",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator", "Election Official"),
+  async (req: any, res) => {
+    const { id } = req.params;
+    const users = Database.getUsers();
+    const userIndex = users.findIndex((u) => u.id === id);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "Voter account not found" });
+    }
+
+    const voter = users[userIndex];
+    await Database.deleteUser(id);
+
+    const ip =
+      (req.headers["x-forwarded-for"] as string) ||
+      req.socket.remoteAddress ||
+      "127.0.0.1";
+    Database.addAuditLog(
+      req.user.id,
+      req.user.email,
+      `Permanently deleted voter account: ${voter.fullName} (${voter.email})`,
+      ip,
+      req.headers["user-agent"] || "",
+    );
+
+    res.json({ success: true, message: "Voter account permanently deleted" });
   },
 );
 

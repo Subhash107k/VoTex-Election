@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  CheckCircle2,
   FileText,
   Loader2,
   Phone,
+  Trash2,
   User as UserIcon,
+  XCircle,
 } from "lucide-react";
 import Modal from "../../ui/Modal.tsx";
 import DocumentGallery from "../../dashboard/DocumentGallery.tsx";
@@ -23,6 +26,12 @@ interface AdminRecordDetailModalProps {
   type: RecordType;
   recordId: string | null;
   token: string;
+  onVerify?: (
+    id: string,
+    status: any,
+    reason?: string,
+  ) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
 function DetailRow({
@@ -57,6 +66,8 @@ export default function AdminRecordDetailModal({
   type,
   recordId,
   token,
+  onVerify,
+  onDelete,
 }: AdminRecordDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,6 +77,12 @@ export default function AdminRecordDetailModal({
   const [voterData, setVoterData] = useState<any>(null);
   const [candidateData, setCandidateData] = useState<any>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  // Reject / Delete modal states
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("Incomplete documentation or unreadable identity files.");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [processingAction, setProcessingAction] = useState(false);
 
   const fetchDetails = useCallback(async () => {
     if (!recordId || !token) return;
@@ -108,6 +125,8 @@ export default function AdminRecordDetailModal({
   useEffect(() => {
     if (isOpen && recordId) {
       setActiveTab("overview");
+      setShowRejectModal(false);
+      setShowDeleteModal(false);
       void fetchDetails();
     }
   }, [isOpen, recordId, fetchDetails]);
@@ -122,13 +141,22 @@ export default function AdminRecordDetailModal({
     }
 
     if (type === "candidate" && candidateData?.candidate) {
-      if (candidateData.user) {
-        return normalizeProfilePayload({
-          user: candidateData.user,
-          profile: candidateData.profile,
-          document: candidateData.document,
-        });
-      }
+      const cand = candidateData.candidate;
+      return normalizeProfilePayload({
+        user: candidateData.user || {
+          id: cand.id || cand.userId || "cand_user",
+          fullName: cand.fullName || cand.name,
+          email: cand.emailAddress || "",
+          mobile: cand.contactNumber || "",
+          profilePhoto: cand.photoUrl || cand.candidatePhoto || "",
+          isVerified: true,
+          isApproved: true,
+          accountStatus: cand.status || "Verified",
+        },
+        profile: candidateData.profile,
+        document: candidateData.document,
+        candidate: cand,
+      });
     }
 
     return null;
@@ -162,6 +190,60 @@ export default function AdminRecordDetailModal({
 
   const candidate = candidateData?.candidate;
 
+  const handleApproveAction = async () => {
+    if (!recordId || !onVerify) return;
+    setProcessingAction(true);
+    try {
+      if (type === "candidate") {
+        await onVerify(recordId, "Verified");
+      } else {
+        await onVerify(recordId, {
+          isApproved: true,
+          isVerified: true,
+          isSuspended: false,
+          accountStatus: "Approved",
+        });
+      }
+      await fetchDetails();
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const confirmRejectAction = async () => {
+    if (!recordId || !onVerify) return;
+    setProcessingAction(true);
+    try {
+      if (type === "candidate") {
+        await onVerify(recordId, "Rejected", rejectReason);
+      } else {
+        await onVerify(recordId, {
+          isApproved: false,
+          isVerified: false,
+          isSuspended: true,
+          accountStatus: "Rejected",
+          rejectionReason: rejectReason,
+        });
+      }
+      setShowRejectModal(false);
+      await fetchDetails();
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!recordId || !onDelete) return;
+    setProcessingAction(true);
+    try {
+      await onDelete(recordId);
+      setShowDeleteModal(false);
+      onClose();
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -182,7 +264,42 @@ export default function AdminRecordDetailModal({
         ) : (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <StatusBadge status={status} />
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={status} />
+                {onVerify && status !== "Verified" && status !== "Approved" && (
+                  <button
+                    type="button"
+                    disabled={processingAction}
+                    onClick={handleApproveAction}
+                    className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+                    Approve
+                  </button>
+                )}
+                {onVerify && status !== "Rejected" && (
+                  <button
+                    type="button"
+                    disabled={processingAction}
+                    onClick={() => setShowRejectModal(true)}
+                    className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <XCircle className="mr-1 inline h-3.5 w-3.5" />
+                    Reject / Disapprove
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    disabled={processingAction}
+                    onClick={() => setShowDeleteModal(true)}
+                    className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="mr-1 inline h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -444,6 +561,84 @@ export default function AdminRecordDetailModal({
           </div>
         </Modal>
       ) : null}
+
+      {showRejectModal && (
+        <Modal
+          isOpen={showRejectModal}
+          onClose={() => setShowRejectModal(false)}
+          title="Reject / Disapprove Record"
+          maxWidth="lg"
+        >
+          <div className="space-y-4 font-sans">
+            <p className="text-xs text-slate-300">
+              Please enter the official rejection or disapproval reason message for{" "}
+              <span className="font-bold text-white">{title}</span>. This message will be recorded in the system audit history.
+            </p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                Rejection Reason / Message <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none"
+                placeholder="e.g., Incomplete citizenship documentation, unreadable identity images, or invalid campaign details."
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={processingAction || !rejectReason.trim()}
+                onClick={confirmRejectAction}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {processingAction ? "Rejecting..." : "Confirm Rejection"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showDeleteModal && (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Delete Record Confirmation"
+          maxWidth="md"
+        >
+          <div className="space-y-4 font-sans">
+            <p className="text-xs text-slate-300">
+              Are you sure you want to permanently delete record{" "}
+              <span className="font-bold text-white">{title}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={processingAction}
+                onClick={confirmDeleteAction}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {processingAction ? "Deleting..." : "Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

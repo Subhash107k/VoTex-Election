@@ -2,16 +2,21 @@ export class ApiError extends Error {
   status: number;
   code?: string;
   field?: string;
+  retryAfter?: number;
   details: unknown;
 
-  constructor(message: string, status: number, details?: any) {
+  constructor(message: string, status: number, details?: any, retryAfter?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.details = details;
+    this.retryAfter = retryAfter;
     if (details && typeof details === "object") {
       this.code = details.code;
       this.field = details.field;
+      if (!this.retryAfter && details.retryAfter) {
+        this.retryAfter = Number(details.retryAfter);
+      }
     }
   }
 }
@@ -19,6 +24,7 @@ export class ApiError extends Error {
 type ApiResponseBody<T> = T & {
   error?: string;
   message?: string;
+  retryAfter?: number;
 };
 
 const getConfiguredApiBaseUrl = () => {
@@ -84,10 +90,13 @@ export async function requestJson<T>(
   const data = (await response.json().catch(() => ({}))) as ApiResponseBody<T>;
 
   if (!response.ok) {
+    const retryAfterHeader = response.headers.get("retry-after");
+    const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : data.retryAfter;
     throw new ApiError(
-      data.message || data.error || "Something went wrong. Please try again.",
+      data.error || data.message || "Something went wrong. Please try again.",
       response.status,
       data,
+      retryAfter,
     );
   }
 

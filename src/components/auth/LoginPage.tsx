@@ -12,6 +12,7 @@ import {
   Landmark,
   ArrowRight,
   CheckCircle2,
+  UserCheck,
 } from "lucide-react";
 import PasswordField from "./PasswordField.tsx";
 import type { LoginForm, ThemeMode } from "../../types/auth.ts";
@@ -144,7 +145,7 @@ export default function LoginPage({
             <div className="relative flex h-full flex-col justify-between p-8 text-white">
               <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold backdrop-blur-md">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                National voter access
+                Voter & Candidate Access
               </div>
 
               <div className="max-w-xl">
@@ -153,11 +154,10 @@ export default function LoginPage({
                   Encrypted identity session
                 </div>
                 <h2 className="text-4xl font-black leading-tight">
-                  Continue to your secure voting workspace.
+                  Continue to your secure voting or candidate workspace.
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-6 text-slate-200">
-                  Sign in to review your profile status, active elections, and
-                  protected voter actions from one verified account.
+                  Sign in to review your profile status, active elections, or candidate campaign dashboard from one verified account.
                 </p>
               </div>
 
@@ -203,8 +203,7 @@ export default function LoginPage({
               Welcome back
             </h2>
             <p className={`text-sm ${textMuted} mt-2 leading-6`}>
-              Access your voter dashboard with your registered email address or
-              username.
+              Access your voter or candidate dashboard with your registered email address or username.
             </p>
           </div>
 
@@ -217,7 +216,6 @@ export default function LoginPage({
                 Email or Username
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   required
@@ -234,7 +232,7 @@ export default function LoginPage({
                       });
                     }
                   }}
-                  className={`w-full rounded-lg border px-3 py-3 pl-10 text-sm ${inputBg}`}
+                  className={`w-full rounded-lg border px-3 py-3 text-sm ${inputBg}`}
                 />
               </div>
               {emailSuggestion && (

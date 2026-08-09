@@ -123,6 +123,7 @@ interface UseAdminResult {
       requestedChangesFields?: string[];
     },
   ) => Promise<void>;
+  handleDeleteVoter: (voterId: string) => Promise<void>;
   handleSaveSystemConfig: (payload: {
     smtpHost: string;
     smtpPort: number;
@@ -605,6 +606,32 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
     [fetchData, token, triggerToast],
   );
 
+  const handleDeleteVoter = useCallback(
+    async (voterId: string) => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await fetch(`/api/voters/${voterId}`, {
+          method: "DELETE",
+          headers,
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Unable to delete voter account");
+        }
+        triggerToast("Voter account permanently deleted.");
+        await fetchData();
+      } catch (error) {
+        triggerToast(
+          error instanceof Error
+            ? error.message
+            : "Unable to delete voter account.",
+          true,
+        );
+      }
+    },
+    [fetchData, token, triggerToast],
+  );
+
   const handleSaveSystemConfig = useCallback(
     async (payload: {
       smtpHost: string;
@@ -707,6 +734,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleUpdateNewsletterStatus,
       handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
+      handleDeleteVoter,
       handleSaveSystemConfig,
       handleChangeAdminPassword,
       parties,
@@ -740,6 +768,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleUpdateNewsletterStatus,
       handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
+      handleDeleteVoter,
       handleSaveSystemConfig,
       handleChangeAdminPassword,
       parties,

@@ -146,7 +146,7 @@ export default function ForgotPasswordPage({
             </h2>
             <p className={`text-xs ${textMuted} mt-1`}>
               {forgotStep === "request"
-                ? "Enter your registered email address to receive a secure password reset code."
+                ? "Enter your registered email address or username to receive a secure password reset code."
                 : "Enter the 6-digit verification code sent to your email and set a new password."}
             </p>
           </div>
@@ -155,13 +155,13 @@ export default function ForgotPasswordPage({
             <form onSubmit={handleForgotPasswordSubmit} className="flex flex-col gap-4 text-xs font-sans">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                  Email Address
+                  Email Address or Username
                 </label>
                 <div className="relative">
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="voter@example.com"
+                    placeholder="e.g. candidate1 or voter@example.com"
                     value={forgotForm.email}
                     onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
                     onBlur={() => {
@@ -172,6 +172,7 @@ export default function ForgotPasswordPage({
                     className={`w-full px-3 py-2.5 rounded-xl border ${inputBg}`}
                   />
                 </div>
+
                 {emailSuggestion && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
                     <span>💡 Did you mean <strong>{emailSuggestion}</strong>?</span>

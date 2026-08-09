@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ShieldCheck,
+  UserCheck,
   Users,
   Vote,
   WalletCards,
@@ -23,6 +24,7 @@ interface DashboardProps {
   elections: Election[];
   notifications: Notification[];
   voters: User[];
+  team?: User[];
   loading: boolean;
 }
 
@@ -31,6 +33,7 @@ export default function Dashboard({
   elections,
   notifications,
   voters,
+  team,
   loading,
 }: DashboardProps) {
   if (loading || !stats) {
@@ -40,8 +43,8 @@ export default function Dashboard({
           title="Admin Dashboard"
           description="Loading live operational overview..."
         />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
               className="h-28 animate-pulse rounded-2xl border border-slate-200/70 bg-slate-100 dark:border-slate-800 dark:bg-slate-900/70"
@@ -62,13 +65,20 @@ export default function Dashboard({
         description="Operational readiness, election momentum, and recent activity at a glance."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           title="Total users"
           value={voters.length}
           subtitle="Registered accounts in the system"
           icon={<Users className="h-4 w-4" />}
           accent="text-blue-600"
+        />
+        <StatCard
+          title="Total admins"
+          value={stats.metrics.totalAdmins ?? team?.length ?? 1}
+          subtitle="System operators & administrators"
+          icon={<UserCheck className="h-4 w-4" />}
+          accent="text-purple-600"
         />
         <StatCard
           title="Active voters"
