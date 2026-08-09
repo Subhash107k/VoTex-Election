@@ -607,34 +607,53 @@ export class Database {
 
       const [
         users,
+        userProfiles,
+        identityDocuments,
+        faceVerifications,
         elections,
         candidates,
+        parties,
         votes,
         notifications,
         faqs,
         newsletterSubscribers,
         contactRequests,
+        otps,
+        auditLogs,
       ] = await Promise.all([
-          this.findAll<User>("users"),
-          this.findAll<Election>("elections"),
-          this.findAll<Candidate>("candidates"),
-          this.findAll<Vote>("votes"),
-          this.findAll<any>("notifications"),
-          this.findAll<any>("faqs"),
-          this.findAll<NewsletterSubscriber>("newsletter_subscribers"),
-          this.findAll<ContactRequest>("contact_requests"),
-        ]);
+        this.findAll<User>("users"),
+        this.findAll<UserProfile>("user_profiles"),
+        this.findAll<IdentityDocument>("identity_documents"),
+        this.findAll<FaceVerification>("face_verifications"),
+        this.findAll<Election>("elections"),
+        this.findAll<Candidate>("candidates"),
+        this.findAll<any>("political_parties"),
+        this.findAll<Vote>("votes"),
+        this.findAll<any>("notifications"),
+        this.findAll<any>("faqs"),
+        this.findAll<NewsletterSubscriber>("newsletter_subscribers"),
+        this.findAll<ContactRequest>("contact_requests"),
+        this.findAll<any>("otps"),
+        this.findAll<any>("audit_logs"),
+      ]);
 
       this.inMemStore.set("users", users);
+      this.inMemStore.set("user_profiles", userProfiles);
+      this.inMemStore.set("identity_documents", identityDocuments);
+      this.inMemStore.set("face_verifications", faceVerifications);
       this.inMemStore.set("elections", elections);
       this.inMemStore.set("candidates", candidates);
+      this.inMemStore.set("political_parties", parties);
+      this.inMemStore.set("parties", parties);
       this.inMemStore.set("votes", votes);
       this.inMemStore.set("notifications", notifications);
       this.inMemStore.set("faqs", faqs);
       this.inMemStore.set("newsletter_subscribers", newsletterSubscribers);
       this.inMemStore.set("contact_requests", contactRequests);
+      this.inMemStore.set("otps", otps);
+      this.inMemStore.set("audit_logs", auditLogs);
 
-      console.log("✅ Loaded database cache from MongoDB");
+      console.log("✅ Loaded complete database cache from MongoDB");
     } catch (error) {
       console.error("Error loading database cache:", error);
     }
@@ -747,10 +766,9 @@ export class Database {
     if (process.env.NODE_ENV === "production" || process.env.USE_MOCK_DATA === "false") return;
 
     const hasUsers = (this.inMemStore.get("users") || []).length > 0;
-    const hasProfiles = (this.inMemStore.get("user_profiles") || []).length > 0;
     
-    // In dev mode, if we don't have profiles but we have users, we should re-seed the detailed mock data.
-    if (hasUsers && hasProfiles) return;
+    // If we already have users in memory or DB, DO NOT re-seed or overwrite valid user data.
+    if (hasUsers) return;
 
     const passwordHash = bcrypt.hashSync("Password123!", 12);
     
@@ -910,17 +928,18 @@ export class Database {
     this.inMemStore.set("elections", seedElections);
     this.inMemStore.set("candidates", seedCandidates);
     this.inMemStore.set("parties", seedParties);
-    this.inMemStore.set("votes", []);
-    this.inMemStore.set("notifications", []);
-    this.inMemStore.set("faqs", []);
+    this.inMemStore.set("political_parties", seedParties);
+    if (!this.inMemStore.has("votes")) this.inMemStore.set("votes", []);
+    if (!this.inMemStore.has("notifications")) this.inMemStore.set("notifications", []);
+    if (!this.inMemStore.has("faqs")) this.inMemStore.set("faqs", []);
 
-    this.inMemStore.set("system_config", {});
-    this.inMemStore.set("dispatch_logs", []);
-    this.inMemStore.set("newsletter_subscribers", []);
-    this.inMemStore.set("contact_requests", []);
-    this.inMemStore.set("user_preferences", {});
-    this.inMemStore.set("profile_drafts", {});
-    this.inMemStore.set("idempotency_records", {});
+    if (!this.inMemStore.has("system_config")) this.inMemStore.set("system_config", {});
+    if (!this.inMemStore.has("dispatch_logs")) this.inMemStore.set("dispatch_logs", []);
+    if (!this.inMemStore.has("newsletter_subscribers")) this.inMemStore.set("newsletter_subscribers", []);
+    if (!this.inMemStore.has("contact_requests")) this.inMemStore.set("contact_requests", []);
+    if (!this.inMemStore.has("user_preferences")) this.inMemStore.set("user_preferences", {});
+    if (!this.inMemStore.has("profile_drafts")) this.inMemStore.set("profile_drafts", {});
+    if (!this.inMemStore.has("idempotency_records")) this.inMemStore.set("idempotency_records", {});
 
     void this.saveUsers(seedUsers);
     void this.saveUserProfiles(seedUserProfiles);
@@ -1241,7 +1260,16 @@ export class Database {
       ...electionData,
     };
 
-    return this.insertOne<Election>("elections", election);
+    let result: Election | null = null;
+    if (this.db) {
+      result = await this.insertOne<Election>("elections", election);
+    }
+    const existing = (this.inMemStore.get("elections") || []) as Election[];
+    if (!existing.some((e) => e.id === election.id)) {
+      existing.push(election);
+      this.inMemStore.set("elections", existing);
+    }
+    return result || election;
   }
 
   static async updateElection(
@@ -1249,11 +1277,21 @@ export class Database {
     updates: Partial<Election>,
   ): Promise<boolean> {
     updates.updatedAt = new Date().toISOString();
-    return this.updateOne<Election>(
-      "elections",
-      { id: electionId } as Filter<Election>,
-      { $set: updates },
-    );
+    let dbSuccess = true;
+    if (this.db) {
+      dbSuccess = await this.updateOne<Election>(
+        "elections",
+        { id: electionId } as Filter<Election>,
+        { $set: updates },
+      );
+    }
+    const elections = (this.inMemStore.get("elections") || []) as Election[];
+    const idx = elections.findIndex((e) => e.id === electionId);
+    if (idx >= 0) {
+      elections[idx] = { ...elections[idx], ...updates };
+      this.inMemStore.set("elections", elections);
+    }
+    return dbSuccess;
   }
 
   // ============================================
@@ -1308,7 +1346,16 @@ export class Database {
       ...candidateData,
     };
 
-    return this.insertOne<Candidate>("candidates", candidate);
+    let result: Candidate | null = null;
+    if (this.db) {
+      result = await this.insertOne<Candidate>("candidates", candidate);
+    }
+    const existing = (this.inMemStore.get("candidates") || []) as Candidate[];
+    if (!existing.some((c) => c.id === candidate.id)) {
+      existing.push(candidate);
+      this.inMemStore.set("candidates", existing);
+    }
+    return result || candidate;
   }
 
   // ============================================
@@ -2459,16 +2506,7 @@ export class Database {
           updated = { ...updated, citizenshipNumber: existing.citizenshipNumber };
         }
 
-        const sanitizeBase64 = (val?: string) =>
-          val && val.length > 200000 ? val.substring(0, 500) + "...[data-reference]" : val;
-
-        return {
-          ...updated,
-          fingerprintImage: sanitizeBase64(updated.fingerprintImage),
-          fingerprintLeftImage: sanitizeBase64(updated.fingerprintLeftImage),
-          fingerprintRightImage: sanitizeBase64(updated.fingerprintRightImage),
-          faceImage: sanitizeBase64(updated.faceImage),
-        };
+        return updated;
       });
 
       if (this.db) {
@@ -2551,15 +2589,121 @@ export class Database {
         for (const party of parties) {
           await this.upsertOne(
             "political_parties",
-            { code: party.code },
+            { id: party.id || party.code } as any,
             party,
           );
         }
       }
       this.inMemStore.set("political_parties", parties);
+      this.inMemStore.set("parties", parties);
       return true;
     } catch (error) {
       console.error("Error saving political parties:", error);
+      return false;
+    }
+  }
+
+  static async deleteElection(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("elections", { id } as Filter<Election>);
+      }
+      const elections = (this.inMemStore.get("elections") || []) as Election[];
+      this.inMemStore.set(
+        "elections",
+        elections.filter((e) => e.id !== id),
+      );
+      return true;
+    } catch (error) {
+      console.error("Error deleting election:", error);
+      return false;
+    }
+  }
+
+  static async deleteCandidate(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("candidates", { id } as Filter<Candidate>);
+      }
+      const candidates = (this.inMemStore.get("candidates") || []) as Candidate[];
+      this.inMemStore.set(
+        "candidates",
+        candidates.filter((c) => c.id !== id),
+      );
+      return true;
+    } catch (error) {
+      console.error("Error deleting candidate:", error);
+      return false;
+    }
+  }
+
+  static async deletePoliticalParty(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("political_parties", { id } as Filter<any>);
+        await this.deleteOne("political_parties", { code: id } as Filter<any>);
+      }
+      const parties = (this.inMemStore.get("political_parties") || []) as any[];
+      const filtered = parties.filter((p: any) => p.id !== id && p.code !== id);
+      this.inMemStore.set("political_parties", filtered);
+      this.inMemStore.set("parties", filtered);
+      return true;
+    } catch (error) {
+      console.error("Error deleting political party:", error);
+      return false;
+    }
+  }
+
+  static async deleteUser(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("users", { id } as Filter<User>);
+        await this.deleteOne("user_profiles", { userId: id } as Filter<UserProfile>);
+        await this.deleteOne("identity_documents", { userId: id } as Filter<IdentityDocument>);
+        await this.deleteOne("face_verifications", { userId: id } as Filter<FaceVerification>);
+      }
+      const users = (this.inMemStore.get("users") || []) as User[];
+      this.inMemStore.set(
+        "users",
+        users.filter((u) => u.id !== id),
+      );
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    }
+  }
+
+  static async deleteNewsletterSubscriber(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("newsletter_subscribers", { id } as Filter<NewsletterSubscriber>);
+      }
+      const subs = (this.inMemStore.get("newsletter_subscribers") || []) as NewsletterSubscriber[];
+      this.inMemStore.set(
+        "newsletter_subscribers",
+        subs.filter((s) => s.id !== id),
+      );
+      return true;
+    } catch (error) {
+      console.error("Error deleting newsletter subscriber:", error);
+      return false;
+    }
+  }
+
+  static async deleteFaq(id: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("faqs", { id } as Filter<any>);
+      }
+      const faqs = (this.inMemStore.get("faqs") || []) as any[];
+      this.inMemStore.set(
+        "faqs",
+        faqs.filter((f) => f.id !== id),
+      );
+      return true;
+    } catch (error) {
+      console.error("Error deleting FAQ:", error);
       return false;
     }
   }

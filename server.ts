@@ -1147,7 +1147,7 @@ app.delete(
   "/api/elections/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req: any, res) => {
+  async (req: any, res) => {
     const { id } = req.params;
     let elections = Database.getElections();
     const election = elections.find((e) => e.id === id);
@@ -1156,8 +1156,7 @@ app.delete(
       return res.status(404).json({ error: "Election target not found" });
     }
 
-    elections = elections.filter((e) => e.id !== id);
-    Database.saveElections(elections);
+    await Database.deleteElection(id);
 
     const ip =
       (req.headers["x-forwarded-for"] as string) ||
@@ -1711,7 +1710,7 @@ app.delete(
   "/api/candidates/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req: any, res) => {
+  async (req: any, res) => {
     const { id } = req.params;
     let candidates = Database.getCandidates();
     const candidate = candidates.find((c) => c.id === id);
@@ -1720,8 +1719,7 @@ app.delete(
       return res.status(404).json({ error: "Candidate target not found" });
     }
 
-    candidates = candidates.filter((c) => c.id !== id);
-    Database.saveCandidates(candidates);
+    await Database.deleteCandidate(id);
 
     const ip =
       (req.headers["x-forwarded-for"] as string) ||
@@ -1911,7 +1909,7 @@ app.delete(
   "/api/parties/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req: any, res) => {
+  async (req: any, res) => {
     try {
       const { id } = req.params;
       let parties = Database.getPoliticalParties();
@@ -1921,8 +1919,7 @@ app.delete(
         return res.status(404).json({ error: "Political party not found" });
       }
 
-      parties = parties.filter((p) => p.id !== id);
-      Database.savePoliticalParties(parties);
+      await Database.deletePoliticalParty(id);
 
       const ip =
         (req.headers["x-forwarded-for"] as string) ||
@@ -2957,7 +2954,7 @@ app.delete(
   "/api/admin/newsletter/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req: any, res) => {
+  async (req: any, res) => {
     const { id } = req.params;
     const subscribers = Database.getNewsletterSubscribers();
     const subscriber = subscribers.find((entry) => entry.id === id);
@@ -2966,8 +2963,7 @@ app.delete(
       return res.status(404).json({ error: "Subscriber not found." });
     }
 
-    const filtered = subscribers.filter((entry) => entry.id !== id);
-    Database.saveNewsletterSubscribers(filtered);
+    await Database.deleteNewsletterSubscriber(id);
     syncNewsletterUserState(subscriber.email, {
       enabled: false,
       status: "Inactive",
@@ -3112,7 +3108,7 @@ app.delete(
   "/api/faqs/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator", "FAQ Manager"),
-  (req: any, res) => {
+  async (req: any, res) => {
     const { id } = req.params;
     const faqs = Database.getFaqs();
     const index = faqs.findIndex((f) => f.id === id);
@@ -3120,8 +3116,7 @@ app.delete(
       return res.status(404).json({ error: "FAQ record not found" });
     }
 
-    faqs.splice(index, 1);
-    Database.saveFaqs(faqs);
+    await Database.deleteFaq(id);
 
     const ip =
       (req.headers["x-forwarded-for"] as string) ||
@@ -3382,7 +3377,7 @@ app.delete(
   "/api/admin/team/:id",
   authenticateToken,
   requireRoles("Super Administrator", "Administrator"),
-  (req: any, res) => {
+  async (req: any, res) => {
     const { id } = req.params;
     if (id === req.user.id) {
       return res
@@ -3408,8 +3403,7 @@ app.delete(
       });
     }
 
-    users.splice(index, 1);
-    Database.saveUsers(users);
+    await Database.deleteUser(id);
 
     const ip =
       (req.headers["x-forwarded-for"] as string) ||

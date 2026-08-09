@@ -1,365 +1,1526 @@
-# 🗳️ VoTex - Secure Digital Voting & Biometric Election Management Platform
+# 🗳️ VoTex — Secure Digital Voting & Biometric Election Management Platform
 
 <div align="center">
 
-![VoTex Header Banner](https://img.shields.io/badge/VoTex-Digital%20Democracy%20Platform-059669?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptMCAxOGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6bS0xLTVoMnY2aC0ydi02em0wLTRoMnYyaC0ydi0yeiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=)
+![VoTex](https://img.shields.io/badge/VoTex-Digital%20Voting%20Platform-059669?style=for-the-badge)
 
-[![React 19](https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-[![TypeScript 5.8](https://img.shields.io/badge/TypeScript-5.8-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Vite 6](https://img.shields.io/badge/Vite-6.4-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/)
-[![Express 4.22](https://img.shields.io/badge/Express-4.22-000000?style=flat-square&logo=express)](https://expressjs.com/)
-[![MongoDB 7.3](https://img.shields.io/badge/MongoDB-7.3-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
-[![TensorFlow.js](https://img.shields.io/badge/TensorFlow.js-4.22-FF6F00?style=flat-square&logo=tensorflow)](https://www.tensorflow.org/js)
-[![Tailwind CSS v4](https://img.shields.io/badge/TailwindCSS-v4.3-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
-[![Author](https://img.shields.io/badge/Author-Subhash%20Sharma-007ACC?style=flat-square&logo=github)](https://github.com/Subhash107k)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+![React](https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square\&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square\&logo=typescript)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square\&logo=vite)
+![Express](https://img.shields.io/badge/Express-4.22-000000?style=flat-square\&logo=express)
+![MongoDB](https://img.shields.io/badge/MongoDB-7.3-47A248?style=flat-square\&logo=mongodb)
+![TensorFlow.js](https://img.shields.io/badge/TensorFlow.js-4.22-FF6F00?style=flat-square\&logo=tensorflow)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-06B6D4?style=flat-square\&logo=tailwindcss)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
 
-**An enterprise-grade, secure digital voting platform engineered with real-time biometric face verification, multi-layer identity validation, and tamper-proof ballot tallying.**
+### Secure Digital Voting • Identity Verification • Biometric Authentication
 
-**Author**: **[Subhash Sharma](https://github.com/Subhash107k)**
+**VoTex is a full-stack digital election management platform designed to demonstrate secure voter registration, identity verification, biometric authentication, election management, and controlled digital ballot casting.**
 
-[Key Features](#-key-features) • [System Architecture](#-system-architecture) • [Biometric Engine](#-biometric-face-verification-engine) • [Tech Stack](#-technology-stack) • [Installation](#-getting-started) • [API Guide](#-api-endpoints) • [Viva Q&A](#-viva--project-defense-guide) • [Author](#-author)
+**Author:** [Subhash Sharma](https://github.com/Subhash107k)
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## 📌 Overview
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-  - [🔒 Biometric Identity & Verification](#-biometric-identity--verification)
-  - [🇳🇵 Nepali Electoral & Census System](#-nepali-electoral--census-system)
-  - [🗳️ Voter & Ballot Casting Engine](#-voter--ballot-casting-engine)
-  - [👨‍💼 Candidate Management Portal](#-candidate-management-portal)
-  - [🛡️ Administrative Control Console](#-administrative-control-console)
-- [System Architecture](#-system-architecture)
-- [Biometric Face Verification Engine](#-biometric-face-verification-engine)
-- [Project Directory Topology](#-project-directory-topology)
-- [Technology Stack](#-technology-stack)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation Steps](#installation-steps)
-  - [Running Development Server](#running-development-server)
-  - [Building for Production](#building-for-production)
-- [Environment Variables](#-environment-variables)
-- [API Endpoints](#-api-endpoints)
-- [Security Posture](#-security-posture)
-- [Viva & Project Defense Guide](#-viva--project-defense-guide)
-- [Author](#-author)
-- [License](#-license)
+**VoTex** is a modern full-stack election platform built around a **secure voter lifecycle**:
 
----
+```text
+Registration
+     ↓
+Profile Completion
+     ↓
+Identity / Document Verification
+     ↓
+Biometric Enrollment
+     ↓
+Voter Approval
+     ↓
+Election Eligibility
+     ↓
+Live Face Verification
+     ↓
+Ballot Access
+     ↓
+Vote Submission
+     ↓
+Vote Receipt + Audit Record
+```
 
-## 🌟 Overview
+The system combines:
 
-**VoTex** is a modern, end-to-end digital election and biometric voter authentication platform designed to eliminate electoral fraud, voter impersonation, and ballot tampering. By combining **client-side WebGL-accelerated facial landmark analysis**, **server-side 128-dimensional embedding matching**, and **strict MongoDB atomic single-vote constraints**, VoTex enables transparent, accessible, and tamper-resistant elections.
+* Secure authentication and authorization
+* Voter profile management
+* Nepali electoral and address information
+* Identity-document verification workflows
+* Browser-based facial verification
+* Liveness-oriented checks
+* Election and candidate management
+* Controlled ballot casting
+* Duplicate-vote prevention
+* Administrative approval workflows
+* Audit logging
+* Notifications
+* Responsive voter and administrator interfaces
 
-### Core Objectives
-1. **Prevent Fraud & Impersonation**: Multi-factor identity validation matching official National ID (NID), Citizenship credentials, and live facial biometrics.
-2. **One Voter, One Vote Guarantee**: Enforced via cryptographic vote receipt generation and atomic compound indexes (`{ user: 1, electionId: 1 }`).
-3. **Accessibility & Usability**: Full Nepali localization support (Devanagari script input, address pickers for 7 Provinces and 77 Districts), responsive mobile-first UI, and offline-capable PWA capabilities.
-4. **Auditability**: Immutable audit trail logging all registration reviews, biometric checks, login attempts, and election lifecycle changes.
-
----
-
-## ✨ Key Features
-
-### 🔒 Biometric Identity & Verification
-- **Real-Time Facial Landmark Tracking**: Uses MediaPipe Face Mesh & `@vladmandic/face-api` (SSD MobileNet v2) to extract 68 3D facial landmarks directly in browser WebGL canvas.
-- **Anti-Spoofing & Liveness Detection**: Monitors head rotation (pitch, yaw, roll), eye blink patterns, and bounding box ratios to prevent photo/video replay attacks.
-- **Biometric Matching**: Compares live captured facial feature embeddings (128-d vector) against registered ID photos using Cosine Similarity and Inverse RMSE distance metric algorithms with configurable confidence thresholds.
-- **Biometric Consent Protocol**: GDPR/Privacy-compliant explicit consent tracking before camera initialization and embedding storage.
-
-### 🇳🇵 Nepali Electoral & Census System
-- **Hierarchical Address Resolution**: Cascading pickers covering all 7 Provinces, 77 Districts, Municipalities/Gaunpalikas, and Ward numbers.
-- **Permanent & Temporary Residence**: Handles both permanent voter roll addresses and temporary migration tracking.
-- **Official Credentials Validation**: Formats and validates Citizenship Certificate Numbers, National Identity (NID) numbers, and Voter Card Numbers.
-- **Family Demographics Linkage**: Supports linking spouse, parents, and children for census verification.
-
-### 🗳️ Voter & Ballot Casting Engine
-- **Active Election Feed**: Filterable list of ongoing, upcoming, and past national, provincial, and local elections.
-- **Pre-Vote Biometric Gatekeeper**: Mandatory real-time face scan prior to revealing active digital ballot.
-- **Cryptographic Ballot Receipt**: Generates a unique SHA-256 vote transaction hash upon ballot submission for voter verification.
-- **Live Result Telemetry**: Real-time turnout counters and interactive vote distribution charts powered by Recharts and WebSockets.
-
-### 👨‍💼 Candidate Management Portal
-- **Candidate Profiles**: Comprehensive party affiliation, manifesto publication, education background, and campaign logo/photo management.
-- **Public Profile Verification**: Dedicated candidate landing pages for voter education.
-
-### 🛡️ Administrative Control Console
-- **Voter Approval Workflow**: Review queues for pending voter registrations with document previewers (Citizenship front/back, NID, Photo).
-- **Election Lifecycle Management**: Full CRUD operations to create elections, add candidates, configure voting start/end windows, pause/resume, or finalize results.
-- **Audit Console**: Comprehensive, searchable audit logs tracking system events with IP address, user-agent, and status metadata.
-- **Notification Broadcaster**: In-app, SMS (Twilio), and Email (Nodemailer) notification engine.
+> **Important:** VoTex is a software project and demonstration platform. It should not be considered certified or ready for deployment in a legally binding public election without independent security audits, accessibility testing, biometric validation, election-security certification, privacy/legal review, infrastructure hardening, and extensive real-world testing.
 
 ---
 
-## 🏗️ System Architecture
+# 📚 Table of Contents
+
+* [Core Objectives](#-core-objectives)
+* [Key Features](#-key-features)
+* [Voter Journey](#-voter-journey)
+* [System Architecture](#-system-architecture)
+* [Biometric Verification](#-biometric-verification)
+* [Election Workflow](#-election-workflow)
+* [Security Architecture](#-security-architecture)
+* [Database Design](#-database-design)
+* [Project Structure](#-project-structure)
+* [Technology Stack](#-technology-stack)
+* [Getting Started](#-getting-started)
+* [Environment Variables](#-environment-variables)
+* [API Reference](#-api-reference)
+* [Development Workflow](#-development-workflow)
+* [Testing & Verification](#-testing--verification)
+* [Production Considerations](#-production-considerations)
+* [Viva / Project Defense](#-viva--project-defense)
+* [Author](#-author)
+* [License](#-license)
+
+---
+
+# 🎯 Core Objectives
+
+VoTex is designed around five major objectives.
+
+### 1. Identity Integrity
+
+Create a structured identity-verification workflow that connects voter information with submitted identity credentials and biometric verification.
+
+### 2. One Voter — One Vote
+
+Prevent duplicate ballots using application-level validation together with database-level uniqueness constraints.
+
+### 3. Secure Election Lifecycle
+
+Allow administrators to control the complete election lifecycle:
+
+```text
+Draft
+  ↓
+Published
+  ↓
+Open
+  ↓
+Paused (optional)
+  ↓
+Closed
+  ↓
+Finalized
+```
+
+### 4. Auditability
+
+Maintain an audit trail for important security-sensitive operations such as:
+
+* Registration
+* Login attempts
+* Profile changes
+* Document review
+* Biometric verification
+* Election changes
+* Vote submission
+* Administrative actions
+
+### 5. Usability
+
+Provide a responsive interface that works across:
+
+* Desktop
+* Laptop
+* Tablet
+* Mobile
+
+The interface supports Nepali-oriented address and identity information and is designed with accessibility and clear user feedback in mind.
+
+---
+
+# ✨ Key Features
+
+## 🔐 Authentication & Authorization
+
+* Secure voter registration
+* Login/logout
+* JWT-based authentication
+* Protected API routes
+* Role-based access control
+* Session validation
+* Profile completion workflow
+* Password hashing
+* Authentication rate limiting
+
+---
+
+## 🪪 Identity & Voter Verification
+
+VoTex supports a structured voter verification process including:
+
+* Citizenship information
+* National ID information
+* Voter card information
+* Personal details
+* Address information
+* Document uploads
+* Profile review
+* Administrative approval
+
+### Nepal Address Support
+
+The platform is designed to support hierarchical address information:
+
+```text
+Province
+   ↓
+District
+   ↓
+Municipality / Rural Municipality
+   ↓
+Ward
+```
+
+The system can also maintain permanent and temporary residence information where required by the application workflow.
+
+---
+
+# 🧑‍💻 Voter Journey
+
+A typical voter workflow is:
+
+### Step 1 — Registration
+
+The voter creates an account and provides the required baseline information.
+
+### Step 2 — Complete Profile
+
+The voter submits:
+
+* Personal information
+* Contact information
+* Address
+* Identity information
+* Required documents
+
+### Step 3 — Verification
+
+The submitted information is reviewed according to the configured approval workflow.
+
+### Step 4 — Biometric Enrollment
+
+The voter completes facial enrollment after appropriate consent.
+
+### Step 5 — Election Eligibility
+
+The system checks whether the voter:
+
+* Has an approved profile
+* Is eligible for the election
+* Has not already voted
+
+### Step 6 — Pre-Vote Face Verification
+
+A live camera capture is compared with the enrolled biometric representation.
+
+### Step 7 — Ballot Access
+
+Only after successful eligibility and verification checks does the voting interface become available.
+
+### Step 8 — Vote Submission
+
+The voter selects the desired candidate/option and submits the ballot.
+
+### Step 9 — Vote Receipt
+
+The system generates a transaction/receipt identifier for the completed voting operation.
+
+---
+
+# 🧬 Biometric Verification
+
+VoTex uses a hybrid browser/server biometric architecture.
+
+```text
+Camera
+  ↓
+Browser Video Stream
+  ↓
+Face Detection
+  ↓
+Landmark / Feature Analysis
+  ↓
+Liveness-Oriented Checks
+  ↓
+Face Embedding
+  ↓
+Secure API Request
+  ↓
+Server Verification
+  ↓
+Similarity Evaluation
+  ↓
+Verification Result
+```
+
+## Client-Side Processing
+
+The browser performs facial processing using TensorFlow.js and face-analysis models.
+
+The workflow can include:
+
+* Face detection
+* Facial landmark analysis
+* Face bounding-box validation
+* Head orientation checks
+* Blink-related checks
+* Camera positioning guidance
+* Capture-quality validation
+
+## Embedding Comparison
+
+A live embedding can be compared against the enrolled representation using similarity metrics.
+
+For vectors:
+
+[
+L = \text{Live Embedding}
+]
+
+[
+R = \text{Registered Embedding}
+]
+
+Cosine similarity:
+
+[
+Similarity =
+\frac{L \cdot R}
+{|L||R|}
+]
+
+An additional distance-based score may be calculated:
+
+[
+DistanceScore =
+\max
+\left(
+0,
+1 -
+\sqrt{
+\frac{1}{n}
+\sum_{i=1}^{n}(L_i-R_i)^2
+}
+\right)
+]
+
+A configurable weighted score can then be used:
+
+[
+FinalScore =
+0.65(CosineSimilarity)
++
+0.35(DistanceScore)
+]
+
+The application can compare the resulting score against a configurable threshold.
+
+> **Biometric note:** A threshold such as `0.82` is an application configuration, not a universally valid biometric-security standard. Real deployments require dataset-based threshold calibration, false-acceptance/false-rejection analysis, demographic evaluation, presentation-attack testing, and independent validation.
+
+---
+
+# 🗳️ Election Workflow
+
+Administrators can manage an election through a controlled lifecycle.
+
+```text
+Create Election
+      ↓
+Configure Election
+      ↓
+Add Candidates
+      ↓
+Publish Election
+      ↓
+Open Voting
+      ↓
+Voters Verify Eligibility
+      ↓
+Biometric Verification
+      ↓
+Ballot Casting
+      ↓
+Voting Closes
+      ↓
+Results Finalization
+```
+
+## Election Management
+
+The administrative system can provide:
+
+* Election creation
+* Election editing
+* Candidate management
+* Voting start/end configuration
+* Election status management
+* Voter eligibility management
+* Voting monitoring
+* Result visualization
+* Audit history
+
+---
+
+# 👥 Candidate Management
+
+Candidate profiles may contain:
+
+* Candidate name
+* Candidate photo
+* Party affiliation
+* Biography
+* Education
+* Manifesto
+* Campaign information
+* Logo/photo assets
+
+Candidate information is presented to voters before ballot submission to support informed decision-making.
+
+---
+
+# 🛡️ Administrative Console
+
+The administration panel provides centralized management of the election system.
+
+### Voter Management
+
+* Pending voter registrations
+* Approved voters
+* Rejected registrations
+* Profile inspection
+* Identity-document review
+* Verification status
+
+### Election Management
+
+* Create election
+* Update election
+* Add/remove candidates
+* Configure voting periods
+* Open/close election
+* Pause/resume where supported
+* Finalize results
+
+### Monitoring
+
+* Registered voters
+* Approved voters
+* Voting participation
+* Election status
+* Verification events
+* System activity
+
+### Audit Console
+
+Administrators can inspect security-relevant events including:
+
+* User
+* Action
+* Timestamp
+* Status
+* IP metadata
+* User-agent metadata
+* Relevant resource identifiers
+
+---
+
+# 🏗️ System Architecture
 
 ```mermaid
 graph TB
-    subgraph Client Layer (React 19 + Vite 6)
-        UI[React Single Page App]
-        PWA[Service Worker PWA]
-        TF[TensorFlow.js / MediaPipe]
-        Canvas[WebGL Facial Mesh Canvas]
+
+    subgraph Client["Client Layer"]
+        UI["React Application"]
+        PWA["PWA / Service Worker"]
+        BIO["TensorFlow.js / Face Models"]
+        CAM["Camera + Canvas"]
     end
 
-    subgraph API Gateway & Server (Node.js + Express)
-        Router[Express Router]
-        AuthMW[JWT Auth & RBAC Middleware]
-        BioMW[Biometric Consent & Gatekeeper]
-        RateMW[Rate Limiters & Helmet Security]
-        Validator[Zod & Express Validator]
+    subgraph API["API Layer"]
+        ROUTER["Express Router"]
+        AUTH["JWT / RBAC Middleware"]
+        RATE["Rate Limiting"]
+        VALID["Request Validation"]
+        CONSENT["Biometric Consent"]
     end
 
-    subgraph Service & Processing Layer
-        BioService[Face Verification Service]
-        AuditService[Audit Log Service]
-        NotifService[Notification Engine - Email/SMS]
-        FraudService[Fraud Detection Engine]
+    subgraph SERVICES["Service Layer"]
+        FACE["Face Verification Service"]
+        AUDIT["Audit Service"]
+        FRAUD["Fraud Detection Service"]
+        NOTIFY["Notification Service"]
+        SECURITY["Security Service"]
     end
 
-    subgraph Data Store (MongoDB 7.3)
-        UserCol[(Users & Profiles)]
-        ElectionCol[(Elections & Candidates)]
-        VoteCol[(Votes Ledger)]
-        AuditCol[(Audit Logs)]
+    subgraph DATA["MongoDB"]
+        USERS[("Users / Profiles")]
+        ELECTIONS[("Elections / Candidates")]
+        VOTES[("Votes")]
+        AUDITS[("Audit Logs")]
     end
 
-    UI --> TF
-    TF --> Canvas
-    UI --> Router
-    Router --> RateMW
-    RateMW --> AuthMW
-    AuthMW --> BioMW
-    BioMW --> Validator
-    Validator --> BioService
-    Validator --> AuditService
-    Validator --> NotifService
-    Validator --> FraudService
-    BioService --> UserCol
-    AuditService --> AuditCol
-    NotifService --> UserCol
-    FraudService --> UserCol
-    Validator --> ElectionCol
-    Validator --> VoteCol
+    UI --> BIO
+    UI --> CAM
+    UI --> ROUTER
+
+    ROUTER --> RATE
+    RATE --> AUTH
+    AUTH --> CONSENT
+    CONSENT --> VALID
+
+    VALID --> FACE
+    VALID --> AUDIT
+    VALID --> FRAUD
+    VALID --> NOTIFY
+    VALID --> SECURITY
+
+    FACE --> USERS
+    AUDIT --> AUDITS
+    FRAUD --> USERS
+    VALID --> ELECTIONS
+    VALID --> VOTES
 ```
 
 ---
 
-## 🔬 Biometric Face Verification Engine
+# 🔒 Security Architecture
 
-The facial recognition engine operates in a hybrid client-server model:
+VoTex uses multiple security layers rather than relying on a single mechanism.
 
-1. **Client-Side Landmark Capture**:
-   - Camera stream rendered to HTML5 Canvas.
-   - SSD MobileNet v2 detects face bounding box.
-   - 68 keypoint facial landmarks mapped in real-time.
-   - Head orientation angles (yaw, pitch, roll) calculated to ensure user faces camera.
+## Authentication
 
-2. **Embedding Extraction & Matching Algorithm**:
-   - 128-element normalized feature vector extracted from face canvas tensor.
-   - Normalized feature vector sent to backend over HTTPS.
-   - Backend compares live vector $\vec{L}$ against registered vector $\vec{R}$:
-     $$\text{Cosine Similarity} = \frac{\vec{L} \cdot \vec{R}}{\|\vec{L}\| \|\vec{R}\|}$$
-     $$\text{RMSE Inverse Distance} = \max\left(0, 1 - \sqrt{\frac{1}{n} \sum_{i=1}^{n} (L_i - R_i)^2}\right)$$
-     $$\text{Final Score} = (\text{Cosine} \times 0.65) + (\text{Inverse Distance} \times 0.35)$$
-   - Verification succeeds if Final Score $\ge \text{FACE\_MATCH\_THRESHOLD}$ (default `0.82`).
+Protected API requests require authenticated credentials.
+
+```text
+Client
+  ↓
+Bearer Token
+  ↓
+JWT Validation
+  ↓
+User Identity
+  ↓
+Role Check
+  ↓
+Protected Resource
+```
+
+## Password Security
+
+Passwords should never be stored in plaintext.
+
+The application uses password hashing mechanisms such as bcrypt.
+
+## Request Validation
+
+API payloads should be validated before reaching business logic.
+
+Zod-based schemas can validate:
+
+* Request body
+* Parameters
+* Query values
+* Required fields
+* Data formats
+
+## Rate Limiting
+
+Authentication and other sensitive endpoints should be protected against:
+
+* Brute-force attempts
+* Excessive requests
+* Automated abuse
+
+## Security Headers
+
+Helmet can be used to configure security-related HTTP headers.
 
 ---
 
-## 📁 Project Directory Topology
+# 🧾 Vote Integrity
 
+A major requirement is preventing multiple votes from the same voter in the same election.
+
+A database-level uniqueness constraint can be structured conceptually as:
+
+```javascript
+{
+  userId: 1,
+  electionId: 1
+}
 ```
+
+This means that the database rejects another vote for the same:
+
+```text
+User + Election
+```
+
+combination.
+
+Application-level validation should still be performed before the database operation.
+
+The recommended approach is:
+
+```text
+Check Eligibility
+       ↓
+Check Election Status
+       ↓
+Check Previous Vote
+       ↓
+Validate Ballot
+       ↓
+Atomic Database Operation
+       ↓
+Create Vote Record
+       ↓
+Create Audit Event
+```
+
+---
+
+# 🗄️ Database Design
+
+The MongoDB layer is conceptually divided into major domains.
+
+### Users / Profiles
+
+Stores:
+
+* Account information
+* Profile information
+* Verification state
+* Biometric enrollment metadata
+* Roles
+* Eligibility information
+
+### Elections
+
+Stores:
+
+* Election details
+* Status
+* Voting window
+* Election configuration
+
+### Candidates
+
+Stores:
+
+* Candidate profile
+* Party
+* Manifesto
+* Election association
+
+### Votes
+
+Stores:
+
+* Election reference
+* Voter reference or privacy-preserving identifier
+* Selected option
+* Timestamp
+* Receipt/hash information
+* Relevant audit metadata
+
+### Audit Logs
+
+Stores security-sensitive application events.
+
+---
+
+# 📁 Project Structure
+
+```text
 VoTex-Election/
-├── controllers/                  # Backend Controller Modules
-│   ├── auth.controller.ts        # Registration, Login, Profile updates
-│   └── faceVerification.controller.ts # Biometric matching API endpoints
-├── middleware/                   # Express Request Middleware
-│   ├── audit.middleware.ts       # Automated audit trail logging
-│   ├── biometricConsent.middleware.ts # Privacy consent verification
-│   ├── deviceFingerprint.middleware.ts # Client hardware fingerprinting
-│   ├── validation.middleware.ts  # Zod schema validation hooks
-│   └── verifyFace.ts             # Pre-vote face scan authorization
-├── routes/                       # Express Route Handlers
-│   ├── auth.routes.ts            # Authentication & session routes
-│   ├── faceVerification.routes.ts# Biometric verification routes
-│   └── profiles.js               # Legacy profile REST endpoints
-├── services/                     # Core Backend Domain Services
-│   ├── audit.service.ts          # Audit collection wrapper
-│   ├── cache.service.ts          # In-memory LRU key-value cache
-│   ├── faceVerification.service.ts # Biometric comparison & similarity math
-│   ├── fraudDetection.service.ts # Anomaly & duplicate account detection
-│   ├── notification.service.ts   # Nodemailer & SMS transport
-│   └── security.service.ts       # Crypto hashing & token utilities
-├── src/                          # Frontend Application Code (React 19)
-│   ├── App.tsx                   # Main Routing & App Shell Layout
-│   ├── main.tsx                  # Application Entrypoint & Providers
-│   ├── components/               # UI Component Hierarchy
-│   │   ├── Admin/                # Admin Panel & Stats Dashboards
-│   │   ├── auth/                 # Login, Register, Forgot Password
-│   │   ├── common/               # Document Previews, Toast, Address Picker
-│   │   ├── dashboard/            # Voter Dashboard, BiometricScanner, EditProfile
-│   │   ├── documents/            # Citizenship Upload Previews
-│   │   ├── elections/            # Election Card & Voting Interface
-│   │   ├── face-verification/    # Camera View, Liveness Guide, Target Overlay
-│   │   ├── public/               # Landing Page, Hero, Features, FAQ, Footer
-│   │   └── ui/                   # Reusable Primitive UI Elements
-│   ├── data/                     # Nepal Address & Geo JSON Data
-│   ├── db/                       # Frontend & Server DB Abstractions
-│   │   ├── dbService.ts          # MongoDB Connection & Native Driver Queries
-│   │   └── schema.ts             # TypeScript Type & Validation Schemas
-│   ├── hooks/                    # Custom React Hooks (useProfile, useAdmin, etc.)
-│   ├── pages/                    # Top-Level Page Components
-│   ├── services/                 # Frontend API Client & TensorFlow Loaders
-│   └── utils/                    # Input Normalization & Form Validation Schemas
-├── public/                       # Static Assets & ML Model Files
-│   └── models/                   # TensorFlow / face-api pre-trained models
-├── server.ts                     # Express App Initialization & API Gateway
-├── vite.config.ts                # Vite 6 Configuration & Chunk Splitting Rules
-├── tsconfig.json                 # TypeScript Compiler Options
-└── package.json                  # Dependencies & Build Scripts
+│
+├── controllers/
+│   ├── auth.controller.ts
+│   └── faceVerification.controller.ts
+│
+├── middleware/
+│   ├── audit.middleware.ts
+│   ├── biometricConsent.middleware.ts
+│   ├── deviceFingerprint.middleware.ts
+│   ├── validation.middleware.ts
+│   └── verifyFace.ts
+│
+├── routes/
+│   ├── auth.routes.ts
+│   ├── faceVerification.routes.ts
+│   └── profiles.js
+│
+├── services/
+│   ├── audit.service.ts
+│   ├── cache.service.ts
+│   ├── faceVerification.service.ts
+│   ├── fraudDetection.service.ts
+│   ├── notification.service.ts
+│   └── security.service.ts
+│
+├── src/
+│   ├── App.tsx
+│   ├── main.tsx
+│   │
+│   ├── components/
+│   │   ├── Admin/
+│   │   ├── auth/
+│   │   ├── common/
+│   │   ├── dashboard/
+│   │   ├── documents/
+│   │   ├── elections/
+│   │   ├── face-verification/
+│   │   ├── public/
+│   │   └── ui/
+│   │
+│   ├── data/
+│   ├── db/
+│   │   ├── dbService.ts
+│   │   └── schema.ts
+│   │
+│   ├── hooks/
+│   ├── pages/
+│   ├── services/
+│   └── utils/
+│
+├── public/
+│   └── models/
+│
+├── server.ts
+├── vite.config.ts
+├── tsconfig.json
+├── package.json
+├── .env.example
+└── README.md
 ```
 
 ---
 
-## 🛠️ Technology Stack
+# 🛠️ Technology Stack
 
-| Category | Technology | Version | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Frontend Framework** | React | `^19.2.7` | User Interface & State Management |
-| **Build Tooling** | Vite | `^6.4.3` | Bundling, HMR, Module Optimization |
-| **Language** | TypeScript | `~5.8.3` | Strict Type Safety across Client & Server |
-| **Styling** | Tailwind CSS | `^4.3.1` | Utility-first CSS Styling & Animations |
-| **UI Motion** | Motion (Framer) | `^12.40.0` | Micro-interactions & Smooth Transitions |
-| **Biometrics / AI** | `@vladmandic/face-api` | `^1.7.15` | Facial Detection & Feature Extraction |
-| **AI Backend** | TensorFlow.js | `^4.22.0` | WebGL-accelerated Tensor Math |
-| **Backend Server** | Node.js / Express | `^4.22.2` | REST API Server & Middleware Pipeline |
-| **Database** | MongoDB Native Driver | `^7.3.0` | High-throughput Document Database |
-| **Data Validation** | Zod | `^4.4.3` | Runtime Schema Validation |
-| **Security Hashing** | BcryptJS / Crypto | `^3.0.3` | Password Hashing & SHA-256 Receipts |
-| **Token Auth** | JsonWebToken | `^9.0.3` | Stateless Bearer Authentication |
-| **Visualization** | Recharts | `^3.8.1` | Real-time Election Result Graphics |
+| Category          | Technology               | Purpose                               |
+| ----------------- | ------------------------ | ------------------------------------- |
+| Frontend          | React 19                 | User interface                        |
+| Language          | TypeScript 5.8           | Type-safe application development     |
+| Build Tool        | Vite 6                   | Development and production bundling   |
+| Styling           | Tailwind CSS 4           | Responsive UI                         |
+| Animation         | Motion                   | UI transitions and micro-interactions |
+| Backend           | Node.js + Express        | REST API                              |
+| Database          | MongoDB                  | Persistent application data           |
+| Biometrics        | Face API / TensorFlow.js | Face detection and feature extraction |
+| Validation        | Zod                      | Runtime validation                    |
+| Authentication    | JWT                      | API authentication                    |
+| Password Security | BcryptJS                 | Password hashing                      |
+| Cryptography      | Node Crypto              | Hashing and security utilities        |
+| Charts            | Recharts                 | Election analytics                    |
+| Notifications     | Nodemailer / Twilio      | Email and SMS                         |
+| PWA               | Service Worker           | Progressive web capabilities          |
 
 ---
 
-## 🚀 Getting Started
+# 🚀 Getting Started
 
-### Prerequisites
-- **Node.js**: `v18.0.0` or higher (v20+ recommended)
-- **npm**: `v9.0.0` or higher
-- **MongoDB**: Local MongoDB instance running on `mongodb://localhost:27017` OR MongoDB Atlas URI.
-- **Webcam**: Functional camera for biometric face scan features.
+## Prerequisites
 
-### Installation Steps
+Install:
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/votex/election-platform.git
-   cd VoTex-Election
-   ```
+* Node.js 18+
+* Node.js 20+ recommended
+* npm 9+
+* MongoDB
+* A working webcam for biometric functionality
 
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
+Verify Node.js:
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
-   ```bash
-   cp .env.example .env
-   ```
-   *(Ensure `MONGODB_URI` points to your running MongoDB service).*
+```bash
+node --version
+```
 
-### Running Development Server
+Verify npm:
 
-Start both the API server (`server.ts`) and Vite client:
+```bash
+npm --version
+```
+
+Verify MongoDB connectivity according to your local MongoDB setup.
+
+---
+
+# 📦 Installation
+
+Clone the project:
+
+```bash
+git clone https://github.com/Subhash107k/VoTex-Election.git
+```
+
+Enter the project:
+
+```bash
+cd VoTex-Election
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create environment configuration:
+
+```bash
+cp .env.example .env
+```
+
+Then update `.env` with your local configuration.
+
+---
+
+# ▶️ Run Development Server
+
 ```bash
 npm run dev
 ```
-The application will be accessible at `http://localhost:3000` (API proxying `/api` calls).
 
-### Building for Production
+Depending on the Vite/Express configuration, the application may be available at:
 
-Compile both the React SPA static assets and bundled Node server:
+```text
+http://localhost:3000
+```
+
+or another configured development port.
+
+> Always use the actual port reported by your development server rather than assuming a fixed port.
+
+---
+
+# 🏭 Production Build
+
+Build the project:
+
 ```bash
 npm run build
 ```
 
 Start the production server:
+
 ```bash
 npm start
 ```
 
----
+Before production deployment, verify:
 
-## ⚙️ Environment Variables
-
-Key configuration parameters in `.env`:
-
-| Parameter | Default | Description |
-| :--- | :--- | :--- |
-| `PORT` | `3000` | Port for Express API server |
-| `NODE_ENV` | `development` | Environment mode (`development` or `production`) |
-| `MONGODB_URI` | `mongodb://127.0.0.1:27017/votex` | MongoDB Connection String |
-| `JWT_SECRET` | `secret_key` | Secret used to sign authentication tokens |
-| `JWT_EXPIRES_IN` | `24h` | Validity duration of access tokens |
-| `FACE_MATCH_THRESHOLD` | `0.82` | Minimum similarity score required for face pass |
-| `ENABLE_SMS_NOTIFICATIONS` | `false` | Enable Twilio SMS dispatch |
-| `ENABLE_EMAIL_NOTIFICATIONS` | `false` | Enable Nodemailer email dispatch |
+* Database connectivity
+* Environment variables
+* Authentication
+* HTTPS
+* CORS
+* Rate limits
+* Logging
+* Camera permissions
+* Biometric models
+* Backup strategy
 
 ---
 
-## 📡 API Endpoints Summary
+# ⚙️ Environment Variables
 
-### Authentication Routes (`/api/auth`)
-- `POST /api/auth/register` - Create new voter account with baseline details.
-- `POST /api/auth/login` - Authenticate user & receive JWT token.
-- `GET /api/auth/me` - Retrieve authenticated user profile.
-- `PUT /api/auth/complete-profile` - Submit comprehensive voter verification dossier.
+Example configuration:
 
-### Biometric Routes (`/api/face-verification`)
-- `POST /api/face-verification/enroll` - Store initial baseline facial biometric embedding.
-- `POST /api/face-verification/verify` - Compare live face capture against baseline embedding.
-- `GET /api/face-verification/status` - Check current user biometric verification state.
+```env
+NODE_ENV=development
 
-### Election & Voting Routes (`/api/elections`)
-- `GET /api/elections` - Fetch list of published elections.
-- `GET /api/elections/:id` - Fetch detailed election details & candidates.
-- `POST /api/elections/:id/vote` - Cast ballot (requires pre-verified biometric session token).
-- `GET /api/elections/:id/results` - Fetch real-time vote tally breakdown.
+PORT=3000
 
----
+MONGODB_URI=mongodb://127.0.0.1:27017/votex
 
-## 🛡️ Security Posture
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRES_IN=24h
 
-- **Zero-Trust Token Model**: Protected routes require valid `Bearer <JWT>` tokens.
-- **Biometric Security**: Raw face images are processed locally in WebGL canvas tensors; only mathematical embeddings (128-d arrays) and SHA-256 hashes are stored.
-- **Double Voting Prevention**: MongoDB compound unique index `{ userId: 1, electionId: 1 }` prevents duplicate ballot entries at the database level.
-- **Protection Headers**: Configured with `Helmet` (CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff).
-- **Rate Limiting**: Express rate limiters protect authentication endpoints against brute force attacks.
+FACE_MATCH_THRESHOLD=0.82
 
----
+ENABLE_SMS_NOTIFICATIONS=false
+ENABLE_EMAIL_NOTIFICATIONS=false
+```
 
-## 🎓 Viva & Project Defense Guide
+## Production Security
 
-Planning to present VoTex for an academic project defense or technical viva? Refer to our comprehensive guide containing **30+ detailed questions & answers** covering architecture, biometric AI, security, and database design:
+Never use:
 
-👉 **[Read the Full VoTex Viva Questions & Defense Guide](VOTEX_VIVA_QUESTIONS_AND_ANSWERS.md)**
+```env
+JWT_SECRET=secret_key
+```
 
----
+in production.
 
-## 👨‍💻 Author
+Generate a strong random secret and store it securely outside source control.
 
-Created & Maintained by **[Subhash Sharma](https://github.com/Subhash107k)**
+Never commit:
 
-- **GitHub Profile**: [github.com/Subhash107k](https://github.com/Subhash107k)
-- **Repository**: [VoTex-Election Platform](https://github.com/Subhash107k/VoTex-Election)
+```text
+.env
+```
+
+to a public repository.
 
 ---
 
-## 📜 License
+# 📡 API Reference
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+## Authentication
+
+### Register
+
+```http
+POST /api/auth/register
+```
+
+Creates a voter account.
+
+### Login
+
+```http
+POST /api/auth/login
+```
+
+Authenticates the voter.
+
+### Current User
+
+```http
+GET /api/auth/me
+```
+
+Returns the authenticated user's profile.
+
+### Complete Profile
+
+```http
+PUT /api/auth/complete-profile
+```
+
+Submits the voter verification profile.
+
+---
+
+# 🧬 Biometric API
+
+### Enroll Face
+
+```http
+POST /api/face-verification/enroll
+```
+
+Registers the user's biometric representation.
+
+### Verify Face
+
+```http
+POST /api/face-verification/verify
+```
+
+Compares a live biometric capture against the enrolled representation.
+
+### Verification Status
+
+```http
+GET /api/face-verification/status
+```
+
+Returns the user's biometric verification status.
+
+---
+
+# 🗳️ Election API
+
+### List Elections
+
+```http
+GET /api/elections
+```
+
+Returns published elections.
+
+### Election Details
+
+```http
+GET /api/elections/:id
+```
+
+Returns election information and candidates.
+
+### Cast Vote
+
+```http
+POST /api/elections/:id/vote
+```
+
+Submits a ballot after the required eligibility and verification checks.
+
+### Election Results
+
+```http
+GET /api/elections/:id/results
+```
+
+Returns configured election result information.
+
+---
+
+# 🧪 Testing & Verification
+
+Before considering the system ready for demonstration, verify each major workflow.
+
+## Authentication Test
+
+```text
+Register
+ ↓
+Login
+ ↓
+Receive authentication credential
+ ↓
+Access protected endpoint
+ ↓
+Logout
+ ↓
+Protected request rejected
+```
+
+## Profile Test
+
+```text
+Create Account
+ ↓
+Complete Profile
+ ↓
+Upload Documents
+ ↓
+Submit Verification
+ ↓
+Admin Review
+ ↓
+Approve / Reject
+```
+
+## Biometric Test
+
+```text
+Open Camera
+ ↓
+Detect Face
+ ↓
+Validate Position
+ ↓
+Perform Liveness-Oriented Checks
+ ↓
+Capture
+ ↓
+Generate Embedding
+ ↓
+Compare
+ ↓
+Accept / Reject
+```
+
+## Voting Test
+
+```text
+Approved Voter
+ ↓
+Eligible Election
+ ↓
+Face Verification
+ ↓
+Select Candidate
+ ↓
+Submit Ballot
+ ↓
+Database Transaction
+ ↓
+Receipt
+ ↓
+Audit Event
+```
+
+## Duplicate Vote Test
+
+Attempt to vote twice in the same election.
+
+Expected behavior:
+
+```text
+First Vote  → SUCCESS
+Second Vote → REJECTED
+```
+
+The rejection should be enforced at both application and database levels.
+
+---
+
+# 🔍 Recommended Security Tests
+
+The following should be tested before any serious deployment:
+
+* Invalid JWT
+* Expired JWT
+* Unauthorized role access
+* Brute-force login attempts
+* Rate-limit enforcement
+* Duplicate registration
+* Duplicate vote
+* Invalid election ID
+* Closed election voting attempt
+* Voting before election opens
+* Unauthorized admin endpoint access
+* Invalid document uploads
+* Malformed API payloads
+* XSS payloads
+* CSRF protections where applicable
+* CORS configuration
+* MongoDB authorization
+* Database failure handling
+* Network interruption during vote submission
+* Camera permission denial
+* Camera unavailable
+* No-face detection
+* Multiple-face detection
+* Low-quality capture
+* Spoof/replay attack scenarios
+
+---
+
+# 📱 Responsive Design
+
+VoTex should provide consistent usability across:
+
+```text
+Mobile
+   ↓
+Tablet
+   ↓
+Laptop
+   ↓
+Desktop
+```
+
+Important responsive areas include:
+
+* Voter dashboard
+* Election cards
+* Candidate cards
+* Face verification camera
+* Voting ballot
+* Admin dashboard
+* Tables
+* Charts
+* Forms
+* Navigation
+* Document previews
+
+The biometric interface should especially adapt to small screens without hiding essential camera guidance or verification status.
+
+---
+
+# 📊 Admin Dashboard
+
+The dashboard should provide a clear overview of:
+
+```text
+Registered Voters
+Approved Voters
+Pending Verification
+Active Elections
+Total Votes
+Participation Rate
+Biometric Verification Events
+Recent Audit Events
+```
+
+Charts can visualize:
+
+* Voter registration trends
+* Election participation
+* Candidate vote distribution
+* Verification status
+* Election activity
+
+---
+
+# 🔔 Notification System
+
+The platform can support multiple notification channels.
+
+### In-App
+
+Used for:
+
+* Registration status
+* Profile approval
+* Election announcements
+* Voting reminders
+* Verification results
+
+### Email
+
+Can be integrated using Nodemailer.
+
+### SMS
+
+Can be integrated using Twilio when enabled and legally/operationally appropriate.
+
+Notification providers should remain configurable so the core election workflow does not depend on a single external provider.
+
+---
+
+# 📝 Audit Logging
+
+Security-sensitive actions should generate audit records.
+
+Example:
+
+```json
+{
+  "action": "VOTE_CAST",
+  "userId": "user-id",
+  "electionId": "election-id",
+  "status": "SUCCESS",
+  "timestamp": "2026-08-09T00:00:00.000Z"
+}
+```
+
+Audit logs should be:
+
+* Structured
+* Searchable
+* Timestamped
+* Access controlled
+* Protected from unauthorized modification
+
+Sensitive personal information should not be unnecessarily duplicated inside audit records.
+
+---
+
+# 🚨 Error Handling
+
+The application should provide consistent API errors.
+
+Example:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ELECTION_CLOSED",
+    "message": "Voting is no longer available for this election."
+  }
+}
+```
+
+Recommended error categories:
+
+```text
+AUTHENTICATION_ERROR
+AUTHORIZATION_ERROR
+VALIDATION_ERROR
+PROFILE_INCOMPLETE
+VOTER_NOT_APPROVED
+BIOMETRIC_VERIFICATION_FAILED
+ELECTION_NOT_FOUND
+ELECTION_NOT_OPEN
+ALREADY_VOTED
+RATE_LIMITED
+DATABASE_ERROR
+INTERNAL_SERVER_ERROR
+```
+
+---
+
+# 🔄 Reliability Principles
+
+For a voting workflow, critical operations should be designed around:
+
+### Atomicity
+
+Vote creation should not result in partially completed records.
+
+### Idempotency
+
+Repeated client requests should not accidentally create multiple votes.
+
+### Consistency
+
+Election and voter state must remain internally consistent.
+
+### Availability
+
+Temporary failures should produce clear recovery behavior rather than ambiguous vote status.
+
+### Auditability
+
+Important operations should leave traceable security events.
+
+---
+
+# 🔐 Privacy Considerations
+
+Biometric and identity information is highly sensitive.
+
+The application should therefore follow principles such as:
+
+* Collect only required information
+* Obtain appropriate consent
+* Minimize biometric data retention
+* Restrict administrative access
+* Encrypt data in transit
+* Encrypt sensitive data at rest where appropriate
+* Avoid exposing biometric data through client logs
+* Avoid storing unnecessary raw camera frames
+* Define retention and deletion policies
+* Maintain access logs
+* Provide appropriate user disclosures
+
+> Legal/privacy requirements vary by jurisdiction. A production deployment must undergo appropriate legal and privacy review.
+
+---
+
+# 🏭 Production Deployment Checklist
+
+Before production deployment:
+
+### Infrastructure
+
+* [ ] HTTPS enabled
+* [ ] Secure DNS
+* [ ] Production MongoDB
+* [ ] Database authentication enabled
+* [ ] Automated backups
+* [ ] Disaster recovery plan
+* [ ] Monitoring
+* [ ] Centralized logging
+
+### Application
+
+* [ ] Production environment variables
+* [ ] Strong JWT secret
+* [ ] Secure CORS
+* [ ] Rate limiting
+* [ ] Helmet/security headers
+* [ ] Input validation
+* [ ] Error handling
+* [ ] Dependency audit
+* [ ] No development secrets
+
+### Voting
+
+* [ ] Election state validation
+* [ ] Eligibility validation
+* [ ] Duplicate-vote constraint
+* [ ] Atomic vote operation
+* [ ] Audit logging
+* [ ] Result finalization process
+* [ ] Backup verification
+* [ ] Recovery testing
+
+### Biometrics
+
+* [ ] Model integrity verified
+* [ ] Threshold calibrated
+* [ ] False acceptance testing
+* [ ] False rejection testing
+* [ ] Liveness testing
+* [ ] Replay attack testing
+* [ ] Multiple-face handling
+* [ ] Camera failure handling
+* [ ] Privacy review
+
+---
+
+# 🎓 Viva / Project Defense
+
+## Why MongoDB?
+
+MongoDB provides a flexible document-oriented model suitable for profiles, elections, candidates, audit events, and other application entities.
+
+## Why React?
+
+React provides component-based UI development and works well for complex dashboards, forms, election interfaces, and real-time status updates.
+
+## Why TypeScript?
+
+TypeScript improves maintainability and reduces runtime errors by providing static typing across the frontend and backend.
+
+## Why JWT?
+
+JWT provides a convenient mechanism for authenticated API requests when implemented with appropriate expiration, storage, rotation, and revocation strategies.
+
+## Why biometric verification?
+
+Biometric verification adds an additional identity signal beyond traditional credentials. In VoTex it is intended as part of a multi-step voter verification workflow.
+
+## How is duplicate voting prevented?
+
+The application checks whether the voter has already voted and the database can enforce a unique compound constraint for:
+
+```text
+userId + electionId
+```
+
+## What happens if someone tries to vote twice?
+
+The first transaction succeeds. A subsequent transaction for the same voter/election combination should be rejected.
+
+## Why use client-side face processing?
+
+Client-side processing can reduce the need to transmit raw camera frames and can provide immediate feedback during capture.
+
+## Is face recognition alone sufficient?
+
+No.
+
+A robust voting system requires multiple controls including:
+
+* Identity verification
+* Eligibility validation
+* Authentication
+* Biometric checks
+* Election-state validation
+* Duplicate-vote prevention
+* Auditability
+* Secure infrastructure
+* Independent security testing
+
+---
+
+# 🧭 Development Roadmap
+
+Potential future improvements include:
+
+### Phase 1 — Core Platform
+
+* [x] Authentication
+* [x] Voter profiles
+* [x] Election management
+* [x] Candidate management
+* [x] Voting workflow
+
+### Phase 2 — Security
+
+* [x] JWT authentication
+* [x] Input validation
+* [x] Rate limiting
+* [x] Audit logging
+* [x] Duplicate-vote protection
+
+### Phase 3 — Biometrics
+
+* [x] Face detection
+* [x] Landmark analysis
+* [x] Face embedding
+* [x] Similarity matching
+* [ ] Advanced presentation-attack detection
+* [ ] Independent biometric benchmark testing
+
+### Phase 4 — Production Hardening
+
+* [ ] External penetration testing
+* [ ] Independent security audit
+* [ ] Load testing
+* [ ] Disaster recovery testing
+* [ ] Accessibility audit
+* [ ] Privacy/legal review
+* [ ] Election-security assessment
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+Recommended workflow:
+
+```bash
+git checkout -b feature/my-feature
+```
+
+Make your changes, then:
+
+```bash
+npm run build
+```
+
+Run available tests:
+
+```bash
+npm test
+```
+
+Commit your changes:
+
+```bash
+git commit -m "feat: improve election verification"
+```
+
+Push the branch:
+
+```bash
+git push origin feature/my-feature
+```
+
+Then open a pull request.
+
+---
+
+# 📄 License
+
+VoTex is distributed under the **MIT License**.
+
+See the `LICENSE` file for complete license information.
+
+---
+
+# 👨‍💻 Author
+
+**Subhash Sharma**
+
+GitHub:
+https://github.com/Subhash107k
+
+Repository:
+https://github.com/Subhash107k/VoTex-Election
+
+---
+
+<div align="center">
+
+### 🗳️ VoTex
+
+**Secure Identity • Transparent Workflow • Controlled Digital Voting**
+
+Built with React, TypeScript, Node.js, Express, MongoDB and TensorFlow.js.
+
+**© 2026 Subhash Sharma**
+
+</div>

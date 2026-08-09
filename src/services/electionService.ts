@@ -145,11 +145,12 @@ const MOCK_ELECTIONS: Election[] = [
 export async function getElections(token: string | null): Promise<Election[]> {
   try {
     const headers = { ...(authHeader(token) as any) };
-    const data = await requestJson<{ elections: Election[] }>(`/api/elections`, {
+    const data = await requestJson<any>(`/api/elections`, {
       headers,
     });
-    if (data?.elections && Array.isArray(data.elections) && data.elections.length > 0) {
-      return data.elections;
+    const list = data?.elections || (Array.isArray(data) ? data : null);
+    if (list && Array.isArray(list)) {
+      return list;
     }
   } catch (e) {
     // Fall back gracefully to structured active elections mock

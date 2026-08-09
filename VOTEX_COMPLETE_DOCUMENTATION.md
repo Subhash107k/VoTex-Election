@@ -144,17 +144,15 @@ I am also thankful to the administrative officers and systems team at the **Metr
 *   **Table 11.1:** Security Risk Categories and Mitigations Matrix .......... *Ch. 11*
 *   **Table 13.1:** Detailed Test Case Implementations Schedule .............. *Ch. 13*
 
----
-
-# **CHAPTER 1: EXECUTIVE SUMMARY**
+---# **CHAPTER 1: EXECUTIVE SUMMARY**
 
 ## **1.1 Project Vision & Mission**
-As public confidence in traditional electoral mechanisms falters under the weight of logistical delays, security threats, and geographic exclusion, the requirement for an accessible, transparent remote auditing voting framework has become an absolute necessity. 
+As public confidence in traditional electoral mechanisms faces challenges from logistical delays, geographic exclusion, and administrative vulnerabilities, the requirement for an accessible, auditable, and secure remote voting framework has become increasingly critical.
 
-**VoTex** is designed to address these challenges. Its mission is clear:
-> *"To bridge the gap between election accessibility and cryptographic voter integrity, offering a secure, remote electoral lifecycle powered by local face biometrics and zero trust session validation."*
+**VoTex** is an enterprise-grade digital voting and election management platform designed to address these challenges. Its mission is:
+> *"To bridge the gap between election accessibility, identity verification, and voter integrity by offering a secure, remote electoral lifecycle powered by client-side facial landmark verification, role-based access controls, and database-enforced single-vote guarantees."*
 
-The platform aims to replace paper processes and isolated electronic voting machines (EVMs) with a secure, easily integrated, and mobile-friendly web ecosystem.
+The platform aims to complement traditional paper processes with a defensible, auditable, and mobile-friendly web ecosystem. Rather than claiming absolute invulnerability, VoTex establishes measurable, multi-layered security controls to mitigate identity impersonation, prevent duplicate voting, and provide verifiable audit trails.
 
 ```
                +-------------------------------------------------+
@@ -164,29 +162,42 @@ The platform aims to replace paper processes and isolated electronic voting mach
        +--------------------------------+--------------------------------+
        v                                v                                v
 +--------------+               +----------------+                +---------------+
-| Accessibility|               | Biometric Face |                | Tamper-Resist |
-| (Remote Web) |               |  Verification  |                |  Audit Logs   |
+| Accessibility|               | Biometric Face |                | Auditable DB  |
+| (Remote Web) |               |  Gatekeeper    |                | Transaction   |
 +--------------+               +----------------+                +---------------+
 ```
 
 ---
 
-## **1.2 Architectural Highlights**
-*   **Facial Biometrics Authentication:** Bypasses basic password registries by running sub-second localized landmarks comparison checks via standard webcams directly inside responsive parent canvas layouts.
-*   **Granular RBAC Workspaces:** Restricts access to sensitive system features. Only verified voters can enter active balloting screens, while accredited commissioners handle dashboard registrations.
-*   **Real-time Voter Orientation Guides:** Protects the platform from common support bottlenecks through a fully categorized, admin-managed FAQ Accordion system.
-*   **Cryptographic Tabulation Verification:** Prevents double-voting vulnerabilities while generating structured, signed CSV summaries and custom portrait-styled printable records.
+## **1.2 Architectural Highlights & Privilege Separation**
+VoTex employs a strict **Admin vs Voter Dual-Plane Architecture** that enforces privilege separation across all application layers:
+
+*   **Voter Application Plane:**
+    *   Secure Voter Registration & Profile Dossier Submission.
+    *   Identity document upload (Citizenship card, National ID, Photo).
+    *   Pre-vote live face verification gatekeeper running WebGL landmark matching.
+    *   Active election ballot selection and cryptographic receipt generation.
+*   **Admin Control Plane:**
+    *   Voter registration review queue with OCR-assisted document inspection.
+    *   Election lifecycle management (Draft -> Published -> Open -> Paused -> Closed -> Finalized).
+    *   Candidate dossier management and manifesto publishing.
+    *   Real-time vote telemetry monitoring and result finalization.
+    *   System-wide auditable activity log inspection and e-bulletin broadcast management.
+*   **Database Persistence & Single Source of Truth:**
+    *   MongoDB serves as the authoritative single source of truth with full collection pre-caching.
+    *   Database-level unique compound indexes (`{ electionId: 1, anonymousVoterHash: 1 }`) enforce atomic duplicate-vote rejection at the storage engine level.
+    *   In-memory caching operates strictly as a synchronized performance layer and never overwrites MongoDB records.
 
 ---
 
 ## **1.3 Anticipated Social & Governance Impacts**
-Implementing VoTex lowers logistical barriers, allowing students, remote workers, and disabled voters to participate fully. Automatic double-voting prevention and real-time auditing dashboards reduce administrative overhead while ensuring high levels of public transparency.
+Implementing VoTex lowers logistical barriers, allowing remote workers, students, and mobility-impaired citizens to participate securely in elections. Automated identity checks and real-time audit logs reduce administrative overhead while ensuring high transparency.
 
 ---
 
 # **CHAPTER 2: COMPLETE TECHNOLOGY STACK**
 
-VoTex utilizes a modern full-stack TypeScript architecture designed for rapid load times, low memory footprints, and simple deployments.
+VoTex utilizes a modern full-stack TypeScript architecture designed for rapid load times, low memory footprints, and enterprise-grade data persistence.
 
 ```
 +---------------------------------------------------------------------------------+
@@ -196,21 +207,21 @@ VoTex utilizes a modern full-stack TypeScript architecture designed for rapid lo
 |   +-------------------------------------------------------------------------+   |
 |   |                       CLIENT LAYER (Vite SPA)                           |   |
 |   |   - React 19 Client Engine            - Tailwind CSS v4 Layouts         |   |
-|   |   - Lucide Interactive Icons          - Motion/React Animation Rails    |   |
+|   |   - Client Face Landmark AI           - Motion Micro-animations         |   |
 |   +------------------------------------+------------------------------------+   |
-|                                        | (HTTPS Rest Operations / JSON payload) |
+|                                        | (HTTPS REST Operations / JSON)          |
 |                                        v                                        |
 |   +-------------------------------------------------------------------------+   |
 |   |                       MIDDLEWARE ROUTING (Express)                      |   |
 |   |   - Strict RBAC Guard Rails           - Bcrypt Hashing Service          |   |
-|   |   - JSON Web Tokens (JWT) Decoder     - Rate-Limitation Modules         |   |
+|   |   - JSON Web Tokens (JWT) Decoder     - Express Rate Limiters           |   |
 |   +------------------------------------+------------------------------------+   |
-|                                        | (Local Disk System/Persistent Indexes) |
+|                                        | (MongoDB Driver / Write Concern)       |
 |                                        v                                        |
 |   +-------------------------------------------------------------------------+   |
-|   |                       DATA STORAGE MANAGEMENT                           |   |
-|   |   - Atomic File Handlers              - Index Tracking Engines          |   |
-|   |   - Local SQLite / Memory Indexes     - Structured Backup Catalogs      |   |
+|   |                       DATABASE PERSISTENCE LAYER                        |   |
+|   |   - MongoDB Native Driver (v7.3)      - Compound Unique Indexes         |   |
+|   |   - Synchronized Memory Cache         - Atomic $inc / Write Operations  |   |
 |   +-------------------------------------------------------------------------+   |
 +---------------------------------------------------------------------------------+
 ```
@@ -218,43 +229,47 @@ VoTex utilizes a modern full-stack TypeScript architecture designed for rapid lo
 ---
 
 ## **2.1 Client Interface (SPA) Layer**
-*   **React 19:** Leverages advanced state hooks and lightweight scheduling to handle thousands of candidate matrices smoothly.
-*   **TypeScript (Strict Mode):** Prevents common compilation and runtime type-coercion bugs, securing input parameters at the user interface boundaries.
-*   **Vite 6:** A high-speed build tool that improves local load times and generates clean production bundles.
-*   **Tailwind CSS v4:** A utility-first CSS framework imported via `@import "tailwindcss";` inside `src/index.css`. It powers the platform's responsive, accessible menus and custom typography layouts.
-*   **Motion/React:** Handles UI view transactions with clean, eye-safe animation curves, improving user focus during complex verification processes.
-*   **Recharts:** An optimized SVG layout generator used to render elegant electoral participation metrics and demographic statistics.
+*   **React 19:** Leverages modern state management to render election cards, candidate rosters, and voter dashboards smoothly.
+*   **TypeScript (Strict Mode):** Enforces strict type safety across client components, API payload interfaces, and database document models.
+*   **Vite 6:** High-speed bundler providing fast HMR during development and optimized static asset chunking for production.
+*   **Tailwind CSS v4:** Utility-first CSS framework powering responsive, mobile-first layouts across smartphones, tablets, and desktop displays.
+*   **Motion / React:** Renders responsive UI transitions during face verification, ballot selection, and tab navigation.
+*   **Recharts:** Renders dynamic election participation statistics, voter registration analytics, and live candidate vote tallies.
 
 ---
 
 ## **2.2 Server-Side & API Middleware Layer**
-*   **Node.js (LTS v20+):** Built on the V8 engine, securing low-latency operations during periods of heavy voting traffic.
-*   **Express.js:** Directs routing workflows, processes user requests, and implements strict API protections.
-*   **JSON Web Tokens (JWT):** Generates 256-bit signed payload clearances, keeping client session tokens safe from client-side tempering.
-*   **BcryptJS:** Hashes user passwords with 12 rounds of high-cost salt derivation to prevent brute-force attacks on database files.
+*   **Node.js (LTS v20+):** Asynchronous event-driven runtime handling high-concurrency voting requests with low latency.
+*   **Express.js:** RESTful API routing framework configured with modular middleware for authentication, authorization, rate limiting, and input validation.
+*   **JSON Web Tokens (JWT):** Generates 256-bit signed session tokens carrying user identity and role scopes.
+*   **BcryptJS:** Hashes passwords with 10–12 salt rounds, preventing plaintext storage and dictionary attacks.
 
 ---
 
-## **2.3 Storage Matrix & Data Isolation Engine**
-*   **MongoDB Atlas / Mongoose ORM Model:** Standard model configuration designed for large production deployments.
-*   **Durable Persistent Files Handler (`dbService.ts`):** Sandboxed system written specifically for local development containing automatic thread-safe file locks and persistent indices to guarantee database consistency without additional hardware requirements.
+## **2.3 Storage Matrix & Data Persistence Engine**
+*   **MongoDB (v7.3 Native Driver):** Acts as the single source of truth for all application data across 14 dedicated collections (`users`, `user_profiles`, `identity_documents`, `face_verifications`, `elections`, `candidates`, `political_parties`, `votes`, `notifications`, `newsletter_subscribers`, `faqs`, `contact_requests`, `otps`, `audit_logs`).
+*   **Atomic Operations & Write Integrity:** Utilizes MongoDB atomic operators (`$inc`, `updateOne`, `insertOne`, `deleteOne`) to prevent race conditions during vote recording and document updates.
+*   **Synchronized Dual-Layer Caching:** Maintains an in-memory Map (`inMemStore`) populated during server boot via `loadDatabaseCache()`. All mutations update MongoDB first and synchronize with `inMemStore` in lockstep.
 
 ---
 
 ## **2.4 Biometrics Face Landmark Analyzer Design**
-*   **Local Capture Library Strategy:** Biometric capture is handled entirely on the client side using **local face detection libraries** (e.g., MediaPipe or face-api.js) via WebRTC.
-*   **Zero Cloud Leak Pattern:** Avoids sending video streams to external cloud services (e.g., Gemini, OpenAI, Google Cloud Vision), keeping voter faces entirely sandboxed under local device controls.
+*   **Edge Processing Architecture:** Facial feature extraction is executed locally in the browser using WebGL-accelerated model libraries (`@vladmandic/face-api` / MediaPipe).
+*   **Zero Video Stream Transmission:** Raw video streams never leave the client device; only normalized 128-dimensional floating-point landmark vectors are transmitted for backend verification.
+
+---
 
 ### **Table 2.1: Key Technological Stack Components**
 
 | Category | Component Chosen | Primary Operational Purpose | Core Advantage Over Alternatives |
 | :--- | :--- | :--- | :--- |
 | **Core Client** | **React 19 (TS)** | Renders interfaces and tracks state | Highly responsive virtual DOM and strict type safety |
-| **UI Styles** | **Tailwind CSS v4** | Standard styling across tables and menus | Highly customizable utility classes and rapid compilation |
-| **API Server** | **Express.js (Node)** | Directs routing and authorizes requests | Lightweight, fast event loop, and simple middleware chaining |
-| **Crypto** | **BcryptJS** | Hashes voter passwords | Protects stored passwords from dictionary cracking |
-| **Session** | **JWT (Signed)** | Manages secure sessions without state overhead | Safe client-side storage, protecting endpoints from tempering |
-| **Graphics** | **Recharts** | Renders live candidate tally graphs | Lightweight SVG charts with native screen readers support |
+| **UI Styles** | **Tailwind CSS v4** | Mobile-first styling across tables and menus | Utility-first classes and rapid compilation |
+| **API Server** | **Express.js (Node)** | Directs routing and authorizes requests | Asynchronous event loop and simple middleware chaining |
+| **Database** | **MongoDB (v7.3)** | Single source of truth for persistent data | Document flexibility, atomic operators, compound unique indexes |
+| **Crypto** | **BcryptJS & Node Crypto** | Password hashing & vote receipts | High-cost salting and SHA-256 hash receipts |
+| **Session** | **JWT (Signed)** | Stateless bearer token authentication | Secure payload signing with configurable expiration |
+| **Graphics** | **Recharts** | Renders live candidate tally graphs | Lightweight SVG charts with native accessibility support |rt |
 
 ---
 
@@ -335,82 +350,116 @@ VoTex implements strict, role-based boundary levels (RBAC), mapping every API en
 | **Cast Secure Ballot** | ✘ | ✔ (When Approved) | ✘ | ✘ | ✘ |
 | **Review Dossiers** | ✘ | ✘ | ✔ | ✔ | ✔ |
 | **Modify Candidates / FAQ** | ✘ | ✘ | ✘ | ✔ | ✔ |
-| **Accredit Team Staff** | ✘ | ✘ | ✘ | ✘ | ✔ |
-| **Accredit Super Admins** | ✘ | ✘ | ✘ | ✘ | ✔ |
+| **Accredit Team Staff** | �# **CHAPTER 5: AUTHENTICATION FLOW & SECURITY WORKFLOWS**
 
----
-
-# **CHAPTER 5: AUTHENTICATION FLOW & SECURITY WORKFLOWS**
-
-Our login systems isolate client inputs behind strict backend verification checks before granting session tokens.
+VoTex isolates client inputs behind strict backend verification checks, JWT authorization headers, and pre-vote eligibility filters before granting session permissions or unlocking ballot screens.
 
 ```
-                           ONBOARDING & LOGIN SEQUENCE FLOW
+                           ONBOARDING & VERIFICATION PIPELINE
   
-+-------------+      +-------------------+      +------------------+      +-------------+
-| USER INPUTS | ---> | BCRYPT ID CHECKS  | ---> | WEBCAM CHALLENGE | ---> | SIGNED PORT |
-|  - Pass/ID  |      | - Match baseline  |      | - Liveness match |      |  - JWT Out  |
-+-------------+      +-------------------+      +------------------+      +-------------+
++-------------+      +-------------------+      +-------------------+      +------------------+
+| REGISTRATION| ---> | PROFILE & ID DOCS | ---> | ADMIN VERIFICATION| ---> | ELECTION GATE    |
+| - Email/Pass|      | - Citizenship/NID |      | - OCR + VCS Score |      | - Eligibility OK |
++-------------+      +-------------------+      +-------------------+      +--------+---------+
+                                                                                    |
+                                                                                    v
++-------------+      +-------------------+      +-------------------+      +--------+---------+
+| AUDIT LOG   | <--- | CAST VOTE BALLOT  | <--- | UNLOCK BALLOT     | <--- | LIVE FACE GATE   |
+| - SHA256 Hash|     | - Atomic DB Insert|      | - Token Granted   |      | - Liveness Match |
++-------------+      +-------------------+      +-------------------+      +------------------+
 ```
 
 ---
 
 ## **5.1 Registration Pipeline**
-1.  **Direct Sanitation:** The system sanitizes input strings to remove markup tokens and script elements, preventing Cross-Site Scripting (XSS).
-2.  **National ID De-duplication:** Prompts database lookups to ensure the national identification sequence is unique.
-3.  **Hash Verification:** Bcrypt hashes raw passwords with a secure, 12-round salt work factor. The system then writes a new database record with a `Pending Approval` status.
+1.  **Input Sanitation:** Sanitizes all text fields against HTML/script injection attacks to prevent Cross-Site Scripting (XSS).
+2.  **Unique Identity Constraints:** Performs pre-flight database queries to verify that `email`, `username`, `mobile`, `nationalID`, and `citizenshipNumber` are not already registered.
+3.  **Bcrypt Password Derivation:** Hashes raw passwords with 10–12 salt rounds before writing the user document to MongoDB with an initial status of `accountStatus: "Pending"`.
 
 ---
 
-## **5.2 Biometric Enrollment Workflow**
-During onboarding, the webcam initializes a canvas overlay to capture the user's face. The system extracts structural landmark vectors and generates a Base64 string descriptor representing the user's reference face profile. This string is then saved in the user's secure database record.
+## **5.2 Profile Completion & Document Verification Workflow**
+After initial registration, voters complete a detailed verification dossier:
+1.  **Personal & Demographic Information:** Full legal name, date of birth, gender, occupation, and contact details.
+2.  **Hierarchical Nepal Address System:** Permanent and temporary residence selection covering Province, District, Municipality/Gaunpalika, and Ward Number.
+3.  **Document Uploads:** High-resolution uploads of Citizenship Card (Front & Back), National ID (NID) card, and official photograph.
+4.  **Tesseract.js OCR & VCS Scoring:** Extracts text fields from document images and calculates a Verification Confidence Score (VCS) based on weighted similarity metrics (NID 25%, Citizenship 25%, Name 15%, DOB 10%, Address 10%, Face 15%).
+5.  **Admin Review Queue:** Profiles scoring between 65% and 90% are routed to Election Officers for manual review, where admins can approve, reject, or request document re-upload with feedback.
 
 ---
 
-## **5.3 Dual-Factor and Session Control Protocols**
-When accessing critical features (such as casting a ballot), voters must pass both password checks and a webcam face match. On success, the backend signs a secure, short-lived JWT token containing the session metadata, protecting the API from token theft or interception.
+## **5.3 Biometric Enrollment & Pre-Vote Live Face Gatekeeper**
+*   **Biometric Enrollment:** During profile completion, the user captures a baseline facial scan. Client-side TensorFlow models convert the facial landmarks into a 128-dimensional floating-point embedding array saved to MongoDB.
+*   **Pre-Vote Live Security Gate:** Before revealing an active election ballot, VoTex triggers a dedicated pre-vote security checkpoint:
+    1.  **Camera & Liveness Challenge:** Operates an active HTML5 Canvas overlay requiring head movement and blink detection to prevent photo/screen replay attacks.
+    2.  **Embedding Match:** Extracts a live 128-d embedding $\vec{L}$ and compares it against baseline embedding $\vec{R}$ using combined Cosine Similarity ($0.65$) and Inverse RMSE Distance ($0.35$).
+    3.  **Threshold Validation:** Requires a combined match score $\ge 82\%$ (`FACE_MATCH_THRESHOLD`).
+    4.  **Biometric Clearance Token:** Upon passing, grants a short-lived, signed session clearance token (`faceVerificationId`) specifically authorizing ballot access for that single election.
 
 ---
 
 # **CHAPTER 6: USER JOURNEY MAPS (STEP-BY-STEP)**
 
 ```
-                                  VOTER LIFECYCLE LANES
+                                  REAL-WORLD VOTER JOURNEY
   
-  (Guest Gate)     --> 1. View Public FAQ Accordion Guide and review final totals
-  (Registration)   --> 2. Input details, submit credentials and address
-  (Verification)   --> 3. Complete profile, upload ID proof, register face template
-  (Admin Approval) --> 4. Review queue logs, check voter dossiers, authorize permissions
-  (Casting Booth)  --> 5. Match face landmarks, open ballots drawer, cast final vote
+  Step 1: Registration    --> Input email, password, mobile, national ID; create pending user record.
+  Step 2: Profile & Docs  --> Enter Nepal address hierarchy; upload Citizenship & NID card photos.
+  Step 3: Verification    --> Automated OCR scoring + Election Officer review queue -> Status: Approved.
+  Step 4: Pre-Election    --> System checks active status, open time window, and zero prior vote record.
+  Step 5: Live Face Gate  --> Webcam liveness challenge -> Extract 128-d vector -> Score >= 82%.
+  Step 6: Voting Booth    --> Select candidate -> Atomic MongoDB vote insert -> Generate SHA-256 receipt.
+  Step 7: Audit & History --> View receipt in dashboard; audit log recorded; double-voting locked.
 ```
 
 ---
 
-## **6.1 Onboarding Lifecycle**
-*   **Phase 1 — Public Discovery:** Public users arrive on the VoTex homepage. They browse active elections, view previous election tallies, and read orientation FAQs on how the facial recognition system works.
-*   **Phase 2 — Onboarding Details:** Users click **"Register to Vote"**, input their name, email, phone, and secure credentials, and specify their unique National ID sequence.
-*   **Phase 3 — Profile Verification:** Registered users log into their accounts. They complete their profile, upload a photo of their National ID, and link their camera to capture their baseline facial landmarks. Once complete, their profile status updates to `Pending`.
+## **6.1 Step 1 — Account Registration**
+Public users arrive on the platform landing page. They click **"Register to Vote"**, input primary registration fields (full name, email, password, mobile, national ID), and receive an account pending verification.
 
 ---
 
-## **6.2 Biometric Voting Phase**
-*   **Phase 4 — ID Approval:** Commissioners review the registration queue, verify the uploaded documents, and approve the profile, activating the voter.
-*   **Phase 5 — Liveness Matching:** Active voters select an live election. The system prompts a webcam face match, running localized liveness checks. If the face match is lower than 85%, access is immediately blocked.
-*   **Phase 6 — Ballot Submission:** Once face matches are verified, the system opens the election ballot drawer. The voter selects their candidate and submits their choice. The backend records the vote tally and sets the voter's double-voting lock to `True`, protecting the ballot from further changes.
+## **6.2 Step 2 — Profile Completion & Document Upload**
+Logged-in voters complete their profile by selecting their permanent/temporary residence (Province, District, Municipality, Ward) and uploading official identification documents (Citizenship card, National ID, profile photograph).
 
 ---
 
-## **6.3 Administrative Review Workflow**
-*   **Phase 7 — Audit Compliance:** Auditors verify voting operations by viewing real-time chronological activity ledgers. They track login times, approvals, and candidate tally shifts, exporting data as a verified CSV or printable ledger spreadsheet.
+## **6.3 Step 3 — Identity Review & Approval**
+Election Officers inspect pending voter dossiers in the Admin Console. Side-by-side comparisons of voter inputs, OCR document parsing, and official credentials allow officers to approve valid dossiers or return re-upload requests.
+
+---
+
+## **6.4 Step 4 — Election Selection & Pre-Vote Eligibility Pipeline**
+When an approved voter enters an active election, VoTex executes a 5-tier eligibility check before allowing ballot access:
+1.  **Account Approval:** `user.accountStatus === "Approved"`.
+2.  **Profile Completion:** `user.isVerified === true`.
+3.  **Active Election Status:** `election.status === "Active"`.
+4.  **Valid Time Window:** `election.startDate <= currentTime <= election.endDate`.
+5.  **Duplicate Vote Check:** Queries MongoDB `votes` collection for existing records matching `(userId, electionId)`.
+
+---
+
+## **6.5 Step 5 — Live Face Verification Security Gate**
+Upon clearing eligibility, the voter enters the live face verification screen. The browser webcam initializes MediaPipe Face Mesh, tracking pitch, yaw, and blink liveness. The live 128-d vector is matched against the baseline vector. If score $\ge 82\%$, a signed verification token is issued.
+
+---
+
+## **6.6 Step 6 — Ballot Casting & Cryptographic Receipt**
+The voter unlocks the active ballot booth, selects their preferred candidate, and clicks **"Cast Verified Vote"**. The backend performs an atomic MongoDB transaction that records the vote document, increments the candidate's `voteCount`, and generates a unique cryptographic SHA-256 vote transaction receipt hash.
+
+---
+
+## **6.7 Step 7 — Audit Compliance & Double-Vote Rejection**
+The voter receives their printable vote receipt. The system locks the user for that election; any subsequent voting attempts for the same election trigger an immediate `400 Bad Request / E11000 Duplicate Key` rejection.
 
 ---
 
 # **CHAPTER 7: BIOMETRIC FACE LANDMARK VERIFICATION ENGINE**
 
-Our face verification system runs entirely in the voter's local browser context using standard HTML5 canvas frames, keeping biometric computations safe and serverless.
+Our face verification system executes client-side WebGL landmark extraction inside responsive canvas overlays, keeping raw video feeds completely private and local.
 
 ```
-                         BIOMETRIC LANDMARK VERIFICATION LOOP
+                          BIOMETRIC LANDMARK VERIFICATION LOOP
   
 +-------------------+      +---------------------+      +-------------------+      +--------+
 | INIT WEBCAM FRAME | ---> | MATCH TARGET ELLIPSE| ---> | COMPENSATE ANGLES | ---> | DECIDE |
@@ -421,63 +470,56 @@ Our face verification system runs entirely in the voter's local browser context 
 ---
 
 ## **7.1 Canvas Frame Alignment Architecture**
-```
-              Face Positioning Guide (HTML Canvas Layout Grid)
-         +-------------------------------------------------------------+
-         |                      (0,0) Top                              |
-         |         /---------------------------------\                 |
-         |         |                                 |                 |
-         |         |        Biometric Boundary        |                 |
-         |         |       /-----------------\       |                 |
-         |         |      /   Target Ellipse  \      |                 |
-         |         |     /   - Target x: 50%   \     |                 |
-         |         |     |   - Target y: 48%   |     |                 |
-         |         |     \                     /     |                 |
-         |         |      \                   /      |                 |
-         |         |       \-----------------/       |                 |
-         |         |                                 |                 |
-         |         \---------------------------------/                 |
-         |                                                 (100%,100%) |
-         +-------------------------------------------------------------+
-```
-
-VoTex monitors landmarks using an overlaid responsive canvas element. Real-time indicators guide the voter to center their face within the target viewport coordinates.
+VoTex renders an overlaid HTML5 Canvas framing ellipse (`Target x: 50%`, `Target y: 48%`). Dynamic visual cues guide the voter to position their face within optimal camera bounds before feature capture begins.
 
 ---
 
-## **7.2 Mathematical Validation and Landmark Analysis**
-During the validation phase, the system extracts critical landmark distances and registers them:
+## **7.2 Mathematical Feature Vector Hashing & Similarity Scoring**
+During capture, MediaPipe Face Mesh extracts 468 3D facial landmark coordinates, generating a normalized 128-element feature vector. Feature similarity between live capture vector $\vec{L}$ and registered vector $\vec{R}$ is calculated using a dual-metric weighted formula:
 
-$$\text{Interpupillary (Eye) Distance} = \sqrt{(X_{\text{RightEye}} - X_{\text{LeftEye}})^2 + (Y_{\text{RightEye}} - Y_{\text{LeftEye}})^2}$$
+$$\text{Cosine Similarity} = \frac{\vec{L} \cdot \vec{R}}{\|\vec{L}\| \|\vec{R}\|}$$
 
-$$\text{Facial Aspect Ratio (FAR)} = \frac{\text{Interpupillary Distance}}{\text{Nose-to-Chin Vertex Distance}}$$
+$$\text{RMSE Inverse Distance} = \max\left(0, 1 - \sqrt{\frac{1}{n} \sum_{i=1}^{n} (L_i - R_i)^2}\right)$$
 
-The system computes mathematical ratios from the face structure to calculate a similarity score:
+$$\text{Final Confidence Score} = (\text{Cosine Similarity} \times 0.65) + (\text{RMSE Inverse Distance} \times 0.35)$$
 
-$$\text{Similarity Score (\%)} = \left( 1 - \frac{|\text{FAR}_{\text{Current}} - \text{FAR}_{\text{Baseline}}|}{\text{FAR}_{\text{Baseline}}} \right) \times 100$$
-
-If this similarity score is below 85%, the system blocks access and writes a biometric mismatch warning to the audit logs.
+Verification succeeds if $\text{Final Confidence Score} \ge 0.82$.
 
 ---
 
-## **7.3 Liveness Guards & Anti-Spoofing Tactics**
-To prevent spoofing attempts (e.g., holding up high-res prints or mobile screenshots to the webcam), the system implements direct liveness challenges:
-*   **Randomized Challenges:** Prompts the voter to move their face slightly (e.g., simple head tilts or blinks) to verify a live, 3D face structure.
-*   **Angle Normalization:** Analyzes relative distance ratios across the nose bridge and jaw edges to ensure the face rotates on a three-dimensional plane, blocking static images.
+## **7.3 Anti-Spoofing & Liveness Challenge Guards**
+To block static photo prints, digital screen replays, and video masks:
+*   **Interactive Liveness Prompts:** Detects organic eye blink intervals and subtle head turns (yaw $\pm 15^\circ$, pitch $\pm 10^\circ$).
+*   **Depth Ratio Validation:** Compares nose-bridge-to-jaw relative distance ratios across frame sequences to confirm a 3D structural facial surface.
 
 ---
 
 # **CHAPTER 8: NOTIFICATION & CORRESPONDENCE SYSTEM**
 
-VoTex keeps voters informed about key stages of the election lifecycle through email and SMS, confirming that their registration and ballots have been successfully processed.
+VoTex maintains clear, timely correspondence with voters and subscribers through a multi-channel dispatch architecture and integrated e-bulletin management engine.
 
 ```
-                         NOTIFICATION PIPELINE ROUTING
+                         NOTIFICATION & E-BULLETIN PIPELINE
   
-+-------------+      +-------------------+      +------------------+      +-------------+
-| OPERATIONAL | ---> | REGISTERED CLIENT | ---> | DISPATCH ROUTER  | ---> | CLIENT UTILS|
-| LOGIC TRIPS |      | - Extract profile |      | - Render layouts |      | - SMS / Email|
-+-------------+      +-------------------+      +------------------+      +-------------+
++-------------------+      +-------------------+      +-------------------+      +------------------+
+| OPERATIONAL EVENT | ---> | DISPATCH ROUTER   | ---> | NOTIFICATION STORE| ---> | DELIVER CHANNELS |
+| - Reg / Vote / News|     | - Template Engine |      | - MongoDB Record  |      | - Email / SMS    |
++-------------------+      +-------------------+      +-------------------+      +------------------+
+```
+
+---
+
+## **8.1 Multi-Channel Dispatch Protocols**
+1.  **Email Dispatch (Nodemailer):** Transmits responsive HTML transactional emails for registration verification, dossier status changes, and voting receipts.
+2.  **SMS Dispatch (Twilio SDK):** Sends short-lived OTP passcodes and voting confirmation alerts directly to mobile devices.
+3.  **In-App Notification Console:** Displays real-time status alerts inside the voter and admin dashboards.
+
+---
+
+## **8.2 E-Bulletin & Newsletter Broadcast Management**
+*   **Subscriber Directory:** Manages newsletter subscriptions in the `newsletter_subscribers` MongoDB collection.
+*   **Verification & Unsubscribe Tokens:** Tracks subscription timestamps, verified status (`verifiedAt`), and cryptographic `unsubscribeToken` links for total user autonomy.
+*   **Admin E-Bulletin Console:** Allows administrators to draft and broadcast election bulletins, public orientation guides, and official tally announcements to verified subscriber queues.  +-------------------+      +------------------+      +-------------+
 ```
 
 ---
