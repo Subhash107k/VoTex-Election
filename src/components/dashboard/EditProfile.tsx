@@ -57,7 +57,7 @@ export default function EditProfile({
 }: EditProfileProps) {
   const isLight = theme === "light";
 
-  const [activeTab, setActiveTab] = useState<"personal" | "security" | "notifications" | "privacy">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "documents" | "security" | "notifications" | "privacy">("personal");
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
@@ -119,6 +119,16 @@ export default function EditProfile({
   // Profile Photo
   const [profilePhoto, setProfilePhoto] = useState(user?.profilePhoto || user?.profilePicture || "");
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(user?.profilePhoto || user?.profilePicture || "");
+
+  // Identity Documents Upload State
+  const [citizenshipType, setCitizenshipType] = useState("By Descent");
+  const [citizenshipIssueDate, setCitizenshipIssueDate] = useState("");
+  const [citizenshipIssueDistrict, setCitizenshipIssueDistrict] = useState("Kathmandu");
+  const [citizenshipFrontImage, setCitizenshipFrontImage] = useState("");
+  const [citizenshipBackImage, setCitizenshipBackImage] = useState("");
+  const [nidFrontImage, setNidFrontImage] = useState("");
+  const [voterCardImage, setVoterCardImage] = useState("");
+  const [signatureImage, setSignatureImage] = useState("");
 
   // Live Camera Photo Capture
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -238,6 +248,16 @@ export default function EditProfile({
         setProfilePhoto(profile.profilePhoto);
         setProfilePhotoPreview(profile.profilePhoto);
       }
+
+      const doc = data?.document || {};
+      if (profile.citizenshipType || doc.citizenshipType) setCitizenshipType(profile.citizenshipType || doc.citizenshipType || "By Descent");
+      if (profile.citizenshipIssueDate || doc.citizenshipIssueDate || doc.issueDate) setCitizenshipIssueDate(profile.citizenshipIssueDate || doc.citizenshipIssueDate || doc.issueDate || "");
+      if (profile.citizenshipIssueDistrict || doc.citizenshipIssueDistrict || doc.issueDistrict) setCitizenshipIssueDistrict(profile.citizenshipIssueDistrict || doc.citizenshipIssueDistrict || doc.issueDistrict || "Kathmandu");
+      if (profile.citizenshipFrontImage || doc.citizenshipFrontImage) setCitizenshipFrontImage(profile.citizenshipFrontImage || doc.citizenshipFrontImage || "");
+      if (profile.citizenshipBackImage || doc.citizenshipBackImage) setCitizenshipBackImage(profile.citizenshipBackImage || doc.citizenshipBackImage || "");
+      if (profile.nidFrontImage || doc.nidFrontImage) setNidFrontImage(profile.nidFrontImage || doc.nidFrontImage || "");
+      if (profile.voterCardImage || doc.voterCardImage) setVoterCardImage(profile.voterCardImage || doc.voterCardImage || "");
+      if (profile.signatureImage || doc.signatureImage) setSignatureImage(profile.signatureImage || doc.signatureImage || "");
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to load current profile");
     } finally {
@@ -314,6 +334,14 @@ export default function EditProfile({
         motherName,
         spouseName,
         profilePhoto,
+        citizenshipType,
+        citizenshipIssueDate,
+        citizenshipIssueDistrict,
+        citizenshipFrontImage,
+        citizenshipBackImage,
+        nidFrontImage,
+        voterCardImage,
+        signatureImage,
       };
 
       const res = await fetch("/api/profile/complete", {
@@ -460,6 +488,19 @@ export default function EditProfile({
           >
             <User className="h-4 w-4" />
             <span>Personal Details</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("documents")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "documents"
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Verification Documents</span>
           </button>
 
           <button
@@ -928,6 +969,472 @@ export default function EditProfile({
                   <>
                     <Save className="h-4 w-4" />
                     <span>Save Profile Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 2: Verification Documents */}
+        {activeTab === "documents" && (
+          <form
+            onSubmit={handleSaveProfile}
+            onChange={() => setIsFormDirty(true)}
+            className="space-y-6 animate-fade-in"
+          >
+            {/* Section: Citizenship Document & Scans */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Citizenship Card Document & Scans
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-blue-400 bg-blue-500/10 border border-blue-500/30 px-2.5 py-0.5 rounded-full">
+                  Official Verification
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 text-xs mb-6">
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Citizenship Number</label>
+                  <input
+                    type="text"
+                    value={verifiedInfo.citizenshipNumber}
+                    onChange={(e) => setVerifiedInfo({ ...verifiedInfo, citizenshipNumber: e.target.value })}
+                    placeholder="Enter citizenship number"
+                    className={`w-full rounded-xl px-3 py-2.5 font-mono font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Citizenship Type</label>
+                  <select
+                    value={citizenshipType}
+                    onChange={(e) => setCitizenshipType(e.target.value)}
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  >
+                    <option value="By Descent">By Descent (वंशज)</option>
+                    <option value="By Birth">By Birth (जन्मको आधार)</option>
+                    <option value="Naturalized">Naturalized (अङ्गीकृत)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Issue Date (BS/AD)</label>
+                  <input
+                    type="date"
+                    value={citizenshipIssueDate}
+                    onChange={(e) => setCitizenshipIssueDate(e.target.value)}
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-medium mb-1">Issue District</label>
+                  <input
+                    type="text"
+                    value={citizenshipIssueDistrict}
+                    onChange={(e) => setCitizenshipIssueDistrict(e.target.value)}
+                    placeholder="e.g. Kathmandu"
+                    className={`w-full rounded-xl px-3 py-2.5 font-semibold transition ${inputBg}`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200">Citizenship Front Page</span>
+                    {citizenshipFrontImage ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                        <CheckCircle2 className="h-3 w-3" /> Uploaded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        Missing
+                      </span>
+                    )}
+                  </div>
+                  {citizenshipFrontImage ? (
+                    <div className="relative aspect-[16/10] w-full rounded-xl border border-slate-800 overflow-hidden bg-slate-950 group">
+                      <img src={citizenshipFrontImage} alt="Citizenship Front" className="h-full w-full object-contain" />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                        <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                          <span>Replace File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setCitizenshipFrontImage(reader.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setCitizenshipFrontImage("")}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800 hover:border-blue-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                      <Upload className="h-6 w-6 text-slate-500 group-hover:text-blue-400 transition mb-1" />
+                      <span className="text-xs font-semibold text-slate-300">Upload Citizenship Front</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG up to 5MB</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setCitizenshipFrontImage(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200">Citizenship Back Page</span>
+                    {citizenshipBackImage ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                        <CheckCircle2 className="h-3 w-3" /> Uploaded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        Missing
+                      </span>
+                    )}
+                  </div>
+                  {citizenshipBackImage ? (
+                    <div className="relative aspect-[16/10] w-full rounded-xl border border-slate-800 overflow-hidden bg-slate-950 group">
+                      <img src={citizenshipBackImage} alt="Citizenship Back" className="h-full w-full object-contain" />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                        <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                          <span>Replace File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setCitizenshipBackImage(reader.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setCitizenshipBackImage("")}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800 hover:border-blue-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                      <Upload className="h-6 w-6 text-slate-500 group-hover:text-blue-400 transition mb-1" />
+                      <span className="text-xs font-semibold text-slate-300">Upload Citizenship Back</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG up to 5MB</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setCitizenshipBackImage(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Section: National ID & Voter Card */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-indigo-400" />
+                  <h2 className="text-base font-bold text-white">
+                    National ID (NID) & Voter Registration Card
+                  </h2>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* NID Card */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">National ID (NID) Number</label>
+                    <input
+                      type="text"
+                      value={verifiedInfo.nationalID}
+                      onChange={(e) => setVerifiedInfo({ ...verifiedInfo, nationalID: e.target.value })}
+                      placeholder="Enter NID Number"
+                      className={`w-full rounded-xl px-3 py-2.5 font-mono text-xs font-semibold transition ${inputBg}`}
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-200">NID Document Scan</span>
+                      {nidFrontImage ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                          <CheckCircle2 className="h-3 w-3" /> Uploaded
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Optional</span>
+                      )}
+                    </div>
+                    {nidFrontImage ? (
+                      <div className="relative aspect-[16/10] w-full rounded-xl border border-slate-800 overflow-hidden bg-slate-950 group">
+                        <img src={nidFrontImage} alt="NID Scan" className="h-full w-full object-contain" />
+                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                          <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                            <span>Replace</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setNidFrontImage(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setNidFrontImage("")}
+                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center p-5 rounded-xl border-2 border-dashed border-slate-800 hover:border-blue-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                        <Upload className="h-5 w-5 text-slate-500 group-hover:text-blue-400 transition mb-1" />
+                        <span className="text-xs font-semibold text-slate-300">Upload NID Card</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setNidFrontImage(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voter Card */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Registered Voter ID Number</label>
+                    <input
+                      type="text"
+                      value={verifiedInfo.voterId}
+                      onChange={(e) => setVerifiedInfo({ ...verifiedInfo, voterId: e.target.value })}
+                      placeholder="Enter Voter ID Number"
+                      className={`w-full rounded-xl px-3 py-2.5 font-mono text-xs font-semibold text-emerald-400 transition ${inputBg}`}
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-200">Voter Card Scan</span>
+                      {voterCardImage ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                          <CheckCircle2 className="h-3 w-3" /> Uploaded
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Optional</span>
+                      )}
+                    </div>
+                    {voterCardImage ? (
+                      <div className="relative aspect-[16/10] w-full rounded-xl border border-slate-800 overflow-hidden bg-slate-950 group">
+                        <img src={voterCardImage} alt="Voter Card Scan" className="h-full w-full object-contain" />
+                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                          <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                            <span>Replace</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setVoterCardImage(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setVoterCardImage("")}
+                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center p-5 rounded-xl border-2 border-dashed border-slate-800 hover:border-blue-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                        <Upload className="h-5 w-5 text-slate-500 group-hover:text-blue-400 transition mb-1" />
+                        <span className="text-xs font-semibold text-slate-300">Upload Voter Card</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setVoterCardImage(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Official Digital Signature */}
+            <div className={`rounded-3xl border p-6 ${bgCard}`}>
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-5 w-5 text-purple-400" />
+                  <h2 className="text-base font-bold text-white">
+                    Official Specimen Signature
+                  </h2>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-200">Signature Scan Image</span>
+                  {signatureImage ? (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                      <CheckCircle2 className="h-3 w-3" /> Uploaded
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Missing Signature</span>
+                  )}
+                </div>
+                {signatureImage ? (
+                  <div className="relative h-32 w-full rounded-xl border border-slate-800 overflow-hidden bg-white p-2 group flex items-center justify-center">
+                    <img src={signatureImage} alt="Signature" className="h-full object-contain" />
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                      <label className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white cursor-pointer">
+                        <span>Replace Signature</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setSignatureImage(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setSignatureImage("")}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-xs font-bold text-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800 hover:border-blue-500 bg-slate-950/60 cursor-pointer transition text-center group">
+                    <Upload className="h-6 w-6 text-slate-500 group-hover:text-blue-400 transition mb-1" />
+                    <span className="text-xs font-semibold text-slate-300">Upload Specimen Signature Scan</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">Clear image on white background (Max 5MB)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setSignatureImage(reader.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={handleBackToDashboard}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Saving Updates…</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Save Document Changes</span>
                   </>
                 )}
               </button>

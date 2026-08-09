@@ -495,26 +495,45 @@ export async function loadFaceApiModels(): Promise<void> {
   faceApiLoadedPromise = (async () => {
     try {
       const faceapi = await import("@vladmandic/face-api");
-      const MODEL_URL = "/models";
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-      ]);
-      console.log("✅ Face-API models loaded successfully from /models");
+
+      // Load models from their respective subdirectories inside /models
+      const loads: Promise<void>[] = [];
+      if (!faceapi.nets.tinyFaceDetector.isLoaded) {
+        loads.push(
+          faceapi.nets.tinyFaceDetector
+            .loadFromUri("/models/tiny_face_detector")
+            .catch(() => faceapi.nets.tinyFaceDetector.loadFromUri("/models")),
+        );
+      }
+      if (!faceapi.nets.faceLandmark68Net.isLoaded) {
+        loads.push(
+          faceapi.nets.faceLandmark68Net
+            .loadFromUri("/models/face_landmark_68")
+            .catch(() => faceapi.nets.faceLandmark68Net.loadFromUri("/models")),
+        );
+      }
+      if (!faceapi.nets.faceRecognitionNet.isLoaded) {
+        loads.push(
+          faceapi.nets.faceRecognitionNet
+            .loadFromUri("/models/face_recognition")
+            .catch(() => faceapi.nets.faceRecognitionNet.loadFromUri("/models")),
+        );
+      }
+
+      await Promise.all(loads);
+      console.log("✅ Face-API models loaded successfully from /models subdirectories");
     } catch (err) {
-      console.warn("⚠️ Primary Face-API model load failed, attempting fallback:", err);
+      console.warn("⚠️ Primary Face-API model load failed, attempting root /models:", err);
       try {
         const faceapi = await import("@vladmandic/face-api");
-        const ALT_URL = "/model/face-api.js";
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(ALT_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(ALT_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(ALT_URL),
+          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+          faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+          faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
         ]);
-        console.log("✅ Face-API models loaded from fallback /model/face-api.js");
+        console.log("✅ Face-API models loaded from /models root");
       } catch (fallbackErr) {
-        console.error("❌ Fallback Face-API model load failed:", fallbackErr);
+        console.error("❌ Face-API model load failed:", fallbackErr);
         faceApiLoadedPromise = null;
         throw fallbackErr;
       }
@@ -545,7 +564,9 @@ export async function generateFaceEmbedding(
 
     try {
       if (!faceapi.nets.ssdMobilenetv1.isLoaded) {
-        await faceapi.nets.ssdMobilenetv1.loadFromUri("/models");
+        await faceapi.nets.ssdMobilenetv1
+          .loadFromUri("/models/ssd_mobilenetv1")
+          .catch(() => faceapi.nets.ssdMobilenetv1.loadFromUri("/models"));
       }
       const ssdDetection = await faceapi
         .detectSingleFace(
@@ -565,6 +586,44 @@ export async function generateFaceEmbedding(
     return null;
   } catch (error) {
     console.error("Failed to generate face embedding:", error);
+    return null;
+  }
+}
+
+export async function detectSingleFaceApi(
+  input: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
+) {
+  try {
+    const faceapi = await import("@vladmandic/face-api");
+    await loadFaceApiModels();
+
+    const options = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 320,
+      scoreThreshold: 0.3,
+    });
+    const detection = await faceapi
+      .detectSingleFace(input as any, options)
+      .withFaceLandmarks();
+
+    if (!detection) return null;
+
+    const box = detection.detection.box;
+    const positions = detection.landmarks.positions;
+
+    return {
+      box: {
+        xMin: box.x,
+        yMin: box.y,
+        xMax: box.x + box.width,
+        yMax: box.y + box.height,
+        width: box.width,
+        height: box.height,
+      },
+      keypoints: positions.map((p) => ({ x: p.x, y: p.y })),
+      score: detection.detection.score,
+    };
+  } catch (err) {
+    console.warn("Face-API detection error:", err);
     return null;
   }
 }

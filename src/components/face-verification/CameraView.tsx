@@ -30,7 +30,7 @@ export default function CameraView({
         autoPlay
         playsInline
         muted
-        className="h-full w-full object-cover"
+        className="h-full w-full object-cover -scale-x-100"
       />
 
       {!cameraActive && (

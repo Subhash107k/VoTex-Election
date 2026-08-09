@@ -51,13 +51,21 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   const statusKey = status?.toLowerCase() || "";
+  const isVerifiedStatus =
+    statusKey.includes("verified") ||
+    statusKey.includes("approved") ||
+    statusKey.includes("passed") ||
+    statusKey.includes("active") ||
+    statusKey.includes("complete") ||
+    statusKey.includes("true");
+
   const {
     icon: Icon,
     bg,
     text,
     border,
     label,
-  } = statusKey.includes("verified") || statusKey.includes("true")
+  } = isVerifiedStatus
     ? config.verified
     : statusKey.includes("pending") || statusKey.includes("process")
       ? config.pending
@@ -197,31 +205,50 @@ export default function SummarySidebar({
     profile?.election?.nextElection ||
     "Not scheduled";
   const voterIdStatus = accountStatus;
+  const isVerifiedUser = Boolean(
+    user?.isVerified ||
+      user?.isApproved ||
+      user?.isProfileComplete ||
+      normalizedStatus.includes("verified") ||
+      normalizedStatus.includes("approved") ||
+      normalizedStatus.includes("active"),
+  );
+
   const verificationChecks = [
     {
       label: "Email",
       icon: Mail,
-      status: user?.isEmailVerified ? "Verified" : "Pending",
+      status: user?.isEmailVerified || isVerifiedUser ? "Verified" : "Pending",
     },
     {
       label: "Phone",
       icon: Phone,
-      status: user?.isPhoneVerified ? "Verified" : "Pending",
+      status:
+        user?.isPhoneVerified || user?.isMobileVerified || isVerifiedUser
+          ? "Verified"
+          : "Pending",
     },
     {
       label: "Face ID",
       icon: Camera,
-      status: profile?.biometric?.face?.status || "Pending",
+      status:
+        profile?.biometric?.face?.status ||
+        (isVerifiedUser ? "Verified" : "Pending"),
     },
     {
       label: "Fingerprint",
       icon: Fingerprint,
-      status: profile?.biometric?.fingerprint?.status || "Pending",
+      status:
+        profile?.biometric?.fingerprint?.status ||
+        (isVerifiedUser ? "Verified" : "Pending"),
     },
     {
       label: "Documents",
       icon: FileText,
-      status: profile?.documents?.length > 0 ? "Verified" : "Pending",
+      status:
+        profile?.documents?.length > 0 || isVerifiedUser
+          ? "Verified"
+          : "Pending",
     },
   ];
 

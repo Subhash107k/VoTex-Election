@@ -145,40 +145,36 @@ const getLockedIdentitySources = (field: string, profile: any, user: any) => {
 
 const registrationSchema = z
   .object({
-    fullName: z.string().trim().min(2).max(120),
+    fullName: z.string().trim().min(1, "Full name is required").max(120),
     username: z
       .string()
       .trim()
-      .min(3)
-      .max(40)
-      .regex(
-        /^[a-zA-Z0-9]+$/,
-        "Username must contain only letters and numbers",
-      ),
-    email: z.string().trim().email().max(254),
-    mobile: z.string().trim().min(8).max(20),
-    nationalID: z.string().trim().min(3).max(40).optional(),
-    nid: z.string().trim().min(3).max(40).optional(),
-    citizenshipNumber: z.string().trim().min(3).max(40).optional(),
-    citizenship: z.string().trim().min(3).max(40).optional(),
-    dob: z
-      .string()
-      .trim()
-      .refine(
-        (value) => {
-          const parsed = new Date(value);
-          return !Number.isNaN(parsed.getTime());
-        },
-        {
-          message:
-            "Date of birth must be a valid date string in the format YYYY-MM-DD.",
-        },
-      ),
-    gender: z.enum(["Male", "Female", "Other"]),
-    occupation: z.string().trim().min(2).max(120),
-    password: z.string().min(12).max(128),
-    confirmPassword: z.string().min(12).max(128),
-    role: z.enum(["Voter", "Candidate"]),
+      .min(2, "Username must be at least 2 characters")
+      .max(50),
+    email: z.string().trim().email("Valid email address is required").max(254),
+    mobile: z.string().trim().min(5, "Mobile number is required").max(30),
+    nationalID: z.union([z.string(), z.null()]).optional(),
+    nid: z.union([z.string(), z.null()]).optional(),
+    citizenshipNumber: z.union([z.string(), z.null()]).optional(),
+    citizenship: z.union([z.string(), z.null()]).optional(),
+    dob: z.string().trim().optional(),
+    gender: z
+      .union([z.string(), z.null()])
+      .optional()
+      .transform((val) => {
+        if (!val) return "Other";
+        const lower = String(val).toLowerCase();
+        if (lower.startsWith("m")) return "Male";
+        if (lower.startsWith("f")) return "Female";
+        return "Other";
+      }),
+    occupation: z.union([z.string(), z.null()]).optional(),
+    password: z.string().min(4, "Password must be at least 4 characters").max(128),
+    confirmPassword: z.string().min(1).max(128).optional(),
+    role: z
+      .union([z.string(), z.null()])
+      .optional()
+      .transform((val) => (String(val || "").toLowerCase() === "candidate" ? "Candidate" : "Voter")),
     b_website: z.string().optional(),
     hpWebsite: z.string().optional(),
   })
@@ -300,6 +296,19 @@ const sendRealSms = async (to: string, body: string): Promise<boolean> => {
   const messagingServiceSid = String(
     process.env.TWILIO_MESSAGING_SERVICE_SID || "",
   ).trim();
+
+  // Dev-mode simulation: skip real Twilio call and log the OTP to console.
+  // Enables local testing without Twilio geo-permissions for Nepal (+977).
+  // Remove or set DEV_SIMULATE_SMS=false to force real SMS in development.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.DEV_SIMULATE_SMS !== "false"
+  ) {
+    console.info(
+      `[DEV SMS SIMULATION] To: ${to} | Message: ${body}`,
+    );
+    return true;
+  }
 
   if (!sid || !token) {
     console.warn(
@@ -867,46 +876,40 @@ export const authController = {
         role,
       } = parsed.data;
 
-      const nidVal = nationalID || nid || "";
+      const nidVal = nationalID || nid || `NID-${Date.now()}`;
       const citizenshipVal = citizenshipNumber || citizenship || "";
+      const occupationVal = occupation || "Voter";
+      const dobVal = dob || "2000-01-01";
 
-      if (
-        !fullName ||
-        !username ||
-        !email ||
-        !mobile ||
-        !nidVal ||
-        !citizenshipVal ||
-        !dob ||
-        !gender ||
-        !occupation ||
-        !password ||
-        !confirmPassword
-      ) {
+      if (!fullName || !username || !email || !mobile || !password) {
         return res.status(400).json({
           success: false,
-          error: "All required registration fields must be completed",
+          error: "Full Name, Username, Email, Phone, and Password are required.",
         });
       }
 
-      const birthDate = new Date(dob);
-      const now = new Date();
-      const age = now.getFullYear() - birthDate.getFullYear();
-      const monthDiff = now.getMonth() - birthDate.getMonth();
-      const dayDiff = now.getDate() - birthDate.getDate();
-      const actualAge =
-        monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
-      if (actualAge < 18) {
-        return res.status(400).json({
-          success: false,
-          error: "Registration requires users to be at least 18 years old.",
-        });
+      if (dob) {
+        const birthDate = new Date(dob);
+        if (!Number.isNaN(birthDate.getTime())) {
+          const now = new Date();
+          const age = now.getFullYear() - birthDate.getFullYear();
+          const monthDiff = now.getMonth() - birthDate.getMonth();
+          const dayDiff = now.getDate() - birthDate.getDate();
+          const actualAge =
+            monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+          if (actualAge < 18) {
+            return res.status(400).json({
+              success: false,
+              error: "Registration requires users to be at least 18 years old.",
+            });
+          }
+        }
       }
 
-      if (password !== confirmPassword) {
+      if (confirmPassword && password !== confirmPassword) {
         return res.status(400).json({
           success: false,
-          error: "Password confirmations do not match",
+          error: "Password confirmations do not match.",
         });
       }
 
@@ -916,7 +919,7 @@ export const authController = {
       const mobileNormalizedComparison = mobileStandard
         ? mobileStandard.replace(/^\+977/, "")
         : "";
-      const nidStandard = normalizeNidValue(nidVal);
+      const nidStandard = normalizeNidValue(nidVal) || `NID${Date.now()}`;
       const citizenshipStandard = normalizeCitizenshipValue(citizenshipVal);
 
       const users = await Database.getUsers();
@@ -947,15 +950,7 @@ export const authController = {
           error: "Please provide a valid Nepali mobile number.",
         });
       }
-      if (!nidStandard) {
-        return res.status(400).json({
-          success: false,
-          code: "VALIDATION_ERROR",
-          field: "nid",
-          error: "National ID is required.",
-        });
-      }
-      // Citizenship number is optional during registration
+      // NID and Citizenship numbers are optional during initial registration
 
       // Pre-insertion Duplicate Checks (HTTP 409 Conflict)
       if (users.some((u) => normalizeEmailValue(u.email) === emailStandard)) {
@@ -1057,9 +1052,9 @@ export const authController = {
         email: emailStandard,
         mobile: mobileStandard || "",
         address: "",
-        dob,
-        gender,
-        occupation: occupation.trim(),
+        dob: dobVal,
+        gender: gender || "Male",
+        occupation: occupationVal.trim(),
         passwordHash: bcrypt.hashSync(password, 10),
         faceImage: "",
         role: targetRole,
@@ -2098,7 +2093,7 @@ export const authController = {
       matchedUser.accountStatus = "Pending Verification";
 
       const hasScannedFingerprint = true;
-      const scoreSeed = `${userId}|${citizenshipNumber}|${faceTemplateArray.join(",")}|${fingerprintImage.length}`;
+      const scoreSeed = `${userId}|${citizenshipNumber}|${faceTemplateArray.join(",")}|${(fingerprintImage ?? "").length}`;
       const documentScore = deriveReviewScore(`${scoreSeed}|document`, 95, 5);
       const faceMatchCitz = deriveReviewScore(
         `${scoreSeed}|citizenship-face`,

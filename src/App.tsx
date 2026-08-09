@@ -373,11 +373,6 @@ export default function App() {
       return;
     }
 
-    if (!regForm.occupation.trim()) {
-      showToast("Occupation is required.", "error");
-      return;
-    }
-
     try {
       setLoading(true);
       const result = await registerAccount(regForm);

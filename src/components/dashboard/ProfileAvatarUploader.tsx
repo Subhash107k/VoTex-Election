@@ -1,5 +1,6 @@
-import React, { useState, useRef } from "react";
-import { Camera, Upload, Trash2, CheckCircle2, User, RefreshCw, X, ShieldCheck } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Camera, Upload, Trash2, CheckCircle2, User, RefreshCw, X, ShieldCheck, Sparkles } from "lucide-react";
+import { detectSingleFaceApi } from "../../services/tensorflow.ts";
 
 interface ProfileAvatarUploaderProps {
   currentPhotoUrl?: string;
@@ -80,7 +81,10 @@ export function ProfileAvatarUploader({
     setShowCameraModal(false);
   };
 
-  const capturePhoto = () => {
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [autoCapturing, setAutoCapturing] = useState(false);
+
+  const capturePhoto = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     const canvas = document.createElement("canvas");
@@ -93,7 +97,50 @@ export function ProfileAvatarUploader({
       onPhotoChange(photoData);
     }
     stopCamera();
-  };
+  }, [onPhotoChange]);
+
+  useEffect(() => {
+    if (!showCameraModal || cameraLoading || cameraError) return;
+
+    let animFrame: number;
+    let stableCount = 0;
+    let isCaptured = false;
+
+    const checkFaceLoop = async () => {
+      const video = videoRef.current;
+      if (video && video.readyState >= 2 && !isCaptured) {
+        try {
+          const apiFace = await detectSingleFaceApi(video);
+          if (apiFace) {
+            setFaceDetected(true);
+            stableCount++;
+            if (stableCount >= 2 && !isCaptured) {
+              isCaptured = true;
+              setAutoCapturing(true);
+              setTimeout(() => {
+                capturePhoto();
+              }, 200);
+              return;
+            }
+          } else {
+            setFaceDetected(false);
+            stableCount = 0;
+          }
+        } catch {
+          // Ignore frame errors
+        }
+      }
+      if (!isCaptured) {
+        animFrame = requestAnimationFrame(checkFaceLoop);
+      }
+    };
+
+    animFrame = requestAnimationFrame(checkFaceLoop);
+
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [showCameraModal, cameraLoading, cameraError, capturePhoto]);
 
   const removePhoto = () => {
     onPhotoChange("");
@@ -167,24 +214,7 @@ export function ProfileAvatarUploader({
         </div>
 
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png, image/jpeg, image/webp"
-            onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-            className="hidden"
-            disabled={disabled}
-          />
 
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] text-xs font-semibold transition-colors disabled:opacity-50"
-          >
-            <Upload className="h-3.5 w-3.5 text-blue-500" />
-            Upload File
-          </button>
 
           <button
             type="button"
@@ -246,13 +276,49 @@ export function ProfileAvatarUploader({
                   muted
                   className="h-full w-full object-cover -scale-x-100"
                 />
+                
+                {/* Square Face Guide Frame Overlay */}
+                {!cameraLoading && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-3">
+                    <div
+                      className={`relative aspect-square h-[75%] rounded-2xl border-2 transition-all duration-300 ${
+                        faceDetected
+                          ? "border-emerald-400 bg-emerald-500/10 shadow-[0_0_35px_rgba(52,211,153,0.4)]"
+                          : "border-cyan-400/80 bg-cyan-500/5 shadow-[0_0_25px_rgba(34,211,238,0.25)]"
+                      }`}
+                    >
+                      {/* Corner Reticles */}
+                      <div className={`absolute -left-1 -top-1 h-4 w-4 rounded-tl-lg border-l-4 border-t-4 transition-colors ${faceDetected ? "border-emerald-400" : "border-cyan-400"}`} />
+                      <div className={`absolute -right-1 -top-1 h-4 w-4 rounded-tr-lg border-r-4 border-t-4 transition-colors ${faceDetected ? "border-emerald-400" : "border-cyan-400"}`} />
+                      <div className={`absolute -bottom-1 -left-1 h-4 w-4 rounded-bl-lg border-b-4 border-l-4 transition-colors ${faceDetected ? "border-emerald-400" : "border-cyan-400"}`} />
+                      <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-br-lg border-b-4 border-r-4 transition-colors ${faceDetected ? "border-emerald-400" : "border-cyan-400"}`} />
+                      {/* Center Crosshairs */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                        <div className={`h-3 w-px ${faceDetected ? "bg-emerald-300" : "bg-cyan-300"}`} />
+                        <div className={`h-px w-3 ${faceDetected ? "bg-emerald-300" : "bg-cyan-300"}`} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {cameraLoading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-xs font-semibold text-white">
                     <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Initializing Camera…
                   </div>
                 )}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] text-white font-medium backdrop-blur-sm">
-                  Position your face clearly inside the frame
+
+                <div
+                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border ${
+                    faceDetected
+                      ? "bg-emerald-950/90 text-emerald-300 border-emerald-500/50 shadow-lg shadow-emerald-950/50"
+                      : "bg-slate-900/85 text-cyan-300 border-cyan-500/30"
+                  }`}
+                >
+                  {autoCapturing
+                    ? "Capturing Photo..."
+                    : faceDetected
+                      ? "Face Detected — Auto Capturing..."
+                      : "Position face inside square frame"}
                 </div>
               </div>
             )}

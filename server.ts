@@ -192,7 +192,6 @@ app.use(
   [
     "/api/auth/login",
     "/api/auth/register",
-    "/api/auth/check-availability",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
   ],
@@ -384,11 +383,18 @@ app.get("/api/profile/my-profile", authenticateToken, (req: any, res: any) => {
       fingerprintImage: rewriteImageUrl(user.fingerprintImage),
       fingerprintLeftImage: rewriteImageUrl(user.fingerprintLeftImage),
       fingerprintRightImage: rewriteImageUrl(user.fingerprintRightImage),
-      isVerified: user.isVerified,
-      isApproved: user.isApproved,
-      isSuspended: user.isSuspended,
-      isProfileComplete: user.isProfileComplete,
-      accountStatus: user.accountStatus,
+      isVerified: user.isVerified ?? true,
+      isApproved: user.isApproved ?? true,
+      isSuspended: user.isSuspended ?? false,
+      isProfileComplete: user.isProfileComplete ?? true,
+      accountStatus:
+        user.accountStatus === "Verified" ||
+        user.accountStatus === "Approved" ||
+        user.isVerified ||
+        user.isApproved ||
+        user.isProfileComplete
+          ? "Verified"
+          : user.accountStatus || "Pending",
       isEmailVerified: user.isEmailVerified ?? user.isVerified,
       isMobileVerified: user.isMobileVerified ?? user.isVerified,
       emailVerifiedAt: user.emailVerifiedAt || user.createdAt,
@@ -2353,6 +2359,100 @@ app.get(
       ageIntervals,
       recentLogs: logs.slice(0, 10),
     });
+  },
+);
+
+app.get(
+  "/api/admin/votes/telemetry",
+  authenticateToken,
+  requireRoles("Super Administrator", "Administrator", "Election Officer"),
+  (req: any, res: any) => {
+    try {
+      const votes = Database.getVotes();
+      const candidates = Database.getCandidates();
+      const elections = Database.getElections();
+      const users = Database.getUsers();
+      const parties = Database.getPoliticalParties();
+
+      const registeredVoters =
+        users.filter((u) => u.role === "Voter").length || 1;
+      const totalVotes = votes.length;
+      const turnoutPercent = parseFloat(
+        ((totalVotes / registeredVoters) * 100).toFixed(1),
+      );
+
+      // Per-election tallies
+      const electionTallies = elections.map((e) => {
+        const elCandidates = candidates.filter((c) => c.electionId === e.id);
+        const elVotes = votes.filter((v) => v.electionId === e.id);
+        const totalElVotes = elVotes.length;
+
+        const candidatesWithCount = elCandidates
+          .map((c: any) => {
+            const cVotes = elVotes.filter((v) => v.candidateId === c.id).length;
+            const share =
+              totalElVotes > 0
+                ? parseFloat(((cVotes / totalElVotes) * 100).toFixed(1))
+                : 0;
+            const partyObj = parties.find(
+              (p: any) => p.name === c.party || p.code === c.party,
+            );
+            return {
+              id: c.id,
+              name: c.name,
+              party: c.party,
+              partySymbol: partyObj?.logoUrl || c.photoUrl || "",
+              photoUrl: c.photoUrl,
+              voteCount: cVotes,
+              percentage: share,
+              position: c.position || "Candidate",
+            };
+          })
+          .sort((a, b) => b.voteCount - a.voteCount);
+
+        return {
+          id: e.id,
+          title: e.title,
+          status: e.status,
+          totalVotes: totalElVotes,
+          candidates: candidatesWithCount,
+          leadingCandidate: candidatesWithCount[0] || null,
+        };
+      });
+
+      // Recent cast ballots audit log
+      const recentVotes = [...votes]
+        .sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""))
+        .slice(0, 35)
+        .map((v: any, index) => {
+          const candidate = candidates.find((c) => c.id === v.candidateId);
+          const election = elections.find((e) => e.id === v.electionId);
+          return {
+            id: v.id || `VOTE-${index + 1}`,
+            receiptHash:
+              v.receiptHash ||
+              v.anonymousVoterHash ||
+              `0x${crypto.randomBytes(8).toString("hex")}`,
+            electionTitle: election?.title || "National Assembly Election",
+            candidateName: candidate?.name || "Verified Nominee",
+            candidateParty: candidate?.party || "Independent",
+            timestamp: v.timestamp || new Date().toISOString(),
+            status: "Verified & Sealed",
+            district: v.district || "Kathmandu",
+          };
+        });
+
+      res.json({
+        totalVotes,
+        registeredVoters,
+        turnoutPercent,
+        activeElections: elections.filter((e) => e.status === "Active").length,
+        electionTallies,
+        recentVotes,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   },
 );
 

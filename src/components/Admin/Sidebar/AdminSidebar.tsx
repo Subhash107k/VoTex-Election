@@ -10,7 +10,7 @@ import {
   LogOut,
   Menu,
   ShieldCheck,
-  Settings,
+  KeyRound,
   Mail,
   Users,
   Vote,
@@ -76,7 +76,11 @@ const items: Array<{ id: string; label: string; icon: ReactNode }> = [
     label: "Election Bulletins",
     icon: <Mail className="h-4 w-4" />,
   },
-  { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
+  {
+    id: "admin-passwords",
+    label: "Change Password of Admins",
+    icon: <KeyRound className="h-4 w-4" />,
+  },
 ];
 
 export default function AdminSidebar({

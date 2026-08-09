@@ -65,7 +65,7 @@ export default function ProfileHeader({
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-[var(--text-secondary)] font-black text-2xl">
-                {fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || <User className="w-10 h-10" />}
+                {fullName.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase() || <User className="w-10 h-10" />}
               </div>
             )}
           </div>

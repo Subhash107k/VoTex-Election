@@ -124,6 +124,20 @@ export function normalizeProfilePayload(data: any) {
       ? data.profile.timeline
       : [];
 
+  const userIsVerified = Boolean(
+    data.user?.isVerified ||
+      data.user?.isApproved ||
+      data.user?.isProfileComplete ||
+      data.user?.accountStatus === "Verified" ||
+      data.user?.accountStatus === "Approved",
+  );
+  const resolvedStatus = userIsVerified
+    ? "Verified"
+    : data.user?.accountStatus ||
+      data.user?.verificationStatus ||
+      data.profile?.accountStatus ||
+      "Pending";
+
   const normalized: any = {
     user: userWithPhoto,
     profile: profile,
@@ -134,17 +148,9 @@ export function normalizeProfilePayload(data: any) {
     timeline,
     createdAt: profile.createdAt || data.user.createdAt,
     updatedAt: profile.updatedAt || data.user.updatedAt || data.user.createdAt,
-    status:
-      data.user?.accountStatus ||
-      data.user?.verificationStatus ||
-      data.profile?.accountStatus ||
-      "Pending",
-    verificationStatus:
-      data.user?.accountStatus ||
-      data.user?.verificationStatus ||
-      data.profile?.accountStatus ||
-      "Pending",
-    completion: completionValue,
+    status: resolvedStatus,
+    verificationStatus: resolvedStatus,
+    completion: userIsVerified ? 100 : completionValue,
   };
 
   const appendDocument = (

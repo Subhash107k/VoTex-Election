@@ -7,12 +7,13 @@ import DashboardPage from "../../pages/Admin/Dashboard/Dashboard.tsx";
 import ElectionsPage from "../../pages/Admin/Elections/ElectionsPage.tsx";
 import CandidatesPage from "../../pages/Admin/Candidates/CandidatesPage.tsx";
 import VotersPage from "../../pages/Admin/Voters/VotersPage.tsx";
-import SettingsPage from "../../pages/Admin/Settings/SettingsPage.tsx";
+import AdminPasswordsPage from "../../pages/Admin/AdminPasswords/AdminPasswordsPage.tsx";
 import PartiesPage from "../../pages/Admin/Parties/PartiesPage.tsx";
 import ReportsPage from "../../pages/Admin/Reports/ReportsPage.tsx";
 import NotificationsPage from "../../pages/Admin/Notifications/NotificationsPage.tsx";
 import AnalyticsPage from "../../pages/Admin/Analytics/AnalyticsPage.tsx";
 import NewsletterPage from "../../pages/Admin/Newsletter/NewsletterPage.tsx";
+import VotesPage from "../../pages/Admin/Votes/VotesPage.tsx";
 import { useAdmin } from "../../hooks/useAdmin.ts";
 
 interface AdminPanelProps {
@@ -82,6 +83,8 @@ export default function AdminPanel({
     handleDeleteNewsletterSubscriber,
     handleUpdateVoterStatus,
     handleSaveSystemConfig,
+    handleChangeAdminPassword,
+    team,
     successMsg,
     errorMsg,
   } = useAdmin({ token });
@@ -202,10 +205,7 @@ export default function AdminPanel({
                 />
               ) : null}
               {activeTab === "votes" ? (
-                <PlaceholderPage
-                  title="Votes"
-                  description="Voting telemetry and ballot verification workflows will be surfaced here."
-                />
+                <VotesPage token={token} />
               ) : null}
               {activeTab === "reports" ? <ReportsPage /> : null}
               {activeTab === "notifications" ? <NotificationsPage /> : null}
@@ -217,11 +217,11 @@ export default function AdminPanel({
                   onDeleteSubscriber={handleDeleteNewsletterSubscriber}
                 />
               ) : null}
-              {activeTab === "settings" ? (
-                <SettingsPage
-                  smtpForm={smtpForm}
-                  twilioForm={twilioForm}
-                  onSaveConfig={handleSaveConfig}
+              {activeTab === "admin-passwords" ? (
+                <AdminPasswordsPage
+                  team={team}
+                  onChangeAdminPassword={handleChangeAdminPassword}
+                  token={token}
                 />
               ) : null}
               {activeTab === "analytics" ? <AnalyticsPage /> : null}
@@ -235,7 +235,7 @@ export default function AdminPanel({
                 "reports",
                 "notifications",
                 "newsletter",
-                "settings",
+                "admin-passwords",
                 "analytics",
               ].includes(activeTab) ? (
                 <PlaceholderPage

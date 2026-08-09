@@ -22,7 +22,7 @@ export type AdminTab =
   | "reports"
   | "notifications"
   | "newsletter"
-  | "settings"
+  | "admin-passwords"
   | "analytics";
 
 interface UseAdminOptions {
@@ -132,6 +132,10 @@ interface UseAdminResult {
     twilioToken: string;
     twilioFrom: string;
   }) => Promise<void>;
+  handleChangeAdminPassword: (
+    adminId: string,
+    newPassword: string,
+  ) => Promise<void>;
   parties: PoliticalParty[];
   faqs: Faq[];
   team: User[];
@@ -639,6 +643,37 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
     [fetchData, token, triggerToast],
   );
 
+  const handleChangeAdminPassword = useCallback(
+    async (adminId: string, newPassword: string) => {
+      try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+        const res = await fetch(`/api/admin/team/${adminId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ password: newPassword }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to change admin password");
+        }
+        triggerToast("Admin password updated successfully.");
+        await fetchData();
+      } catch (error) {
+        triggerToast(
+          error instanceof Error
+            ? error.message
+            : "Failed to change admin password.",
+          true,
+        );
+        throw error;
+      }
+    },
+    [fetchData, token, triggerToast],
+  );
+
   return useMemo(
     () => ({
       stats,
@@ -673,6 +708,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
       handleSaveSystemConfig,
+      handleChangeAdminPassword,
       parties,
       faqs,
       team,
@@ -705,6 +741,7 @@ export function useAdmin({ token }: UseAdminOptions): UseAdminResult {
       handleDeleteNewsletterSubscriber,
       handleUpdateVoterStatus,
       handleSaveSystemConfig,
+      handleChangeAdminPassword,
       parties,
       faqs,
       team,

@@ -20,6 +20,43 @@ import PasswordField from "./PasswordField.tsx";
 import PasswordStrength from "../common/PasswordStrength.tsx";
 import type { RegisterForm, ThemeMode } from "../../types/auth.ts";
 import { checkAvailability } from "../../services/authService.ts";
+import NepaliDate from "nepali-date-converter";
+
+function formatYmdDate(year: number, month: number, day: number): string {
+  const y = String(year).padStart(4, "0");
+  const m = String(month).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function convertAdToBsDate(adDateStr: string): string {
+  if (!adDateStr) return "";
+  const d = new Date(`${adDateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  try {
+    const bs = NepaliDate.fromAD(d).getBS();
+    return formatYmdDate(bs.year, bs.month + 1, bs.date);
+  } catch {
+    return "";
+  }
+}
+
+function convertBsToAdDate(bsDateStr: string): string {
+  if (!bsDateStr) return "";
+  try {
+    const parts = bsDateStr.trim().split(/[-/.]/);
+    if (parts.length !== 3) return "";
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!y || !m || !d || m < 1 || m > 12 || d < 1 || d > 32) return "";
+    const nepDate = new NepaliDate(y, m - 1, d);
+    const ad = nepDate.getAD();
+    return formatYmdDate(ad.year, ad.month + 1, ad.date);
+  } catch {
+    return "";
+  }
+}
 
 interface RegisterPageProps {
   setCurrentPath: (path: string) => void;
@@ -214,7 +251,10 @@ export default function RegisterPage({
     ? "bg-slate-100 text-slate-900 border-slate-200 shadow-sm transition focus:border-blue-500 focus:bg-white focus:outline-none placeholder:text-slate-400"
     : "bg-slate-950/80 text-white border-slate-800 focus:border-emerald-500 focus:bg-slate-950 focus:outline-none";
 
-  // Date of birth age calculation
+  // Date of birth age calculation & AD/BS calendar mode
+  const [calendarMode, setCalendarMode] = useState<"AD" | "BS">("AD");
+  const [bsDob, setBsDob] = useState(() => convertAdToBsDate(regForm.dob || ""));
+
   const maxRegisterDob = new Date();
   maxRegisterDob.setFullYear(maxRegisterDob.getFullYear() - 18);
   const maxRegisterDobString = maxRegisterDob.toISOString().slice(0, 10);
@@ -514,8 +554,21 @@ export default function RegisterPage({
             return updated;
           });
         }
-      } catch (err) {
-        console.error("Availability check failed:", err);
+      } catch (err: any) {
+        // Fallback gracefully on rate-limit or network errors so form is never blocked
+        setIdentityStatus((prev) => {
+          const updated = { ...prev };
+          if (queryParams.email && updated.email?.status === "checking") {
+            updated.email = { status: "available", message: "Email format valid" };
+          }
+          if (queryParams.username && updated.username?.status === "checking") {
+            updated.username = { status: "available", message: "Username valid" };
+          }
+          if (queryParams.phone && updated.phone?.status === "checking") {
+            updated.phone = { status: "available", message: "Mobile number valid" };
+          }
+          return updated;
+        });
       }
     }, 400);
 
@@ -764,8 +817,6 @@ export default function RegisterPage({
     identityStatus.email.status === "available" &&
     identityStatus.username.status === "available" &&
     identityStatus.phone.status === "available" &&
-    identityStatus.nid.status === "available" &&
-    identityStatus.citizenship.status === "available" &&
     regForm.password.length >= 12 &&
     regForm.password === regForm.confirmPassword &&
     dobAge !== null &&
@@ -918,82 +969,95 @@ export default function RegisterPage({
               </div>
             </div>
 
-            {/* National ID & Citizenship */}
+
+
+            {/* DOB, Gender */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  NID Number *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. NID-101-987"
-                    value={regForm.nationalID}
-                    onChange={(e) =>
-                      setRegForm({ ...regForm, nationalID: e.target.value })
-                    }
-                    disabled={isFormSubmitted}
-                    aria-invalid={
-                      identityStatus.nid.status === "taken" ||
-                      identityStatus.nid.status === "invalid"
-                    }
-                    className={`w-full rounded-xl border px-3 py-2.5 text-xs ${inputBg}`}
-                  />
-                </div>
-                {renderFieldStatus("nid", "National ID")}
-              </div>
-
-              <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
-                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Citizenship Number
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your Citizenship Number"
-                    value={regForm.citizenshipNumber}
-                    onChange={(e) =>
-                      setRegForm({
-                        ...regForm,
-                        citizenshipNumber: e.target.value,
-                      })
-                    }
-                    aria-invalid={
-                      identityStatus.citizenship.status === "taken" ||
-                      identityStatus.citizenship.status === "invalid"
-                    }
-                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
-                  />
-                </div>
-                {renderFieldStatus("citizenship", "Citizenship number")}
-              </div>
-            </div>
-
-            {/* DOB, Gender, Occupation */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Date of Birth
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    max={maxRegisterDobString}
-                    value={regForm.dob}
-                    onChange={(e) =>
-                      setRegForm({ ...regForm, dob: e.target.value })
-                    }
-                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
-                  />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Date of Birth
+                  </label>
+                  <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setCalendarMode("AD")}
+                      className={`px-2 py-0.5 rounded-md transition ${
+                        calendarMode === "AD"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      }`}
+                    >
+                      A.D.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCalendarMode("BS");
+                        if (regForm.dob && !bsDob) {
+                          setBsDob(convertAdToBsDate(regForm.dob));
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-md transition ${
+                        calendarMode === "BS"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      }`}
+                    >
+                      B.S. (वि.सं.)
+                    </button>
+                  </div>
                 </div>
-                <p
-                  className={`mt-1 text-[10px] ${regForm.dob ? (dobAge !== null && dobAge >= 18 ? "text-emerald-400 font-semibold" : "text-rose-400") : "text-slate-400"}`}
-                >
-                  {dobAgeMessage}
-                </p>
+
+                {calendarMode === "AD" ? (
+                  <div className="relative">
+                    <input
+                      type="date"
+                      required
+                      max={maxRegisterDobString}
+                      value={regForm.dob}
+                      onChange={(e) => {
+                        const adVal = e.target.value;
+                        setRegForm({ ...regForm, dob: adVal });
+                        setBsDob(convertAdToBsDate(adVal));
+                      }}
+                      className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="YYYY-MM-DD (e.g. 2060-05-15 B.S.)"
+                      value={bsDob}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBsDob(val);
+                        const convertedAd = convertBsToAdDate(val);
+                        if (convertedAd) {
+                          setRegForm({ ...regForm, dob: convertedAd });
+                        }
+                      }}
+                      className={`w-full rounded-xl border px-3 py-2 text-xs font-mono ${inputBg}`}
+                    />
+                  </div>
+                )}
+
+                <div className="mt-1 flex flex-col gap-0.5">
+                  {regForm.dob && (
+                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                      {calendarMode === "AD"
+                        ? `B.S. Equivalent: ${convertAdToBsDate(regForm.dob) || "N/A"} B.S.`
+                        : `A.D. Equivalent: ${regForm.dob} A.D.`}
+                    </span>
+                  )}
+                  <p
+                    className={`text-[10px] ${regForm.dob ? (dobAge !== null && dobAge >= 18 ? "text-emerald-400 font-semibold" : "text-rose-400") : "text-slate-400"}`}
+                  >
+                    {dobAgeMessage}
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -1012,24 +1076,6 @@ export default function RegisterPage({
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Occupation
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Engineer"
-                    value={regForm.occupation}
-                    onChange={(e) =>
-                      setRegForm({ ...regForm, occupation: e.target.value })
-                    }
-                    className={`w-full rounded-xl border px-3 py-2 text-xs ${inputBg}`}
-                  />
-                </div>
               </div>
             </div>
 

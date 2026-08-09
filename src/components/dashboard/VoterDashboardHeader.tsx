@@ -57,11 +57,19 @@ export default function VoterDashboardHeader({
   };
 
   const name = user?.fullName || "Voter Citizen";
-  const avatar =
-    user?.profilePhoto ||
-    user?.profilePicture ||
-    user?.faceImage ||
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
+  const customAvatar =
+    user?.profilePhoto || user?.profilePicture || user?.faceImage;
+  const isCustomPhoto =
+    customAvatar &&
+    !customAvatar.includes("unsplash.com") &&
+    !customAvatar.includes("ui-avatars.com");
+
+  const getInitials = (fullName: string): string => {
+    if (!fullName) return "V";
+    const words = fullName.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "V";
+    return words.map((w) => w[0].toUpperCase()).join("");
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white/85 dark:bg-slate-950/85 backdrop-blur-xl transition-colors">
@@ -178,11 +186,17 @@ export default function VoterDashboardHeader({
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-2.5 rounded-full border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-1.5 pr-3 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors"
               >
-                <img
-                  src={avatar}
-                  alt={name}
-                  className="h-8 w-8 rounded-full object-cover ring-2 ring-blue-500/30"
-                />
+                {isCustomPhoto ? (
+                  <img
+                    src={customAvatar}
+                    alt={name}
+                    className="h-8 w-8 rounded-full object-cover ring-2 ring-blue-500/30"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 font-extrabold text-[11px] text-white ring-2 ring-blue-500/30 shadow-xs tracking-wider">
+                    {getInitials(name)}
+                  </div>
+                )}
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 max-w-[120px] truncate">
                   {name}
                 </span>
@@ -254,11 +268,17 @@ export default function VoterDashboardHeader({
           <div className="sm:hidden border-t border-slate-200 dark:border-slate-800 py-3 space-y-2">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-2">
-                <img
-                  src={avatar}
-                  alt={name}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
+                {isCustomPhoto ? (
+                  <img
+                    src={customAvatar}
+                    alt={name}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 font-extrabold text-[11px] text-white shadow-xs tracking-wider">
+                    {getInitials(name)}
+                  </div>
+                )}
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
                   {name}
                 </span>
