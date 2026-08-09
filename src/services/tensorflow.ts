@@ -219,16 +219,24 @@ async function loadRealModules(): Promise<TensorflowFaceModules> {
 
     const supportedBackend = getOptimalBackend();
     if (tf.getBackend() !== supportedBackend) {
-      await tf.setBackend(supportedBackend);
+      try {
+        await tf.setBackend(supportedBackend);
+      } catch {
+        // Backend already initialized or active
+      }
     }
 
-    console.log(`✅ TensorFlow.js loaded with ${supportedBackend} backend`);
+    console.log(`✅ TensorFlow.js loaded with ${tf.getBackend() || supportedBackend} backend`);
 
     return {
       tf: {
         setBackend: async (backend: string) => {
           if (tf.getBackend() !== backend) {
-            await tf.setBackend(backend);
+            try {
+              await tf.setBackend(backend);
+            } catch {
+              // Backend already set
+            }
           }
         },
         ready: () => tf.ready(),
@@ -493,6 +501,25 @@ export function isFaceWellPositioned(face: DetectedFace): {
 // ============================================
 // Face-API Descriptor & Embedding Generator
 // ============================================
+// Single application-wide initialization promise
+let faceRecognitionInitPromise: Promise<void> | null = null;
+
+export async function initializeFaceRecognition(): Promise<void> {
+  if (faceRecognitionInitPromise) return faceRecognitionInitPromise;
+
+  faceRecognitionInitPromise = (async () => {
+    try {
+      await loadTensorflowFaceModules();
+      await loadFaceApiModels();
+    } catch (err) {
+      faceRecognitionInitPromise = null;
+      throw err;
+    }
+  })();
+
+  return faceRecognitionInitPromise;
+}
+
 let faceApiLoadedPromise: Promise<void> | null = null;
 
 export async function loadFaceApiModels(): Promise<void> {

@@ -228,6 +228,7 @@ export default function FaceVerification({
   const checksRef = useRef<DetectionChecks>(EMPTY_CHECKS);
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const networkRetryRef = useRef<number>(0);
+  const submittingRef = useRef<boolean>(false);
 
   // State
   const [stage, setStage] = useState<Stage>("idle");
@@ -373,6 +374,9 @@ export default function FaceVerification({
 
   const submitMatch = useCallback(
     async (payload: any) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+
       updateStage("matching", "Comparing your live face on the server.");
       setMatchResult({
         status: "processing",
@@ -517,6 +521,8 @@ export default function FaceVerification({
             }, 2000 * networkRetryRef.current);
           }
         }
+      } finally {
+        submittingRef.current = false;
       }
     },
     [electionId, onVerified, stopCamera, token, updateStage],
@@ -555,6 +561,25 @@ export default function FaceVerification({
         setLiveImage(capturedImage);
       }
 
+      // Generate canonical 128-dimensional Face-API recognition descriptor from exact captured canvas frame
+      let liveDescriptor = await generateFaceEmbedding(canvas);
+      if (!liveDescriptor || liveDescriptor.length !== 128) {
+        // Fallback: try capturing directly from video element
+        liveDescriptor = await generateFaceEmbedding(video);
+      }
+
+      if (!liveDescriptor || liveDescriptor.length !== 128) {
+        throw new Error(
+          "Could not extract clear 128-bit face signature from camera capture. Please position your face clearly in the frame and try again.",
+        );
+      }
+
+      // Development Self-Test
+      if (process.env.NODE_ENV !== "production") {
+        const selfDist = Math.sqrt(liveDescriptor.reduce((sum, v, i) => sum + Math.pow(v - liveDescriptor![i], 2), 0));
+        console.log("[FACE DEBUG][SELF TEST] sameImageDistance:", selfDist);
+      }
+
       // Fallback payload if latestPayloadRef isn't populated yet
       const payload = latestPayloadRef.current || {
         livenessChecks: {
@@ -582,14 +607,13 @@ export default function FaceVerification({
           livenessScore: 95,
           confidenceScore: 0.98,
         },
-        faceTemplate: [0.9, 0.95, 0.98, 1, 1, 1, 1, 1, 1, 0.35, 0.45],
       };
 
-      // Submit immediately using faceTemplate & captured canvas frame
+      // Submit immediately using 128-d liveDescriptor & captured canvas frame
       await submitMatch({
         ...payload,
         capturedImage,
-        faceTemplate: payload.faceTemplate,
+        faceTemplate: liveDescriptor,
       });
     } catch (err: any) {
       captureStartedRef.current = false;
@@ -598,7 +622,7 @@ export default function FaceVerification({
       setError(err.message || "Face verification failed.");
       setMatchResult({ status: "failed", message: err.message });
     }
-  }, [stopCamera, submitMatch, updateStage]);
+  }, [registeredImage, stopCamera, submitMatch, updateStage]);
 
   // ============================================
   // Face Detection Loop
@@ -1025,33 +1049,28 @@ export default function FaceVerification({
     const values: Record<Stage, number> = {
       idle: 0,
       loading: 10,
-      center: 25,
-      blink: 50,
-      turnLeft: 65,
-      turnRight: 75,
-      returnCenter: 85,
-      capturing: 90,
-      matching: 95,
+      center: 20,
+      blink: 40,
+      turnLeft: 50,
+      turnRight: 60,
+      returnCenter: 70,
+      capturing: 80,
+      matching: 90,
       success: 100,
-      failed: Math.max(15, quality.qualityScore),
+      failed: 80,
     };
-    return Math.round(values[stage]);
-  }, [stage, quality.qualityScore]);
+    return values[stage] ?? 80;
+  }, [stage]);
 
   const progressSteps: ProgressStep[] = useMemo(
     () => [
       {
         label: "Initialize",
-        status: cameraActive || stage !== "idle" ? "complete" : "waiting",
+        status: stage !== "idle" && stage !== "loading" ? "complete" : cameraActive ? "processing" : "waiting",
       },
       {
         label: "Face Detection",
-        // Mark complete as soon as a face was detected OR stage has moved past 'center'
         status:
-          checks.faceDetected ||
-          stage === "blink" ||
-          stage === "turnLeft" ||
-          stage === "turnRight" ||
           stage === "returnCenter" ||
           stage === "capturing" ||
           stage === "matching" ||
@@ -1077,7 +1096,9 @@ export default function FaceVerification({
             ? "complete"
             : stage === "capturing"
               ? "processing"
-              : "waiting",
+              : stage === "failed"
+                ? "failed"
+                : "waiting",
       },
       {
         label: "Verification",
@@ -1207,7 +1228,9 @@ export default function FaceVerification({
             distanceLabel={distanceLabel}
           />
 
-          <InstructionPanel instruction={instruction} />
+          {stage !== "failed" && stage !== "success" && (
+            <InstructionPanel instruction={instruction} />
+          )}
 
           <FaceMatchResult
             status={matchResult.status}

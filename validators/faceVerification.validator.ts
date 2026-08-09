@@ -180,6 +180,7 @@ export const verifyFaceLivenessSchema = z.object({
 export const matchFaceSchema = verifyFaceLivenessSchema.extend({
   capturedImage: base64ImageSchema,
   faceTemplate: numericVectorSchema,
+  registeredFaceTemplate: numericVectorSchema.optional(),
   matchThreshold: z
     .number()
     .min(0, "Match threshold must be at least 0.")

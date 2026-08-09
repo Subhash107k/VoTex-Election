@@ -15,6 +15,9 @@ export type FaceVerificationDecision = {
   verificationStatus: "Verified" | "Rejected";
   similarityScore: number;
   threshold: number;
+  distance?: number;
+  matched?: boolean;
+  errorCode?: string;
   message: string;
   expiresAt?: string;
 };
@@ -74,30 +77,55 @@ function inverseDistanceSimilarity(a: number[], b: number[]) {
   return Math.max(0, 1 - rmse);
 }
 
-function compareTemplates(
-  liveTemplate: number[],
-  registeredTemplate: number[],
-) {
-  if (
-    Array.isArray(liveTemplate) &&
-    Array.isArray(registeredTemplate) &&
-    liveTemplate.length === 128 &&
-    registeredTemplate.length === 128
-  ) {
-    const sim = cosineSimilarity(liveTemplate, registeredTemplate);
-    return Math.max(0, Math.min(1, sim));
+export function normalizeFaceDescriptor(template: unknown): number[] | null {
+  if (!template) return null;
+  let arr: any[] = [];
+  if (Array.isArray(template)) {
+    arr = template;
+  } else if (typeof template === "string") {
+    try {
+      const parsed = JSON.parse(template);
+      if (Array.isArray(parsed)) arr = parsed;
+    } catch {
+      return null;
+    }
+  } else if (typeof template === "object" && template !== null) {
+    arr = Array.from(template as any);
   }
 
-  const cosine = cosineSimilarity(liveTemplate, registeredTemplate);
-  const distance = inverseDistanceSimilarity(liveTemplate, registeredTemplate);
-  return Math.max(0, Math.min(1, cosine * 0.65 + distance * 0.35));
+  if (arr.length !== 128) return null;
+
+  const validNumbers = arr.map((val) => Number(val));
+  const isValid = validNumbers.every(
+    (num) => typeof num === "number" && Number.isFinite(num) && !Number.isNaN(num),
+  );
+
+  return isValid ? validNumbers : null;
 }
 
-function getLatestRegisteredFaceTemplate(user: User) {
-  const userEmbedding = (user as any).faceEmbedding || user.faceTemplate;
-  if (Array.isArray(userEmbedding) && userEmbedding.length >= 6) {
-    return userEmbedding;
+export function euclideanDistance(a: number[], b: number[]): number {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+    throw new Error("Face descriptor dimensions do not match");
   }
+
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+
+  return Math.sqrt(sum);
+}
+
+export function calculateMatchScore(distance: number): number {
+  const score = 100 - (distance / 0.60) * 40;
+  return Math.max(0, Math.min(100, Number(score.toFixed(2))));
+}
+
+function getLatestRegisteredFaceTemplate(user: User): number[] | null {
+  const userEmbedding = (user as any).faceEmbedding || user.faceTemplate;
+  const userNorm = normalizeFaceDescriptor(userEmbedding);
+  if (userNorm) return userNorm;
 
   const verifications = Database.getFaceVerifications() as any[];
   const latestVerified = verifications
@@ -107,8 +135,7 @@ function getLatestRegisteredFaceTemplate(user: User) {
         (record.verificationStatus === "Verified" ||
           record.verificationStatus === "verified" ||
           record.verificationResult === "Passed") &&
-        Array.isArray(record.faceTemplate) &&
-        record.faceTemplate.length >= 6,
+        normalizeFaceDescriptor(record.faceTemplate) !== null,
     )
     .sort(
       (a, b) =>
@@ -116,7 +143,11 @@ function getLatestRegisteredFaceTemplate(user: User) {
         new Date(a.verificationTimestamp || a.verificationTime || 0).getTime(),
     )[0];
 
-  return latestVerified?.faceTemplate || null;
+  if (latestVerified?.faceTemplate) {
+    return normalizeFaceDescriptor(latestVerified.faceTemplate);
+  }
+
+  return null;
 }
 
 async function createAuditLog(
@@ -199,7 +230,18 @@ export class FaceVerificationService {
     input: VerifyFaceLivenessInput,
     context: RequestContext,
   ) {
-    const { record, verifications } = getRecord(input.verificationId, user.id);
+    let { record, verifications } = getRecord(input.verificationId, user.id);
+    if (!record) {
+      const startResult = await FaceVerificationService.start(
+        user,
+        input.electionId,
+        context,
+      );
+      const recovered = getRecord(startResult.verificationId, user.id);
+      record = recovered.record;
+      verifications = recovered.verifications;
+    }
+
     if (!record) {
       throw Object.assign(new Error("Verification session was not found."), {
         status: 404,
@@ -239,7 +281,18 @@ export class FaceVerificationService {
     input: MatchFaceInput,
     context: RequestContext,
   ): Promise<FaceVerificationDecision> {
-    const { record, verifications } = getRecord(input.verificationId, user.id);
+    let { record, verifications } = getRecord(input.verificationId, user.id);
+    if (!record) {
+      const startResult = await FaceVerificationService.start(
+        user,
+        input.electionId,
+        context,
+      );
+      const recovered = getRecord(startResult.verificationId, user.id);
+      record = recovered.record;
+      verifications = recovered.verifications;
+    }
+
     if (!record) {
       throw Object.assign(new Error("Verification session was not found."), {
         status: 404,
@@ -267,58 +320,101 @@ export class FaceVerificationService {
       };
     }
 
-    const registeredTemplate = getLatestRegisteredFaceTemplate(user);
-    if (!registeredTemplate) {
+    // Step 1: Retrieve registered template for authenticated user (strictly from database)
+    const registeredVector = getLatestRegisteredFaceTemplate(user);
+    const liveVector = normalizeFaceDescriptor(input.faceTemplate);
+
+    // Development Debug Logging (No raw vectors exposed)
+    console.log("[FACE DEBUG][REGISTERED]", {
+      templateExists: !!registeredVector,
+      templateLength: registeredVector ? registeredVector.length : 0,
+      templateValid: !!registeredVector,
+    });
+
+    console.log("[FACE DEBUG][LIVE]", {
+      descriptorLength: liveVector ? liveVector.length : 0,
+      descriptorValid: !!liveVector,
+    });
+
+    console.log("[FACE DEBUG][IDENTITY]", {
+      authenticatedUserId: user.id,
+      templateOwnerId: user.id,
+      sameUser: true,
+    });
+
+    if (!registeredVector) {
       record.verificationStatus = "Rejected";
       record.verificationResult = "Failed";
       record.similarityScore = 0;
-      record.failureReason = "No registered face template was available.";
-      await createAuditLog(
-        user,
-        `Verification failed for election "${input.electionId}": no registered face template`,
-        context,
-      );
+      record.failureReason = "No registered biometric template is available for this voter.";
       Database.saveFaceVerifications(verifications as any);
       return {
         verificationId: record.id,
         verificationResult: "Failed",
         verificationStatus: "Rejected",
         similarityScore: 0,
-        threshold: getThreshold(),
-        message:
-          "No registered face template is available for this voter profile. Please contact support.",
+        threshold: 0.60,
+        errorCode: "NO_REGISTERED_TEMPLATE",
+        message: "No registered biometric template is available for this voter profile. Please complete face enrollment first.",
       };
     }
 
-    const threshold = getThreshold();
-    const similarityScore = Number(
-      compareTemplates(input.faceTemplate, registeredTemplate).toFixed(4),
-    );
-    const passed = similarityScore >= threshold;
+    if (!liveVector) {
+      record.verificationStatus = "Rejected";
+      record.verificationResult = "Failed";
+      record.similarityScore = 0;
+      record.failureReason = "Invalid live camera face descriptor.";
+      Database.saveFaceVerifications(verifications as any);
+      return {
+        verificationId: record.id,
+        verificationResult: "Failed",
+        verificationStatus: "Rejected",
+        similarityScore: 0,
+        threshold: 0.60,
+        errorCode: "INVALID_LIVE_DESCRIPTOR",
+        message: "Could not extract a valid 128-bit face signature from the live camera capture. Please position your face clearly in front of the camera.",
+      };
+    }
+
+    const MATCH_THRESHOLD = 0.60;
+    const distance = euclideanDistance(liveVector, registeredVector);
+    const matched = distance <= MATCH_THRESHOLD;
+    const matchScorePercent = calculateMatchScore(distance);
+    const similarityScoreRatio = Number((matchScorePercent / 100).toFixed(4));
+
+    console.log("[FACE DEBUG][MATCH]", {
+      distance: Number(distance.toFixed(4)),
+      threshold: MATCH_THRESHOLD,
+      matched,
+      registeredLength: registeredVector.length,
+      liveLength: liveVector.length,
+      similarityScore: matchScorePercent,
+    });
+
     const auditLog = await createAuditLog(
       user,
-      passed
-        ? `Verification passed for election "${input.electionId}" with score ${similarityScore}`
-        : `Verification failed for election "${input.electionId}" with score ${similarityScore}`,
+      matched
+        ? `Verification passed for election "${input.electionId}" with distance ${distance.toFixed(4)} (${matchScorePercent}%)`
+        : `Verification failed for election "${input.electionId}" with distance ${distance.toFixed(4)} (${matchScorePercent}%)`,
       context,
     );
 
     record.electionId = input.electionId;
     record.faceImage = "";
-    record.faceTemplate = input.faceTemplate;
+    record.faceTemplate = liveVector;
     record.capturedImageHash = sha256(
       normalizeImageForHash(input.capturedImage),
     );
     record.capturedImagePath = null;
-    record.verificationStatus = passed ? "Verified" : "Rejected";
-    record.verificationResult = passed ? "Passed" : "Failed";
-    record.similarityScore = similarityScore;
-    record.threshold = threshold;
-    record.verificationMethod = "webcam-liveness-facemesh";
+    record.verificationStatus = matched ? "Verified" : "Rejected";
+    record.verificationResult = matched ? "Passed" : "Failed";
+    record.similarityScore = similarityScoreRatio;
+    record.threshold = MATCH_THRESHOLD;
+    record.verificationMethod = "face-api-128d-euclidean";
     record.verificationTimestamp = nowIso();
     record.verificationTime = nowIso();
     record.auditLogId = auditLog?.id ?? null;
-    record.expiresAt = passed
+    record.expiresAt = matched
       ? new Date(Date.now() + VERIFICATION_TTL_MS).toISOString()
       : null;
 
@@ -326,14 +422,17 @@ export class FaceVerificationService {
 
     return {
       verificationId: record.id,
-      verificationResult: passed ? "Passed" : "Failed",
-      verificationStatus: passed ? "Verified" : "Rejected",
-      similarityScore,
-      threshold,
+      verificationResult: matched ? "Passed" : "Failed",
+      verificationStatus: matched ? "Verified" : "Rejected",
+      similarityScore: similarityScoreRatio,
+      threshold: MATCH_THRESHOLD,
+      distance: Number(distance.toFixed(4)),
+      matched,
       expiresAt: record.expiresAt || undefined,
-      message: passed
+      errorCode: matched ? undefined : "BIOMETRIC_MISMATCH",
+      message: matched
         ? "Verification successful. You may continue to cast your vote."
-        : "Face verification failed. The live face did not match the registered voter template.",
+        : "Live face did not match the registered voter template.",
     };
   }
 

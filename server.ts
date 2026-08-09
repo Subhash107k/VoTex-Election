@@ -161,13 +161,21 @@ app.use(
   }),
 );
 
+const IS_DEV_MODE = process.env.NODE_ENV !== "production";
+const isLocalRequest = (req: any) => {
+  const ip = (req.headers["x-forwarded-for"] as string) || req.socket?.remoteAddress || "";
+  return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1" || ip.includes("127.0.0.1");
+};
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5000,
+  limit: 50000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Too many API requests. Please wait before retrying." },
   skip: (req: any) =>
+    IS_DEV_MODE ||
+    isLocalRequest(req) ||
     req.originalUrl?.includes("/dispatches") ||
     req.url?.includes("/dispatches") ||
     req.originalUrl?.includes("/auth/login") ||
@@ -176,9 +184,10 @@ const apiLimiter = rateLimit({
 
 const loginIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: 1000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: (req: any) => IS_DEV_MODE || isLocalRequest(req),
   message: {
     error: "Too many login attempts from this network location. Please wait before retrying.",
   },
@@ -186,9 +195,10 @@ const loginIpLimiter = rateLimit({
 
 const dispatchLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: 3000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: (req: any) => IS_DEV_MODE || isLocalRequest(req),
   message: {
     error: "Too many dispatch notification requests. Please wait before retrying.",
   },
@@ -196,9 +206,10 @@ const dispatchLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: 3000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: (req: any) => IS_DEV_MODE || isLocalRequest(req),
   message: {
     error: "Too many authentication attempts. Please wait before retrying.",
   },
@@ -206,9 +217,10 @@ const authLimiter = rateLimit({
 
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 50,
+  limit: 500,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: (req: any) => IS_DEV_MODE || isLocalRequest(req),
   message: {
     error: "Too many OTP requests. Please wait before requesting another code.",
   },

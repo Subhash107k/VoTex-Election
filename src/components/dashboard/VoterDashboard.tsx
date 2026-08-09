@@ -318,16 +318,54 @@ export default function VoterDashboard({
         {/* Real-time National & Voter Statistics */}
         <DashboardStatsCards token={token} user={user} />
 
-        {/* Priority Workflow Tab Selector */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-1.5 backdrop-blur-xl shadow-lg">
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        {/* Enhanced Priority Workflow Tab Selector */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/90 p-2 backdrop-blur-2xl shadow-xl shadow-slate-950/50">
+          {/* Subtle Ambient Background Gradient Line */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-emerald-500/5 pointer-events-none" />
+
+          <div className="relative z-10 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             {[
-              { id: "overview", label: "Overview & Verification", icon: User },
-              { id: "elections", label: "Active Elections & Candidates", icon: Activity },
-              { id: "myVotes", label: "My Ballots & Receipts", icon: CheckCircle2 },
-              { id: "documents", label: "Documents Vault", icon: FileText },
-              { id: "family", label: "Family & Audit History", icon: Users },
-              { id: "timeline", label: "Timeline History", icon: Clock },
+              {
+                id: "overview",
+                label: "Overview & Verification",
+                icon: User,
+                badge: user?.isVerified ? "Verified" : "Pending",
+                badgeColor: user?.isVerified
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  : "bg-amber-500/20 text-amber-400 border-amber-500/30",
+              },
+              {
+                id: "elections",
+                label: "Active Elections & Candidates",
+                icon: Activity,
+                badge: activeElections.length > 0 ? "Live" : "0",
+                badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                isLive: activeElections.length > 0,
+              },
+              {
+                id: "myVotes",
+                label: "My Ballots & Receipts",
+                icon: CheckCircle2,
+                badge: votedElectionIds.size > 0 ? `${votedElectionIds.size} Sealed` : undefined,
+                badgeColor: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+              },
+              {
+                id: "documents",
+                label: "Documents Vault",
+                icon: FileText,
+                badge: `${renderProfile?.documents?.length || 0}`,
+                badgeColor: "bg-slate-800 text-slate-300 border-slate-700",
+              },
+              {
+                id: "family",
+                label: "Family & Audit History",
+                icon: Users,
+              },
+              {
+                id: "timeline",
+                label: "Timeline History",
+                icon: Clock,
+              },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -336,14 +374,36 @@ export default function VoterDashboard({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  className={`group relative flex items-center gap-2.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-300 cursor-pointer ${
                     active
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                      ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 scale-[1.02] ring-1 ring-blue-400/40"
+                      : "text-slate-400 hover:bg-slate-800/80 hover:text-slate-100 hover:scale-[1.01] active:scale-[0.98]"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
+                  <Icon
+                    className={`h-4 w-4 transition-transform duration-300 ${
+                      active ? "text-white scale-110" : "text-slate-400 group-hover:text-blue-400 group-hover:scale-110"
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+
+                  {tab.badge && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider transition-all ${
+                        active
+                          ? "bg-white/20 text-white border-white/30"
+                          : `${tab.badgeColor}`
+                      }`}
+                    >
+                      {tab.isLive && (
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        </span>
+                      )}
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}

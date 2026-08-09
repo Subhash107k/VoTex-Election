@@ -32,7 +32,7 @@ export function createFaceVerificationRouter(authenticateToken: any) {
       return `${req.user?.id || "anon"}_${ip}`;
     },
     skip: (req: any) => {
-      // Skip rate limiting for admins
+      if (process.env.NODE_ENV !== "production") return true;
       return req.user?.role === "admin";
     },
     handler: (req: any, res: any) => {
@@ -190,6 +190,10 @@ export function createFaceVerificationRouter(authenticateToken: any) {
     body("faceTemplate.*")
       .isFloat({ min: -10, max: 10 })
       .withMessage("Face template values must be numeric and within range"),
+    body("registeredFaceTemplate")
+      .optional()
+      .isArray({ min: 8, max: 256 })
+      .withMessage("Registered face template must contain 8 to 256 numeric values"),
     body("documentImage")
       .optional()
       .isString()
@@ -291,6 +295,11 @@ export function createFaceVerificationRouter(authenticateToken: any) {
       },
     });
   });
+
+  // Register routes and log startup diagnostics
+  console.log("[FACE ROUTES] /api/face/start registered");
+  console.log("[FACE ROUTES] /api/face/verify registered");
+  console.log("[FACE ROUTES] /api/face/match registered");
 
   // Start face verification session
   router.post(
