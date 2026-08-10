@@ -216,6 +216,12 @@ async function loadRealModules(): Promise<TensorflowFaceModules> {
 
     // Set up TF.js
     await tf.ready();
+    try {
+      if ((tf as any).ENV) (tf as any).ENV.set("DEBUG", false);
+      if (typeof (tf as any).setLogLevel === "function") (tf as any).setLogLevel(2);
+    } catch {
+      // Ignore
+    }
 
     const supportedBackend = getOptimalBackend();
     if (tf.getBackend() !== supportedBackend) {

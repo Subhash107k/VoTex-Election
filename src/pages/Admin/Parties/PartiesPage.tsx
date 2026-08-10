@@ -244,81 +244,184 @@ export default function PartiesPage({
         </SectionCard>
 
         <SectionCard
-          title={formData.id ? "Edit party" : "Add party"}
-          description="Create or update a party registry entry."
+          title={formData.id ? "Edit Political Party" : "Add Political Party"}
+          description="Register a new political party or update official registry details."
         >
-          <div className="space-y-3">
-            {(
-              [
-                "name",
-                "code",
-                "logoUrl",
-                "leader",
-                "foundedYear",
-                "headquarters",
-              ] as const
-            ).map((field) => (
-              <input
-                key={field}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-                placeholder={
-                  field === "logoUrl"
-                    ? "Logo URL"
-                    : field === "foundedYear"
-                      ? "Founded year"
-                      : field.charAt(0).toUpperCase() + field.slice(1)
-                }
-                value={formData[field]}
-                onChange={(event) =>
-                  setFormData({ ...formData, [field]: event.target.value })
-                }
-              />
-            ))}
-            <div className="flex flex-wrap gap-2">
-              {presetLogos.map((logo) => (
-                <button
-                  key={logo}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, logoUrl: logo })}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs dark:border-slate-800"
-                >
-                  Use preset logo
-                </button>
-              ))}
+          <form onSubmit={(e) => { e.preventDefault(); void saveParty(); }} className="space-y-4 text-xs">
+            {/* Live Logo Preview Header */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+              <div className="h-12 w-12 rounded-xl bg-slate-200 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm">
+                {formData.logoUrl ? (
+                  <img
+                    src={formData.logoUrl}
+                    alt="Party logo preview"
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <Building className="h-6 w-6 text-slate-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm">
+                  {formData.name || "New Political Party"}
+                </h4>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px] truncate">
+                  {formData.code ? `Code: ${formData.code}` : "Enter party name & short code below"}
+                </p>
+              </div>
             </div>
-            <textarea
-              className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-              placeholder="Description"
-              value={formData.description}
-              onChange={(event) =>
-                setFormData({ ...formData, description: event.target.value })
-              }
-            />
-            <div className="flex gap-2">
+
+            {/* Basic Info: 2 Columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Party Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rastriya Prajatantra Party"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Abbreviation Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. RPP"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium uppercase"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                />
+              </div>
+            </div>
+
+            {/* Leadership & History */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Party Leader
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rajendra Lingden"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.leader}
+                  onChange={(e) => setFormData({ ...formData, leader: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Founded Year
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1990"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.foundedYear}
+                  onChange={(e) => setFormData({ ...formData, foundedYear: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Headquarters
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kathmandu, Nepal"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.headquarters}
+                  onChange={(e) => setFormData({ ...formData, headquarters: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Logo URL & Presets */}
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Logo Emblem URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://example.com/logo.png"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"
+                value={formData.logoUrl}
+                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+              />
+
+              {/* Preset Logos with visual thumbnails */}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Quick Presets:</span>
+                <div className="flex gap-2">
+                  {presetLogos.map((logo, idx) => (
+                    <button
+                      key={logo}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, logoUrl: logo })}
+                      className={`group relative h-7 w-7 rounded-lg overflow-hidden border transition-all ${
+                        formData.logoUrl === logo
+                          ? "border-blue-500 ring-2 ring-blue-500/30 scale-105"
+                          : "border-slate-200 dark:border-slate-800 hover:border-slate-400"
+                      }`}
+                      title={`Select preset emblem ${idx + 1}`}
+                    >
+                      <img src={logo} alt={`Preset ${idx + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Manifesto & Party Summary
+              </label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                placeholder="Enter party principles, founding objectives, and ideology..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/80">
               <button
-                type="button"
-                onClick={() => void saveParty()}
+                type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-60 cursor-pointer"
               >
-                <Upload className="h-4 w-4" />{" "}
+                <Upload className="h-3.5 w-3.5" />
                 {isSaving
-                  ? "Saving..."
+                  ? "Saving to registry..."
                   : formData.id
-                    ? "Update party"
-                    : "Save party"}
+                    ? "Update Party Entry"
+                    : "Save New Party"}
               </button>
-              {formData.id ? (
+              {formData.id && (
                 <button
                   type="button"
                   onClick={resetFormData}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-800"
+                  className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
                 >
-                  Cancel
+                  Cancel Edit
                 </button>
-              ) : null}
+              )}
             </div>
-          </div>
+          </form>
         </SectionCard>
       </div>
 

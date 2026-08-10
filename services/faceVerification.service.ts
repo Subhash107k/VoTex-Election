@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { Database, User } from "../src/db/dbService.js";
+import { toDate } from "../utils/dateUtils.js";
 import type {
   MatchFaceInput,
   VerifyFaceLivenessInput,
@@ -483,17 +484,16 @@ export class FaceVerificationService {
     requirements?: VerificationRequirements,
   ) {
     const verifications = Database.getFaceVerifications() as any[];
-    return verifications.find(
-      (record) =>
-        record.userId === userId &&
-        record.electionId === electionId &&
-        (!verificationId || record.id === verificationId) &&
-        record.verificationStatus === "Verified" &&
-        record.verificationResult === "Passed" &&
-        !record.consumedAt &&
-        record.expiresAt &&
-        new Date(record.expiresAt).getTime() > Date.now(),
-    );
+    return verifications.find((record) => {
+      if (record.userId !== userId) return false;
+      if (record.electionId !== electionId) return false;
+      if (verificationId && record.id !== verificationId) return false;
+      if (record.verificationStatus !== "Verified" || record.verificationResult !== "Passed") return false;
+      if (record.consumedAt) return false;
+      const expiresDate = toDate(record.expiresAt);
+      if (!expiresDate || expiresDate.getTime() <= Date.now()) return false;
+      return true;
+    });
   }
 
   static consume(verificationId: string) {

@@ -93,7 +93,7 @@ export async function requestJson<T>(
     const retryAfterHeader = response.headers.get("retry-after");
     const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : data.retryAfter;
     throw new ApiError(
-      data.error || data.message || "Something went wrong. Please try again.",
+      data.message || data.error || "Something went wrong. Please try again.",
       response.status,
       data,
       retryAfter,
@@ -101,6 +101,20 @@ export async function requestJson<T>(
   }
 
   return data;
+}
+
+export function getApiErrorMessage(err: unknown, fallback: string = "Operation failed. Please try again."): string {
+  if (!err) return fallback;
+  const anyErr = err as any;
+  if (anyErr?.data?.message && typeof anyErr.data.message === "string") return anyErr.data.message;
+  if (anyErr?.message && typeof anyErr.message === "string" && !anyErr.message.startsWith("VERIFICATION_ERROR") && !anyErr.message.startsWith("ERR_")) {
+    return anyErr.message;
+  }
+  if (anyErr?.data?.error && typeof anyErr.data.error === "string") return anyErr.data.error;
+  if (anyErr?.status === 403) return "Verification or access denied. Please re-verify your identity.";
+  if (anyErr?.status === 409) return "You have already voted in this election.";
+  if (anyErr?.status === 401) return "Session expired. Please log in again.";
+  return fallback;
 }
 
 export function jsonRequestOptions(

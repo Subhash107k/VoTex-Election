@@ -1054,7 +1054,7 @@ export default function EditProfile({
                     >
                       <option value="">Select party</option>
                       {politicalParties.map((p: any) => (
-                        <option key={p.id || p.partyId || p.code || p.name} value={p.id || p.partyId || p.name}>
+                        <option key={p.id || p.partyId || p.code || p.name} value={p.name || p.id || p.partyId}>
                           {p.name}
                         </option>
                       ))}

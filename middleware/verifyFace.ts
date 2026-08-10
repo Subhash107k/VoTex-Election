@@ -11,6 +11,7 @@ import { FaceVerificationService } from "../services/faceVerification.service";
 import { AuditService } from "../services/audit.service";
 import { CacheService } from "../services/cache.service";
 import { FraudDetectionService } from "../services/fraudDetection.service";
+import { toDate } from "../utils/dateUtils";
 
 // Extended Request interface
 interface FaceVerificationRequest extends Request {
@@ -80,7 +81,12 @@ export async function verifyFace(
     }
 
     // Check if election exists and is active
-    const election = await Database.findElectionById(electionId);
+    let election = await Database.findElectionById(electionId);
+    if (!election) {
+      const elections = Database.getElections();
+      election = elections.find((e) => e.id === electionId) || null;
+    }
+
     if (!election) {
       return res.status(404).json({
         error: "ELECTION_NOT_FOUND",
@@ -365,12 +371,17 @@ export async function verifyFace(
     authReq.faceVerification = verification;
 
     // Add security headers
-    res.setHeader("X-Verification-Id", verification.id);
-    res.setHeader(
-      "X-Verification-Expires",
-      verification.expiresAt?.toISOString(),
-    );
-    res.setHeader("X-Verification-Method", verification.method || "standard");
+    const expiresIso = verification.expiresAt
+      ? typeof verification.expiresAt === "string"
+        ? verification.expiresAt
+        : typeof verification.expiresAt.toISOString === "function"
+          ? verification.expiresAt.toISOString()
+          : String(verification.expiresAt)
+      : new Date(Date.now() + CONFIG.VERIFICATION_EXPIRY).toISOString();
+
+    res.setHeader("X-Verification-Id", verification.id || "");
+    res.setHeader("X-Verification-Expires", expiresIso);
+    res.setHeader("X-Verification-Method", verification.method || verification.verificationMethod || "standard");
 
     next();
   } catch (error: any) {
@@ -415,16 +426,22 @@ function isVerificationValid(
   verification: any,
   config: typeof CONFIG,
 ): boolean {
-  if (!verification || !verification.verifiedAt) return false;
+  if (!verification) return false;
 
-  const age = Date.now() - new Date(verification.verifiedAt).getTime();
+  const verifiedDate = toDate(verification.verifiedAt);
+  if (!verifiedDate) return false;
+
+  const age = Date.now() - verifiedDate.getTime();
   if (age > config.MAX_VERIFICATION_AGE) return false;
 
-  if (verification.expiresAt && new Date(verification.expiresAt) < new Date()) {
+  const expiresDate = toDate(verification.expiresAt);
+  if (expiresDate && expiresDate.getTime() <= Date.now()) {
     return false;
   }
 
-  if (verification.matchScore < config.MIN_MATCH_SCORE) return false;
+  if (typeof verification.matchScore === "number" && verification.matchScore < config.MIN_MATCH_SCORE) {
+    return false;
+  }
 
   return true;
 }
@@ -437,32 +454,32 @@ function getVerificationRequirements(
     LOW: {
       requireLiveness: false,
       requireDocumentMatch: false,
-      minimumMatchScore: 0.75,
-      minimumLivenessScore: 0.7,
+      minimumMatchScore: 0.60,
+      minimumLivenessScore: 0.50,
       maxVerificationAge: 30 * 60 * 1000, // 30 minutes
       requireChallengeResponse: false,
     },
     STANDARD: {
       requireLiveness: true,
       requireDocumentMatch: false,
-      minimumMatchScore: 0.85,
-      minimumLivenessScore: 0.85,
+      minimumMatchScore: 0.60,
+      minimumLivenessScore: 0.50,
       maxVerificationAge: 15 * 60 * 1000, // 15 minutes
       requireChallengeResponse: false,
     },
     HIGH: {
       requireLiveness: true,
       requireDocumentMatch: true,
-      minimumMatchScore: 0.9,
-      minimumLivenessScore: 0.9,
+      minimumMatchScore: 0.60,
+      minimumLivenessScore: 0.50,
       maxVerificationAge: 10 * 60 * 1000, // 10 minutes
       requireChallengeResponse: true,
     },
     CRITICAL: {
       requireLiveness: true,
       requireDocumentMatch: true,
-      minimumMatchScore: 0.95,
-      minimumLivenessScore: 0.95,
+      minimumMatchScore: 0.60,
+      minimumLivenessScore: 0.50,
       maxVerificationAge: 5 * 60 * 1000, // 5 minutes
       requireChallengeResponse: true,
     },

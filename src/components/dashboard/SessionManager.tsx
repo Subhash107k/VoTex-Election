@@ -319,35 +319,21 @@ export default function SessionManager({
     };
     setSessionActivities((prev) => [...prev.slice(-50), activity]);
 
-    // Behavioral anomaly detection
+    // Behavioral anomaly detection (bot detection with false-positive prevention)
     const recentMovements = mouseMovementsRef.current.filter(
       (m) => m.time > now - 5000,
     );
 
-    if (recentMovements.length >= 6) {
-      const distances = recentMovements.slice(1).map((m, i) => {
-        const prev = recentMovements[i];
-        return Math.hypot(m.x - prev.x, m.y - prev.y);
-      });
-
-      const avgSpeed =
-        distances.reduce((acc, distance) => acc + distance, 0) /
-        distances.length;
-      const maxDistance = Math.max(...distances);
+    if (recentMovements.length >= 15) {
+      const timeDeltas = recentMovements.slice(1).map((m, i) => m.time - recentMovements[i].time);
+      const isZeroJitterBot = timeDeltas.length >= 10 && timeDeltas.every((dt) => dt === timeDeltas[0] && dt < 10);
       const timeSinceLastWarning = now - lastBehaviorWarningRef.current;
-      const warningCooldown = 20 * 1000; // 20 seconds
+      const warningCooldown = 30 * 1000; // 30 seconds
 
-      const isAbruptMovement = avgSpeed > 500 || maxDistance > 200;
-      const isStalledMovement = avgSpeed < 0.3 && distances.length > 8;
-      
-      const isProfilePage = window.location.pathname.includes("/profile") || window.location.pathname.includes("/complete-profile") || window.location.pathname.includes("/edit-profile");
-
-      if (
-        !isProfilePage &&
-        (isAbruptMovement || isStalledMovement) &&
-        timeSinceLastWarning > warningCooldown
-      ) {
-        console.warn("Suspicious mouse behavior detected");
+      if (isZeroJitterBot && timeSinceLastWarning > warningCooldown) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[SECURITY DEBUG] reason: Bot-like zero-jitter mouse movement detected");
+        }
         lastBehaviorWarningRef.current = now;
       }
     }

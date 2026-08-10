@@ -14,6 +14,7 @@ import DashboardHeroBanner from "./DashboardHeroBanner";
 import VoterDashboardHeader from "./VoterDashboardHeader";
 import useProfile from "../../hooks/useProfile";
 import { getElections, getLocalVoteReceipts, getVotingStatus } from "../../services/electionService";
+import { getApiErrorMessage } from "../../services/apiClient";
 import {
   User,
   FileText,
@@ -871,7 +872,7 @@ export default function VoterDashboard({
                     console.error(err);
                     setShowConfirmModal(false);
                     setVerificationResult(null);
-                    alert(err?.message || "Failed to cast vote. Please try again.");
+                    alert(getApiErrorMessage(err, "Face verification or voting failed. Please re-verify your face and try again."));
                   } finally {
                     setIsSubmitting(false);
                   }
