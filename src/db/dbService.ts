@@ -3192,6 +3192,44 @@ export class Database {
     }
   }
 
+  static async deleteProfileDraft(userId: string): Promise<boolean> {
+    try {
+      if (this.db) {
+        await this.deleteOne("profile_drafts", { userId });
+      }
+      const store = this.inMemStore.get("profile_drafts") || {};
+      delete store[userId];
+      this.inMemStore.set("profile_drafts", store);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async cleanupExpiredDrafts(maxAgeMinutes = 30): Promise<number> {
+    try {
+      const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString();
+      let deleted = 0;
+      if (this.db) {
+        const result = await this.getCollection("profile_drafts").deleteMany({
+          updatedAt: { $lt: cutoff },
+        });
+        deleted = result.deletedCount || 0;
+      }
+      const store = this.inMemStore.get("profile_drafts") || {};
+      for (const uid of Object.keys(store)) {
+        if (store[uid]?.updatedAt && store[uid].updatedAt < cutoff) {
+          delete store[uid];
+          deleted++;
+        }
+      }
+      this.inMemStore.set("profile_drafts", store);
+      return deleted;
+    } catch {
+      return 0;
+    }
+  }
+
   static async getDispatchLogs(): Promise<any[]> {
     if (this.db) {
       return this.findAll<any>("dispatch_logs");

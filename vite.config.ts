@@ -97,29 +97,27 @@ export default defineConfig(({ command, mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          navigateFallbackDenylist: [/^\/api/],
           runtimeCaching: [
             {
+              urlPattern: /^\/api\/.*$/i,
+              handler: "NetworkOnly",
+            },
+            {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: "CacheFirst",
+              handler: "StaleWhileRevalidate",
               options: {
-                cacheName: "google-fonts-cache",
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
+                cacheName: "google-fonts-stylesheets",
               },
             },
             {
               urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
               handler: "CacheFirst",
               options: {
-                cacheName: "gstatic-fonts-cache",
+                cacheName: "google-fonts-webfonts",
                 expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                  maxEntries: 30,
+                  maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
                 },
                 cacheableResponse: {
                   statuses: [0, 200],

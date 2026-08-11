@@ -1239,6 +1239,7 @@ export const authController = {
             email: string;
             mobile: string;
             citizenshipNumber: string;
+            role?: string;
           }
         > = {
           candidate1: { id: "usr_seed_cand_1", fullName: "Gagan Thapa", username: "candidate1", nationalID: "CAND001", email: "gagan.thapa@nc.org.np", mobile: "+9779800000010", citizenshipNumber: "99901-0001-C1" },
@@ -1325,9 +1326,10 @@ export const authController = {
             updatedAt: new Date().toISOString(),
             tokenVersion: 0,
           };
-          const existingIdx = users.findIndex((u) => u.id === user.id || u.username === user.username);
-          if (existingIdx >= 0) users[existingIdx] = user;
-          else users.push(user);
+          const targetUser = user!;
+          const existingIdx = users.findIndex((u) => u.id === targetUser.id || u.username === targetUser.username);
+          if (existingIdx >= 0) users[existingIdx] = targetUser;
+          else users.push(targetUser);
           await Database.saveUsers(users);
         } else if (cand) {
           // Dynamic fallback creation for any candidate in candidates database
@@ -1353,9 +1355,10 @@ export const authController = {
             tokenVersion: 0,
           };
           cand.userId = user.id;
-          const candUserIdx = users.findIndex((u) => u.id === user.id || u.username === user.username);
-          if (candUserIdx >= 0) users[candUserIdx] = user;
-          else users.push(user);
+          const targetCandUser = user;
+          const candUserIdx = users.findIndex((u) => u.id === targetCandUser.id || u.username === targetCandUser.username);
+          if (candUserIdx >= 0) users[candUserIdx] = targetCandUser;
+          else users.push(targetCandUser);
           await Database.saveUsers(users);
           await Database.saveCandidates(candidates);
         }

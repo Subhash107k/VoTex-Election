@@ -242,6 +242,15 @@ const otpLimiter = rateLimit({
   },
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "healthy",
+    database: Database.isConnected ? "connected" : "ready",
+    environment: isProduction ? "production" : "development",
+  });
+});
+
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", loginIpLimiter);
 app.use("/api/system/dispatches/public", dispatchLimiter);
@@ -975,6 +984,12 @@ app.get("/api/system/dispatches/public", async (req, res) => {
 });
 
 app.get("/api/admin/seed-demo", async (req, res) => {
+  if (isProduction && process.env.ALLOW_DEMO_SEED !== "true") {
+    return res.status(403).json({
+      success: false,
+      message: "Demo database seeding is disabled in production.",
+    });
+  }
   try {
     const passwordHash = bcrypt.hashSync("Password123!", 10);
     const users = await Database.getUsers();
