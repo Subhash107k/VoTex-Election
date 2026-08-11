@@ -39,7 +39,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "// Database //": "",
-    "db:seed": "tsx scripts/seed.ts",
+    "db:seed": "tsx scripts/seedMongoAtlas.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:backup": "tsx scripts/backup.ts",
     "db:restore": "tsx scripts/restore.ts",

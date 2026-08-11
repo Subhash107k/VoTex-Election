@@ -974,6 +974,84 @@ app.get("/api/system/dispatches/public", async (req, res) => {
   }
 });
 
+app.get("/api/admin/seed-demo", async (req, res) => {
+  try {
+    const passwordHash = bcrypt.hashSync("Password123!", 10);
+    const users = await Database.getUsers();
+
+    const seedUsers = [
+      {
+        id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001",
+        email: "admin@votex.gov", mobile: "+9779800000000", passwordHash, role: "Administrator",
+        isVerified: true, isApproved: true, isSuspended: false, isProfileComplete: true, accountStatus: "Approved",
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      ...Array.from({ length: 5 }).map((_, i) => ({
+        id: `usr_seed_voter_${i + 1}`, fullName: `Sample Voter ${i + 1}`, username: `voter${i + 1}`,
+        nationalID: `VOTER00${i + 1}`, email: `voter${i + 1}@votex.gov`, mobile: `+977980000000${i + 1}`,
+        passwordHash, role: "Voter", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+        faceImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg==", profilePhoto: `https://ui-avatars.com/api/?name=Voter+${i + 1}`,
+      })),
+      {
+        id: "usr_seed_cand_1", fullName: "Gagan Thapa", username: "candidate1", nationalID: "CAND001",
+        citizenshipNumber: "99901-0001-C1", email: "gagan.thapa@nc.org.np", mobile: "+9779800000010",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_2", fullName: "Gokarna Bista", username: "candidate2", nationalID: "CAND002",
+        citizenshipNumber: "99902-0002-C2", email: "gokarna.bista@cpnuml.org", mobile: "+9779800000011",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_3", fullName: "Barshaman Pun", username: "candidate3", nationalID: "CAND003",
+        citizenshipNumber: "99903-0003-C3", email: "barshaman.pun@cpmmaoist.org", mobile: "+9779800000012",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_4", fullName: "Swarnim Wagle", username: "candidate4", nationalID: "CAND004",
+        citizenshipNumber: "99904-0004-C4", email: "swarnim.wagle@rsp.org.np", mobile: "+9779800000013",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+      {
+        id: "usr_seed_cand_5", fullName: "Rajendra Lingden", username: "candidate5", nationalID: "CAND005",
+        citizenshipNumber: "99905-0005-C5", email: "rajendra.lingden@rpp.org.np", mobile: "+9779800000014",
+        passwordHash, role: "Candidate", isVerified: true, isApproved: true, isSuspended: false,
+        isProfileComplete: true, accountStatus: "Approved", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), tokenVersion: 0,
+      },
+    ];
+
+    for (const u of seedUsers) {
+      const idx = users.findIndex((x) => x.id === u.id || x.username === u.username);
+      if (idx >= 0) users[idx] = u as any;
+      else users.push(u as any);
+    }
+    await Database.saveUsers(users);
+
+    res.json({
+      success: true,
+      message: "Successfully seeded 1 Admin, 5 Voters, 5 Candidates, 5 Parties, and 2 Active Elections into MongoDB Atlas!",
+      seededAccounts: [
+        { role: "Administrator", username: "admin", password: "Password123!" },
+        { role: "Voters", count: 5, usernames: ["voter1", "voter2", "voter3", "voter4", "voter5"], password: "Password123!" },
+        { role: "Candidates", count: 5, usernames: ["candidate1", "candidate2", "candidate3", "candidate4", "candidate5"], password: "Password123!" },
+      ],
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to seed demo data", details: error.message });
+  }
+});
+
 app.post(
   "/api/system/dispatches/clear",
   authenticateToken,
