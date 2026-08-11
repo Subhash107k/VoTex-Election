@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: votex-election
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: BALLOT_ENCRYPTION_SECRET
+        generateValue: true
+      - key: VOTE_HMAC_SECRET
+        generateValue: true
+      - key: BACKUP_ENCRYPTION_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: votex_db

@@ -109,7 +109,7 @@ export default function PublicContactPage({
                 <Phone className="mt-0.5 h-4 w-4 text-teal-500" />
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Help line</p>
-                  <p className={`text-sm ${textMuted}`}>+977 9807847253</p>
+                  <p className={`text-sm ${textMuted}`}>+977 9800000000</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -124,7 +124,7 @@ export default function PublicContactPage({
                 <div>
                   <p className={`font-semibold ${textTitle}`}>Working hours</p>
                   <p className={`text-sm ${textMuted}`}>
-                    Monday – Friday | 08:00 AM – 05:00 PM kathamadu
+                    Monday – Friday | 08:00 AM – 05:00 PM
                   </p>
                 </div>
               </div>
