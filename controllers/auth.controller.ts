@@ -1280,6 +1280,27 @@ export const authController = {
           usr_seed_cand_5: { id: "usr_seed_cand_5", fullName: "Rajendra Lingden", username: "candidate5", nationalID: "CAND005", email: "rajendra.lingden@rpp.org.np", mobile: "+9779800000014", citizenshipNumber: "99905-0005-C5" },
           "rajendra.lingden@rpp.org.np": { id: "usr_seed_cand_5", fullName: "Rajendra Lingden", username: "candidate5", nationalID: "CAND005", email: "rajendra.lingden@rpp.org.np", mobile: "+9779800000014", citizenshipNumber: "99905-0005-C5" },
           "rajendra lingden": { id: "usr_seed_cand_5", fullName: "Rajendra Lingden", username: "candidate5", nationalID: "CAND005", email: "rajendra.lingden@rpp.org.np", mobile: "+9779800000014", citizenshipNumber: "99905-0005-C5" },
+          // Admin seed aliases
+          admin: { id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001", email: "admin@votex.gov", mobile: "+9779800000000", citizenshipNumber: "99900-0000-A1", role: "Administrator" },
+          "admin@votex.gov": { id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001", email: "admin@votex.gov", mobile: "+9779800000000", citizenshipNumber: "99900-0000-A1", role: "Administrator" },
+          admin001: { id: "usr_seed_admin", fullName: "System Administrator", username: "admin", nationalID: "ADMIN001", email: "admin@votex.gov", mobile: "+9779800000000", citizenshipNumber: "99900-0000-A1", role: "Administrator" },
+
+          // Voter seed aliases
+          voter1: { id: "usr_seed_voter_1", fullName: "Sample Voter 1", username: "voter1", nationalID: "VOTER001", email: "voter1@votex.gov", mobile: "+9779800000001", citizenshipNumber: "99900-0001-V1", role: "Voter" },
+          "voter1@votex.gov": { id: "usr_seed_voter_1", fullName: "Sample Voter 1", username: "voter1", nationalID: "VOTER001", email: "voter1@votex.gov", mobile: "+9779800000001", citizenshipNumber: "99900-0001-V1", role: "Voter" },
+          voter001: { id: "usr_seed_voter_1", fullName: "Sample Voter 1", username: "voter1", nationalID: "VOTER001", email: "voter1@votex.gov", mobile: "+9779800000001", citizenshipNumber: "99900-0001-V1", role: "Voter" },
+
+          voter2: { id: "usr_seed_voter_2", fullName: "Sample Voter 2", username: "voter2", nationalID: "VOTER002", email: "voter2@votex.gov", mobile: "+9779800000002", citizenshipNumber: "99900-0002-V2", role: "Voter" },
+          "voter2@votex.gov": { id: "usr_seed_voter_2", fullName: "Sample Voter 2", username: "voter2", nationalID: "VOTER002", email: "voter2@votex.gov", mobile: "+9779800000002", citizenshipNumber: "99900-0002-V2", role: "Voter" },
+
+          voter3: { id: "usr_seed_voter_3", fullName: "Sample Voter 3", username: "voter3", nationalID: "VOTER003", email: "voter3@votex.gov", mobile: "+9779800000003", citizenshipNumber: "99900-0003-V3", role: "Voter" },
+          "voter3@votex.gov": { id: "usr_seed_voter_3", fullName: "Sample Voter 3", username: "voter3", nationalID: "VOTER003", email: "voter3@votex.gov", mobile: "+9779800000003", citizenshipNumber: "99900-0003-V3", role: "Voter" },
+
+          voter4: { id: "usr_seed_voter_4", fullName: "Sample Voter 4", username: "voter4", nationalID: "VOTER004", email: "voter4@votex.gov", mobile: "+9779800000004", citizenshipNumber: "99900-0004-V4", role: "Voter" },
+          "voter4@votex.gov": { id: "usr_seed_voter_4", fullName: "Sample Voter 4", username: "voter4", nationalID: "VOTER004", email: "voter4@votex.gov", mobile: "+9779800000004", citizenshipNumber: "99900-0004-V4", role: "Voter" },
+
+          voter5: { id: "usr_seed_voter_5", fullName: "Sample Voter 5", username: "voter5", nationalID: "VOTER005", email: "voter5@votex.gov", mobile: "+9779800000005", citizenshipNumber: "99900-0005-V5", role: "Voter" },
+          "voter5@votex.gov": { id: "usr_seed_voter_5", fullName: "Sample Voter 5", username: "voter5", nationalID: "VOTER005", email: "voter5@votex.gov", mobile: "+9779800000005", citizenshipNumber: "99900-0005-V5", role: "Voter" },
         };
 
         const seedMatch = seedCandMap[normalizedIdentifier];
@@ -1294,7 +1315,7 @@ export const authController = {
             email: seedMatch.email,
             mobile: seedMatch.mobile,
             passwordHash: passHash,
-            role: "Candidate",
+            role: (seedMatch as any).role || "Candidate",
             isVerified: true,
             isApproved: true,
             isSuspended: false,
