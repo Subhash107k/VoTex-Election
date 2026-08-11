@@ -966,14 +966,12 @@ app.get(
 );
 
 app.get("/api/system/dispatches/public", async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    return res
-      .status(403)
-      .json({ error: "Public dispatch logs are disabled in production." });
+  try {
+    const logs = await Database.getDispatchLogs();
+    res.json({ logs: Array.isArray(logs) ? logs.filter((l: any) => l.isPublic) : [] });
+  } catch {
+    res.json({ logs: [] });
   }
-
-  const logs = await Database.getDispatchLogs();
-  res.json({ logs });
 });
 
 app.post(
