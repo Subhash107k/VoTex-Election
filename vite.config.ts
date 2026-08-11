@@ -508,18 +508,7 @@ export default defineConfig(({ command, mode }) => {
       plugins: () => [react()],
     },
 
-    // ============================================
-    // Experimental Features
-    // ============================================
-    experimental: {
-      // Enable render built-in for faster builds
-      renderBuiltUrl: (filename, { hostType }) => {
-        if (hostType === "js") {
-          return { runtime: `window.__toCdnUrl(${JSON.stringify(filename)})` };
-        }
-        return { relative: true };
-      },
-    },
+
 
     // ============================================
     // Log Level
