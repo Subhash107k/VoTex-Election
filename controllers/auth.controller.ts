@@ -1325,7 +1325,9 @@ export const authController = {
             updatedAt: new Date().toISOString(),
             tokenVersion: 0,
           };
-          users.push(user);
+          const existingIdx = users.findIndex((u) => u.id === user.id || u.username === user.username);
+          if (existingIdx >= 0) users[existingIdx] = user;
+          else users.push(user);
           await Database.saveUsers(users);
         } else if (cand) {
           // Dynamic fallback creation for any candidate in candidates database
@@ -1351,7 +1353,9 @@ export const authController = {
             tokenVersion: 0,
           };
           cand.userId = user.id;
-          users.push(user);
+          const candUserIdx = users.findIndex((u) => u.id === user.id || u.username === user.username);
+          if (candUserIdx >= 0) users[candUserIdx] = user;
+          else users.push(user);
           await Database.saveUsers(users);
           await Database.saveCandidates(candidates);
         }
