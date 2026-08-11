@@ -2625,15 +2625,28 @@ app.get(
     const votes = Database.getVotes();
     const logs = Database.getAuditLogs();
 
-    const registeredVoters = users.filter((u) => u.role === "Voter").length;
-    const verifiedVoters = users.filter(
-      (u) => u.role === "Voter" && u.faceImage,
-    ).length;
+    let registeredVoters = 0;
+    let verifiedVoters = 0;
+    let totalAdmins = 0;
+    let maleCount = 0;
+    let femaleCount = 0;
+    let otherGenderCount = 0;
+
+    for (let i = 0; i < users.length; i++) {
+      const u = users[i];
+      if (u.role === "Voter") {
+        registeredVoters++;
+        if (u.faceImage) verifiedVoters++;
+        if (u.gender === "Male") maleCount++;
+        else if (u.gender === "Female") femaleCount++;
+        else if (u.gender) otherGenderCount++;
+      } else if (u.role !== "Candidate") {
+        totalAdmins++;
+      }
+    }
+
     const totalCandidates = candidates.length;
     const totalVotes = votes.length;
-    const totalAdmins = users.filter(
-      (u) => u.role !== "Voter" && u.role !== "Candidate",
-    ).length;
 
     // Compute Turnout %
     const turnoutPercent =
@@ -2641,10 +2654,23 @@ app.get(
         ? parseFloat(((totalVotes / registeredVoters) * 100).toFixed(1))
         : 0;
 
-    // Vote tallies dynamically per candidate
+    // Pre-index elections and vote counts for O(1) lookups
+    const electionMap = new Map<string, Election>();
+    for (let i = 0; i < elections.length; i++) {
+      electionMap.set(elections[i].id, elections[i]);
+    }
+
+    const voteCountMap = new Map<string, number>();
+    for (let i = 0; i < votes.length; i++) {
+      const cId = votes[i].candidateId;
+      if (cId) {
+        voteCountMap.set(cId, (voteCountMap.get(cId) || 0) + 1);
+      }
+    }
+
     const candidateVotes = candidates.map((c) => {
-      const election = elections.find((e) => e.id === c.electionId);
-      const count = votes.filter((v) => v.candidateId === c.id).length;
+      const election = electionMap.get(c.electionId);
+      const count = voteCountMap.get(c.id) || 0;
       return {
         id: c.id,
         name: c.name,
@@ -2654,11 +2680,10 @@ app.get(
       };
     });
 
-    // Demographics distribution mocks based on registered voters
     const genderBreakdown = {
-      Male: users.filter((u) => u.gender === "Male").length,
-      Female: users.filter((u) => u.gender === "Female").length,
-      Other: users.filter((u) => u.gender === "Other").length,
+      Male: maleCount,
+      Female: femaleCount,
+      Other: otherGenderCount,
     };
 
     const getAge = (dobString?: string) => {

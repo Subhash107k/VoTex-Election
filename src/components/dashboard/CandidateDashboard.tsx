@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { fetchWithCache } from "../../utils/apiCache.ts";
 import {
   LogOut,
   ShieldCheck,
@@ -141,46 +142,49 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
     try {
       setLoading(true);
 
-      // Fetch candidate profile
-      const profileRes = await fetch("/api/candidates/profile/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const profileData = await profileRes.json();
+      // Parallelize primary initial data requests
+      const [profileResResult, partiesDataResult, electionsDataResult, notifResResult] =
+        await Promise.allSettled([
+          fetch("/api/candidates/profile/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then((r) => r.json()),
+          fetchWithCache<any>("/api/parties", undefined, 30000),
+          fetchWithCache<any>("/api/elections", undefined, 15000),
+          fetch("/api/notifications", {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then((r) => r.json()),
+        ]);
 
-      // Fetch parties
-      const partiesRes = await fetch("/api/parties");
-      const partiesData = await partiesRes.json();
+      const profileData =
+        profileResResult.status === "fulfilled" ? profileResResult.value : {};
+      const partiesData =
+        partiesDataResult.status === "fulfilled" ? partiesDataResult.value : {};
+      const electionsData =
+        electionsDataResult.status === "fulfilled"
+          ? electionsDataResult.value
+          : {};
+      const notifData =
+        notifResResult.status === "fulfilled" ? notifResResult.value : {};
+
       setParties(partiesData.parties || []);
-
-      // Fetch elections
-      const electionsRes = await fetch("/api/elections");
-      const electionsData = await electionsRes.json();
       setElections(electionsData.elections || []);
+      setNotifications(notifData.notifications || []);
 
-      // Fetch analytics if profile exists
+      // Fetch analytics & public profile in parallel if profile exists
       if (profileData.candidate) {
-        try {
-          const analyticsRes = await fetch(
-            `/api/candidates/${profileData.candidate.id}/analytics`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          );
-          const analyticsData = await analyticsRes.json();
-          setAnalytics(analyticsData);
-        } catch (e) {
-          console.log("Analytics not available yet");
-        }
+        const candId = profileData.candidate.id;
+        const [analyticsResult, publicResult] = await Promise.allSettled([
+          fetch(`/api/candidates/${candId}/analytics`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then((r) => r.json()),
+          fetch(`/api/candidates/${candId}/public`).then((r) => r.json()),
+        ]);
 
-        // Fetch public profile
-        try {
-          const publicRes = await fetch(
-            `/api/candidates/${profileData.candidate.id}/public`,
-          );
-          const publicData = await publicRes.json();
-          setPublicProfile(publicData);
-        } catch (e) {
-          console.log("Public profile not available");
+        if (analyticsResult.status === "fulfilled") {
+          setAnalytics(analyticsResult.value);
+        }
+        if (publicResult.status === "fulfilled") {
+          setPublicProfile(publicResult.value);
         }
 
         setProfile(profileData.candidate);
@@ -211,17 +215,6 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           email: user.email || "",
           phoneNumber: user.mobile || "",
         }));
-      }
-
-      // Fetch notifications
-      try {
-        const notifRes = await fetch("/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const notifData = await notifRes.json();
-        setNotifications(notifData.notifications || []);
-      } catch (e) {
-        console.log("Notifications not loaded");
       }
     } catch (e: any) {
       triggerToast("Error loading profile data", true);

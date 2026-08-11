@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchWithCache, invalidateCache } from "../utils/apiCache.ts";
 import {
   AuditLog,
   Candidate,

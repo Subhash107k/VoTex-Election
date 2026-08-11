@@ -68,25 +68,31 @@ export default function VoterDashboard({
   >("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch real active elections & voting status on mount
+  // Fetch real active elections & voting status on mount in parallel
   useEffect(() => {
     let active = true;
     const fetchElectionsAndStatus = async () => {
       try {
-        const items = await getElections(token);
-        if (!active) return;
-        const activeOnly = items.filter((e: any) => e.status === "Active" || e.active === true);
-        setActiveElections(activeOnly);
-
-        // Load receipts and server voted status
         const receipts = getLocalVoteReceipts();
         const votedSet = new Set(receipts.map((r: any) => r.electionId));
-        try {
-          const serverVoted = await getVotingStatus(token);
-          serverVoted.forEach((id: string) => votedSet.add(id));
-        } catch {
-          // ignore
+
+        const [electionsResult, statusResult] = await Promise.allSettled([
+          getElections(token),
+          getVotingStatus(token),
+        ]);
+
+        if (!active) return;
+
+        if (electionsResult.status === "fulfilled") {
+          const items = electionsResult.value;
+          const activeOnly = items.filter((e: any) => e.status === "Active" || e.active === true);
+          setActiveElections(activeOnly);
         }
+
+        if (statusResult.status === "fulfilled") {
+          statusResult.value.forEach((id: string) => votedSet.add(id));
+        }
+
         if (active) {
           setVotedElectionIds(votedSet);
         }

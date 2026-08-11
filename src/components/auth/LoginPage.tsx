@@ -280,6 +280,33 @@ export default function LoginPage({
               {!loading && <ArrowRight className="h-4 w-4" />}
             </button>
 
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Demo Quick Auto-fill:</span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setLoginForm({ email: "candidate1", password: "Password123!" })}
+                  className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] transition cursor-pointer border border-emerald-500/20"
+                >
+                  Candidate 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginForm({ email: "candidate2", password: "Password123!" })}
+                  className="px-2 py-1 rounded bg-teal-500/10 hover:bg-teal-500/20 text-teal-600 dark:text-teal-400 font-semibold text-[11px] transition cursor-pointer border border-teal-500/20"
+                >
+                  Candidate 2
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginForm({ email: "voter1", password: "Password123!" })}
+                  className="px-2 py-1 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 font-semibold text-[11px] transition cursor-pointer border border-sky-500/20"
+                >
+                  Voter 1
+                </button>
+              </div>
+            </div>
+
             <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600 dark:border-emerald-950 dark:bg-[#08110f] dark:text-slate-400 sm:grid-cols-2">
               <div className="flex items-center gap-2">
                 <Fingerprint className="h-4 w-4 text-emerald-500" />

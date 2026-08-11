@@ -1,4 +1,5 @@
 import { requestJson, authHeader, ApiError } from "./apiClient";
+import { fetchWithCache, invalidateCache } from "../utils/apiCache";
 
 export interface Candidate {
   id: string;
@@ -146,9 +147,7 @@ const MOCK_ELECTIONS: Election[] = [
 export async function getElections(token: string | null): Promise<Election[]> {
   try {
     const headers = { ...(authHeader(token) as any) };
-    const data = await requestJson<any>(`/api/elections`, {
-      headers,
-    });
+    const data = await fetchWithCache<any>(`/api/elections`, { headers }, 15000);
     const list = data?.elections || (Array.isArray(data) ? data : null);
     if (list && Array.isArray(list)) {
       return list;
@@ -163,9 +162,11 @@ export async function getVotingStatus(token: string | null): Promise<Set<string>
   if (!token) return new Set();
   try {
     const headers = authHeader(token);
-    const data = await requestJson<{ statuses: Array<{ electionId: string; voted: boolean }> }>("/api/users/voting-status", {
-      headers,
-    });
+    const data = await fetchWithCache<{ statuses: Array<{ electionId: string; voted: boolean }> }>(
+      "/api/users/voting-status",
+      { headers },
+      10000,
+    );
     if (data?.statuses && Array.isArray(data.statuses)) {
       const votedSet = new Set<string>();
       data.statuses.forEach((s) => {
@@ -199,6 +200,9 @@ export async function castVote(
       body: JSON.stringify(payload),
     });
     if (data?.success) {
+      invalidateCache("voting-status");
+      invalidateCache("elections");
+      invalidateCache("stats");
       const receiptObj: VoteReceipt = {
         receiptId: typeof data.receipt === "string" ? data.receipt : data.receipt?.id || (data as any).ballotReceipt || `VOTEX-RCT-${Date.now()}`,
         electionId: payload.electionId,

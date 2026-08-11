@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { fetchWithCache } from "../utils/apiCache.ts";
 
 export function normalizeProfilePayload(data: any) {
   if (!data || !data.user) return data || null;
@@ -449,11 +450,11 @@ export function useProfile(token?: string) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/profile/my-profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load profile");
-      const data = await res.json();
+      const data = await fetchWithCache<any>(
+        "/api/profile/my-profile",
+        { headers: { Authorization: `Bearer ${token}` } },
+        10000,
+      );
       setProfile(normalizeProfilePayload(data) || data || null);
     } catch (e: any) {
       setError(e?.message || "Unknown error");

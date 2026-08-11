@@ -249,7 +249,7 @@ export default function App() {
       window.removeEventListener("storage", handleStorage);
       if (channel) channel.close();
     };
-  }, [token, currentPath]);
+  }, [token]);
 
   const getHomePath = (u: User) => {
     if (u.role === "Voter") {
@@ -408,13 +408,13 @@ export default function App() {
     try {
       setLoading(true);
       const authResult = await loginAccount(loginForm);
-      const profileResult = await getCurrentUser(authResult.token);
-      if (!profileResult.user) {
+      const user = authResult.user || (await getCurrentUser(authResult.token)).user;
+      if (!user) {
         throw new Error("Your session ended. Please sign in again.");
       }
       showToast("Signed in successfully.");
-      saveSession(authResult.token, profileResult.user);
-      setCurrentPath(getHomePath(profileResult.user));
+      saveSession(authResult.token, user);
+      setCurrentPath(getHomePath(user));
     } catch (error) {
       showToast(getErrorMessage(error), "error");
     } finally {
