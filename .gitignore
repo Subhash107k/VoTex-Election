@@ -24,13 +24,18 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / editor state
+.vs/
 .vscode/
 .idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # Temporary files
 tmp/
 temp/
 
-# Uploaded files
+# Uploaded files / local runtime data
 uploads/
